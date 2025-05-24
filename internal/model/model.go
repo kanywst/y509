@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -23,10 +24,14 @@ const (
 type ViewMode int
 
 const (
-	ViewNormal ViewMode = iota
+	ViewSplash ViewMode = iota
+	ViewNormal
 	ViewCommand
 	ViewDetail
 )
+
+// SplashDoneMsg indicates splash screen is complete
+type SplashDoneMsg struct{}
 
 // Model represents the application state
 type Model struct {
@@ -51,6 +56,28 @@ type Model struct {
 	searchQuery  string
 	filterActive bool
 	filterType   string
+
+	// Splash screen
+	splashTimer int
+
+	// Right pane scrolling
+	rightPaneScroll int
+}
+
+// max returns the maximum of two integers
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // NewModel creates a new model with certificates
@@ -61,7 +88,7 @@ func NewModel(certs []*certificate.CertificateInfo) Model {
 		cursor:          0,
 		focus:           FocusLeft,
 		ready:           false,
-		viewMode:        ViewNormal,
+		viewMode:        ViewSplash,
 		commandInput:    "",
 		commandError:    "",
 		detailField:     "",
@@ -69,12 +96,16 @@ func NewModel(certs []*certificate.CertificateInfo) Model {
 		searchQuery:     "",
 		filterActive:    false,
 		filterType:      "",
+		splashTimer:     0,
+		rightPaneScroll: 0,
 	}
 }
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
-	return nil
+	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+		return SplashDoneMsg{}
+	})
 }
 
 // Update handles messages and updates the model
@@ -86,7 +117,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ready = true
 		return m, nil
 
+	case SplashDoneMsg:
+		if m.viewMode == ViewSplash {
+			m.splashTimer++
+			if m.splashTimer >= 20 { // 2 seconds (20 * 100ms)
+				m.viewMode = ViewNormal
+				return m, nil
+			}
+			return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+				return SplashDoneMsg{}
+			})
+		}
+		return m, nil
+
 	case tea.KeyMsg:
+		// Skip splash screen on any key press
+		if m.viewMode == ViewSplash {
+			m.viewMode = ViewNormal
+			return m, nil
+		}
+
 		switch m.viewMode {
 		case ViewCommand:
 			return m.updateCommandMode(msg)
@@ -110,6 +160,13 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.focus == FocusLeft && len(m.certificates) > 0 {
 			if m.cursor > 0 {
 				m.cursor--
+				// Reset right pane scroll when changing certificate
+				m.rightPaneScroll = 0
+			}
+		} else if m.focus == FocusRight {
+			// Scroll up in right pane
+			if m.rightPaneScroll > 0 {
+				m.rightPaneScroll--
 			}
 		}
 
@@ -117,7 +174,12 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.focus == FocusLeft && len(m.certificates) > 0 {
 			if m.cursor < len(m.certificates)-1 {
 				m.cursor++
+				// Reset right pane scroll when changing certificate
+				m.rightPaneScroll = 0
 			}
+		} else if m.focus == FocusRight {
+			// Scroll down in right pane
+			m.rightPaneScroll++
 		}
 
 	case "left", "h":
@@ -305,6 +367,7 @@ func (m *Model) handleGotoCommand(cmd string) {
 	}
 
 	m.cursor = index - 1
+	m.rightPaneScroll = 0 // Reset scroll when jumping to certificate
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
 }
@@ -362,6 +425,7 @@ func (m *Model) searchCertificates(query string) {
 	m.filterActive = true
 	m.filterType = fmt.Sprintf("search: %s", query)
 	m.cursor = 0
+	m.rightPaneScroll = 0 // Reset scroll when searching
 
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
@@ -392,6 +456,7 @@ func (m *Model) filterCertificates(filterType string) {
 	m.filterActive = true
 	m.filterType = filterType
 	m.cursor = 0
+	m.rightPaneScroll = 0 // Reset scroll when filtering
 
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
@@ -408,6 +473,7 @@ func (m *Model) resetView() {
 	m.filterActive = false
 	m.filterType = ""
 	m.cursor = 0
+	m.rightPaneScroll = 0 // Reset scroll when resetting view
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
 }
@@ -446,60 +512,119 @@ func (m *Model) showDetail(field, value string) {
 	m.detailValue = value
 }
 
-// View renders the model
+// renderSplashScreen renders the y509 ASCII art splash screen
+func (m Model) renderSplashScreen() string {
+	asciiArt := `
+    ██    ██ ███████  ██████   ██████   █████  
+     ██  ██  ██      ██    ██ ██    ██ ██   ██ 
+      ████   ███████ ██    ██ ██    ██  █████  
+       ██         ██ ██    ██ ██    ██      ██ 
+       ██    ███████  ██████   ██████   █████  
+                                              
+    Certificate Chain TUI Viewer
+    
+    Analyzing window size...
+    `
+
+	// Center the ASCII art
+	style := lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height).
+		Align(lipgloss.Center, lipgloss.Center).
+		Foreground(lipgloss.Color("62")).
+		Bold(true)
+
+	return style.Render(asciiArt)
+}
+
+// View renders the model - WITH SPLASH SCREEN
 func (m Model) View() string {
 	if !m.ready {
-		return "Loading..."
-	}
-
-	if len(m.allCertificates) == 0 {
-		return "No certificates found."
+		return "Initializing..."
 	}
 
 	switch m.viewMode {
+	case ViewSplash:
+		return m.renderSplashScreen()
 	case ViewDetail:
 		return m.renderDetailView()
 	default:
+		if len(m.allCertificates) == 0 {
+			return "No certificates found."
+		}
 		return m.renderNormalView()
 	}
 }
 
-// renderNormalView renders the normal two-pane view
+// renderNormalView renders the normal two-pane view - ALWAYS DUAL PANE
 func (m Model) renderNormalView() string {
-	// Calculate dimensions
-	leftWidth := m.width / 3
-	rightWidth := m.width - leftWidth - 2 // Account for borders
-	contentHeight := m.height - 3         // Account for status bar
-
+	// Calculate available space for main content
+	statusBarHeight := 1
+	commandBarHeight := 0
 	if m.viewMode == ViewCommand {
-		contentHeight -= 2 // Account for command input
+		commandBarHeight = 1
 	}
 
-	// Render left pane (certificate list)
-	leftContent := m.renderCertificateList(contentHeight - 2) // Account for borders
-	leftTitle := "Certificates"
-	if m.filterActive {
-		leftTitle = fmt.Sprintf("Certificates (%s)", m.filterType)
+	// Calculate main content height
+	mainHeight := m.height - statusBarHeight - commandBarHeight
+	if mainHeight < 3 {
+		mainHeight = 3
 	}
-	leftPane := m.createPane(leftContent, leftWidth, contentHeight, m.focus == FocusLeft, leftTitle)
 
-	// Render right pane (certificate details)
-	rightContent := m.renderCertificateDetails(rightWidth-2, contentHeight-2) // Account for borders and padding
-	rightPane := m.createPane(rightContent, rightWidth, contentHeight, m.focus == FocusRight, "Details")
+	// Always use dual pane layout, regardless of width
+	// Calculate pane widths - make left pane smaller for narrow screens
+	var leftWidth, rightWidth int
+	if m.width < 40 {
+		// Very narrow: 1/4 and 3/4
+		leftWidth = max(8, m.width/4)
+		rightWidth = m.width - leftWidth
+	} else if m.width < 60 {
+		// Narrow: 1/3 and 2/3
+		leftWidth = max(12, m.width/3)
+		rightWidth = m.width - leftWidth
+	} else {
+		// Normal: 1/3 and 2/3
+		leftWidth = m.width / 3
+		rightWidth = m.width - leftWidth
+	}
+
+	// Ensure minimum widths
+	if leftWidth < 8 {
+		leftWidth = 8
+		rightWidth = m.width - leftWidth
+	}
+	if rightWidth < 8 {
+		rightWidth = 8
+		leftWidth = m.width - rightWidth
+	}
+
+	// Calculate content height for list (subtract borders only)
+	contentHeight := mainHeight - 2 // borders(2) only
+	if contentHeight < 1 {
+		contentHeight = 1
+	}
+
+	leftContent := m.renderCertificateList(contentHeight)
+	leftPane := m.createPane(leftContent, leftWidth, mainHeight, m.focus == FocusLeft, "")
+
+	// Render right pane (certificate details) with scrolling
+	rightContent := m.renderCertificateDetails(rightWidth-4, contentHeight)
+	rightPane := m.createPane(rightContent, rightWidth, mainHeight, m.focus == FocusRight, "")
 
 	// Combine panes
 	mainView := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
 
-	// Status bar
-	statusBar := m.renderStatusBar()
+	// Build final view
+	var parts []string
+	parts = append(parts, mainView)
 
-	// Command input (if in command mode)
 	if m.viewMode == ViewCommand {
-		commandBar := m.renderCommandBar()
-		return lipgloss.JoinVertical(lipgloss.Left, mainView, commandBar, statusBar)
+		parts = append(parts, m.renderCommandBar())
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, mainView, statusBar)
+	parts = append(parts, m.renderStatusBar())
+
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }
 
 // renderDetailView renders the full-screen detail view
@@ -509,18 +634,22 @@ func (m Model) renderDetailView() string {
 		title = fmt.Sprintf("%s - Certificate %d/%d", m.detailField, m.cursor+1, len(m.certificates))
 	}
 
+	// Calculate main content height
+	mainHeight := m.height - 1 // Status bar
+
 	// Create full-screen pane
 	content := m.detailValue
-	pane := m.createPane(content, m.width-2, m.height-3, true, title)
+	pane := m.createPane(content, m.width, mainHeight, true, "")
 
-	// Status bar for detail view
+	// Status bar for detail view with title
+	statusText := fmt.Sprintf("[%s] ESC: back to normal view • q: quit", title)
 	statusBar := lipgloss.NewStyle().
 		Background(lipgloss.Color("62")).
 		Foreground(lipgloss.Color("230")).
 		Bold(true).
 		Width(m.width).
 		Padding(0, 1).
-		Render("ESC: back to normal view • q: quit")
+		Render(statusText)
 
 	return lipgloss.JoinVertical(lipgloss.Left, pane, statusBar)
 }
@@ -533,7 +662,9 @@ func (m Model) renderCommandBar() string {
 	if m.commandError != "" {
 		errorStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).
-			Bold(true)
+			Bold(true).
+			Width(m.width).
+			Padding(0, 1)
 		return errorStyle.Render(fmt.Sprintf("Error: %s", m.commandError))
 	}
 
@@ -546,16 +677,21 @@ func (m Model) renderCommandBar() string {
 	return commandStyle.Render(prompt + input)
 }
 
-// renderCertificateList renders the list of certificates
+// renderCertificateList renders the list of certificates - COMPACT FOR SMALL SCREENS
 func (m Model) renderCertificateList(height int) string {
 	if len(m.certificates) == 0 {
 		if m.filterActive {
-			return fmt.Sprintf("No certificates match filter: %s\n\nUse ':reset' to clear filter", m.filterType)
+			return fmt.Sprintf("No certs match filter: %s\n\nUse ':reset' to clear", m.filterType)
 		}
-		return "No certificates available"
+		return "No certificates"
 	}
 
-	var content string
+	// Ensure height is positive
+	if height <= 0 {
+		height = 1
+	}
+
+	var content strings.Builder
 	start := 0
 	end := len(m.certificates)
 
@@ -571,7 +707,23 @@ func (m Model) renderCertificateList(height int) string {
 
 	for i := start; i < end && i < len(m.certificates); i++ {
 		cert := m.certificates[i]
-		line := cert.Label
+
+		// Create compact label for narrow screens
+		var line string
+		if m.width < 40 {
+			// Very compact: just number and status
+			line = fmt.Sprintf("%d", i+1)
+		} else if m.width < 60 {
+			// Compact: number and short name
+			shortName := cert.Label
+			if len(shortName) > 15 {
+				shortName = shortName[:12] + "..."
+			}
+			line = fmt.Sprintf("%d. %s", i+1, shortName)
+		} else {
+			// Normal: full label
+			line = fmt.Sprintf("%d. %s", i+1, cert.Label)
+		}
 
 		// Add status indicators
 		if certificate.IsExpired(cert.Certificate) {
@@ -597,85 +749,170 @@ func (m Model) renderCertificateList(height int) string {
 			}
 		}
 
-		content += line + "\n"
+		content.WriteString(line)
+		if i < end-1 || i < len(m.certificates)-1 {
+			content.WriteString("\n")
+		}
 	}
 
-	// Fill remaining space
-	for i := len(content); i < height; i++ {
-		content += "\n"
-	}
-
-	return content
+	return content.String()
 }
 
-// renderCertificateDetails renders the details of the selected certificate
+// renderCertificateDetails renders the details of the selected certificate with scrolling support
 func (m Model) renderCertificateDetails(width, height int) string {
 	if len(m.certificates) == 0 {
 		return "No certificate selected"
 	}
 
 	cert := m.certificates[m.cursor]
-	details := certificate.GetCertificateDetails(cert.Certificate)
 
-	// Apply text wrapping and height limiting
+	// Get full details
+	var details string
+	if width < 30 {
+		// Very compact details
+		details = fmt.Sprintf("Cert %d/%d\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nValid:\n%s - %s",
+			m.cursor+1, len(m.certificates),
+			cert.Label,
+			cert.Certificate.Subject.CommonName,
+			cert.Certificate.Issuer.CommonName,
+			cert.Certificate.NotBefore.Format("2006-01-02"),
+			cert.Certificate.NotAfter.Format("2006-01-02"))
+	} else {
+		// Use full details
+		details = certificate.GetCertificateDetails(cert.Certificate)
+	}
+
+	// Split details into lines for scrolling
+	lines := strings.Split(details, "\n")
+
+	// Apply scrolling
+	start := m.rightPaneScroll
+	end := start + height
+
+	// Ensure we don't scroll past the content
+	if start >= len(lines) {
+		start = max(0, len(lines)-height)
+		m.rightPaneScroll = start
+	}
+	if end > len(lines) {
+		end = len(lines)
+	}
+
+	// Get visible lines
+	var visibleLines []string
+	if start < len(lines) {
+		visibleLines = lines[start:end]
+	}
+
+	// Join visible lines
+	scrolledContent := strings.Join(visibleLines, "\n")
+
+	// Add scroll indicator if there's more content
+	if len(lines) > height {
+		scrollInfo := ""
+		if start > 0 {
+			scrollInfo += "↑ "
+		}
+		if end < len(lines) {
+			scrollInfo += "↓ "
+		}
+		if scrollInfo != "" {
+			scrollInfo = fmt.Sprintf(" [%s%d/%d]", scrollInfo, start+1, len(lines))
+			scrolledContent += "\n" + scrollInfo
+		}
+	}
+
+	// Apply text wrapping with proper width
 	style := lipgloss.NewStyle().
-		Width(width).
-		Height(height)
+		Width(width)
 
-	return style.Render(details)
+	return style.Render(scrolledContent)
 }
 
-// createPane creates a styled pane with border
+// createPane creates a styled pane with border (no internal title)
 func (m Model) createPane(content string, width, height int, focused bool, title string) string {
+	// Create the bordered pane without internal title
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		Width(width).
-		Height(height)
+		Padding(0, 1)
 
 	if focused {
-		borderStyle = borderStyle.
-			BorderForeground(lipgloss.Color("62")).
-			Bold(true)
+		borderStyle = borderStyle.BorderForeground(lipgloss.Color("62"))
 	} else {
-		borderStyle = borderStyle.
-			BorderForeground(lipgloss.Color("240"))
-	}
-
-	// Add title
-	if title != "" {
-		titleStyle := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("205"))
-
-		if focused {
-			titleStyle = titleStyle.Foreground(lipgloss.Color("62"))
-		}
-
-		content = titleStyle.Render(title) + "\n\n" + content
+		borderStyle = borderStyle.BorderForeground(lipgloss.Color("240"))
 	}
 
 	return borderStyle.Render(content)
 }
 
-// renderStatusBar renders the status bar with help text
+// renderStatusBar renders the status bar with help text and pane titles - COMPACT FOR SMALL SCREENS
 func (m Model) renderStatusBar() string {
-	helpText := "↑/↓: navigate • ←/→: switch panes • :: command mode • q: quit"
+	// Build pane titles
+	leftTitle := "Certs"
+	if m.filterActive {
+		if m.width < 40 {
+			leftTitle = "Filtered"
+		} else {
+			leftTitle = fmt.Sprintf("Certs (%s)", m.filterType)
+			if len(leftTitle) > 15 {
+				leftTitle = "Certs (filtered)"
+			}
+		}
+	}
+	rightTitle := "Details"
+
+	// Add focus indicators
+	if m.focus == FocusLeft {
+		leftTitle = "[" + leftTitle + "]"
+	} else {
+		rightTitle = "[" + rightTitle + "]"
+	}
+
+	// Build help text - compact for narrow screens
+	var helpText string
+	if m.width < 50 {
+		if m.focus == FocusRight {
+			helpText = "↑/↓:scroll ←/→:pane ::cmd q:quit"
+		} else {
+			helpText = "↑/↓:nav ←/→:pane ::cmd q:quit"
+		}
+	} else {
+		if m.focus == FocusRight {
+			helpText = "↑/↓: scroll details • ←/→: switch panes • :: command mode • q: quit"
+		} else {
+			helpText = "↑/↓: navigate • ←/→: switch panes • :: command mode • q: quit"
+		}
+	}
 
 	if len(m.certificates) > 0 {
 		cert := m.certificates[m.cursor]
-		certInfo := fmt.Sprintf("Certificate %d/%d", m.cursor+1, len(m.certificates))
+		var certInfo string
+		if m.width < 50 {
+			certInfo = fmt.Sprintf("%d/%d", m.cursor+1, len(m.certificates))
+		} else {
+			certInfo = fmt.Sprintf("Certificate %d/%d", m.cursor+1, len(m.certificates))
+		}
 
 		if certificate.IsExpired(cert.Certificate) {
 			certInfo += " (EXPIRED)"
 		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			certInfo += " (EXPIRING SOON)"
+			if m.width < 50 {
+				certInfo += " (EXP)"
+			} else {
+				certInfo += " (EXPIRING SOON)"
+			}
 		}
 
 		helpText = certInfo + " • " + helpText
 	}
 
-	if m.filterActive {
-		helpText = fmt.Sprintf("Filter: %s • %s", m.filterType, helpText)
+	// Combine titles and help text
+	var statusText string
+	if m.width < 50 {
+		statusText = fmt.Sprintf("%s|%s • %s", leftTitle, rightTitle, helpText)
+	} else {
+		statusText = fmt.Sprintf("%s | %s • %s", leftTitle, rightTitle, helpText)
 	}
 
 	return lipgloss.NewStyle().
@@ -684,5 +921,5 @@ func (m Model) renderStatusBar() string {
 		Bold(true).
 		Width(m.width).
 		Padding(0, 1).
-		Render(helpText)
+		Render(statusText)
 }
