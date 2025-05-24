@@ -26,8 +26,47 @@ Sleep 1s
 Type "k"
 Sleep 1s
 
-# Show final state
+# Enter command mode
+Type ":"
+Sleep 1s
+
+# Show subject command
+Type "subject"
+Enter
 Sleep 3s
+
+# Exit detail view
+Escape
+Sleep 1s
+
+# Enter command mode again
+Type ":"
+Sleep 1s
+
+# Show validity command
+Type "validity"
+Enter
+Sleep 3s
+
+# Exit detail view
+Escape
+Sleep 1s
+
+# Enter command mode for help
+Type ":"
+Sleep 1s
+
+# Show help
+Type "help"
+Enter
+Sleep 4s
+
+# Exit detail view
+Escape
+Sleep 1s
+
+# Show final state
+Sleep 2s
 
 # Quit
 Type "q"
