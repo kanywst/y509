@@ -5,6 +5,10 @@
 
 A terminal user interface (TUI) tool for viewing and analyzing X.509 certificate chains, built with Go using [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Gloss](https://github.com/charmbracelet/lipgloss).
 
+![y509 Demo](demo.gif)
+
+*Live demonstration of y509 showing certificate navigation, details view, pane switching, command mode, chain validation, search/filter functionality, and export capabilities*
+
 ## Features
 
 - **Intuitive TUI**: Two-pane interface with certificate list and detailed information
@@ -68,6 +72,7 @@ openssl s_client -connect example.com:443 -showcerts | y509
 Press `:` to enter command mode (similar to k9s). Available commands:
 
 #### Certificate Information Commands
+
 | Command | Shortcut | Description |
 |---------|----------|-------------|
 | `subject` | `s` | Show detailed certificate subject information |
@@ -79,16 +84,19 @@ Press `:` to enter command mode (similar to k9s). Available commands:
 | `pubkey` | `pk` | Show public key information |
 
 #### Navigation Commands
+
 | Command | Shortcut | Description |
 |---------|----------|-------------|
 | `goto N` | `g N` | Jump to certificate number N |
 
 #### Chain Operations
+
 | Command | Shortcut | Description |
 |---------|----------|-------------|
 | `validate` | `val` | Validate certificate chain |
 
 #### Search & Filter Commands
+
 | Command | Description |
 |---------|-------------|
 | `search <query>` | Search certificates by CN, organization, DNS names, or issuer |
@@ -99,12 +107,14 @@ Press `:` to enter command mode (similar to k9s). Available commands:
 | `reset` | Reset search/filter to show all certificates |
 
 #### Export Commands
+
 | Command | Description |
 |---------|-------------|
 | `export pem <filename>` | Export current certificate as PEM format |
 | `export der <filename>` | Export current certificate as DER format |
 
 #### Other Commands
+
 | Command | Shortcut | Description |
 |---------|----------|-------------|
 | `help` | `h` | Show command help |
@@ -151,27 +161,6 @@ In command mode:
 - 🟢 **Valid**: Certificate is valid and expires in more than 30 days
 - 🟡 **Expiring Soon**: Certificate expires within 30 days
 - 🔴 **Expired**: Certificate has already expired
-
-## Demo
-
-![y509 Demo](demo.gif)
-
-*Live demonstration of y509 showing certificate navigation, details view, pane switching, command mode, chain validation, search/filter functionality, and export capabilities*
-
-### Recording the Demo
-
-This project includes a [VHS](https://github.com/charmbracelet/vhs) script for recording demonstrations:
-
-```bash
-# Install VHS
-go install github.com/charmbracelet/vhs@latest
-
-# Record demo
-vhs demo.tape
-
-# View the generated GIF
-open demo.gif
-```
 
 ## Examples
 
