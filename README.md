@@ -9,6 +9,9 @@ A terminal user interface (TUI) tool for viewing and analyzing X.509 certificate
 
 - **Intuitive TUI**: Two-pane interface with certificate list and detailed information
 - **Command Mode**: k9s-style command interface for detailed certificate inspection
+- **Certificate Chain Validation**: Comprehensive chain validation with detailed error reporting
+- **Search & Filter**: Search certificates by CN, organization, DNS names, or filter by status
+- **Export Functionality**: Export certificates in PEM or DER format
 - **Certificate Status**: Color-coded indicators for expired and expiring certificates
 - **Detailed Information**: Subject, Issuer, validity, SAN, public key info, SHA256 fingerprint
 - **Keyboard Navigation**: Arrow keys for navigation, left/right for pane switching
@@ -64,6 +67,7 @@ openssl s_client -connect example.com:443 -showcerts | y509
 
 Press `:` to enter command mode (similar to k9s). Available commands:
 
+#### Certificate Information Commands
 | Command | Shortcut | Description |
 |---------|----------|-------------|
 | `subject` | `s` | Show detailed certificate subject information |
@@ -73,19 +77,67 @@ Press `:` to enter command mode (similar to k9s). Available commands:
 | `fingerprint` | `fp` | Show SHA256 fingerprint |
 | `serial` | | Show certificate serial number |
 | `pubkey` | `pk` | Show public key information |
+
+#### Navigation Commands
+| Command | Shortcut | Description |
+|---------|----------|-------------|
 | `goto N` | `g N` | Jump to certificate number N |
+
+#### Chain Operations
+| Command | Shortcut | Description |
+|---------|----------|-------------|
+| `validate` | `val` | Validate certificate chain |
+
+#### Search & Filter Commands
+| Command | Description |
+|---------|-------------|
+| `search <query>` | Search certificates by CN, organization, DNS names, or issuer |
+| `filter expired` | Show only expired certificates |
+| `filter expiring` | Show only expiring certificates (within 30 days) |
+| `filter valid` | Show only valid certificates |
+| `filter self-signed` | Show only self-signed certificates |
+| `reset` | Reset search/filter to show all certificates |
+
+#### Export Commands
+| Command | Description |
+|---------|-------------|
+| `export pem <filename>` | Export current certificate as PEM format |
+| `export der <filename>` | Export current certificate as DER format |
+
+#### Other Commands
+| Command | Shortcut | Description |
+|---------|----------|-------------|
 | `help` | `h` | Show command help |
 | `quit` | `q` | Exit command mode |
 
-#### Command Mode Examples
+### Command Mode Examples
 
-```
+```bash
+# Certificate information
 :subject          # Show detailed subject information
 :s                # Same as above (shortcut)
 :validity         # Show validity period with expiration countdown
 :san              # Show all Subject Alternative Names
+
+# Navigation
 :goto 2           # Jump to certificate #2
 :g 1              # Jump to certificate #1 (shortcut)
+
+# Chain validation
+:validate         # Validate the entire certificate chain
+:val              # Same as above (shortcut)
+
+# Search and filter
+:search github    # Search for certificates containing "github"
+:filter expired   # Show only expired certificates
+:filter expiring  # Show certificates expiring within 30 days
+:reset            # Reset to show all certificates
+
+# Export
+:export pem cert1.pem    # Export current certificate as PEM
+:export der cert1.der    # Export current certificate as DER
+
+# Help
 :help             # Show all available commands
 ```
 
@@ -104,7 +156,7 @@ In command mode:
 
 ![y509 Demo](demo.gif)
 
-*Live demonstration of y509 showing certificate navigation, details view, pane switching, and command mode*
+*Live demonstration of y509 showing certificate navigation, details view, pane switching, command mode, chain validation, search/filter functionality, and export capabilities*
 
 ### Recording the Demo
 
@@ -143,14 +195,37 @@ y509 fullchain.pem
 cat *.crt | y509
 ```
 
-### Using Command Mode for Detailed Analysis
+### Advanced Usage with Command Mode
 
+#### Certificate Chain Validation
 1. Launch y509 with your certificate file
 2. Press `:` to enter command mode
-3. Type `subject` to see detailed subject information
-4. Press `ESC` to return to normal mode
-5. Use `:validity` to check expiration status
-6. Use `:san` to view all alternative names
+3. Type `validate` to check the entire chain
+4. Review validation results, errors, and warnings
+
+#### Search and Filter Operations
+```bash
+# Search for specific certificates
+:search example.com       # Find certificates for example.com
+:search "Let's Encrypt"   # Find Let's Encrypt certificates
+:search 192.168.1.1       # Find certificates with specific IP
+
+# Filter by certificate status
+:filter expired           # Show only expired certificates
+:filter expiring          # Show certificates expiring soon
+:filter valid             # Show only valid certificates
+:filter self-signed       # Show self-signed certificates
+
+# Reset filters
+:reset                    # Show all certificates again
+```
+
+#### Export Certificates
+```bash
+# Export in different formats
+:export pem server.pem    # Export as PEM format
+:export der server.der    # Export as DER format
+```
 
 ## Project Structure
 
@@ -223,6 +298,7 @@ y509 displays comprehensive certificate information including:
 - **Public Key**: Algorithm, key type, and size information
 - **SHA256 Fingerprint**: Certificate fingerprint
 - **Serial Number**: Certificate serial number
+- **Chain Validation**: Signature verification, expiration checks, and warnings
 
 ## Use Cases
 
@@ -232,6 +308,8 @@ y509 displays comprehensive certificate information including:
 - **Monitoring**: Check certificate status before expiration
 - **Learning**: Understand certificate chain structures
 - **Certificate Management**: Navigate and analyze multiple certificates efficiently
+- **Compliance**: Validate certificate chains for security compliance
+- **Incident Response**: Quickly identify problematic certificates in a chain
 
 ## Contributing
 
@@ -262,14 +340,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Roadmap
 
 - [x] Command mode for detailed certificate inspection
-- [ ] Certificate chain validation
-- [ ] Export certificates in various formats (DER, PEM)
+- [x] Certificate chain validation
+- [x] Export certificates in various formats (DER, PEM)
+- [x] Search and filter functionality
 - [ ] Certificate comparison mode
 - [ ] Integration with certificate transparency logs
 - [ ] Plugin system for custom certificate analysis
 - [ ] Configuration file support
 - [ ] Certificate monitoring and alerting
-- [ ] Search and filter functionality
 
 ## Support
 

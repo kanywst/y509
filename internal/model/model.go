@@ -30,12 +30,13 @@ const (
 
 // Model represents the application state
 type Model struct {
-	certificates []*certificate.CertificateInfo
-	cursor       int
-	focus        Focus
-	width        int
-	height       int
-	ready        bool
+	certificates    []*certificate.CertificateInfo
+	allCertificates []*certificate.CertificateInfo // Original unfiltered list
+	cursor          int
+	focus           Focus
+	width           int
+	height          int
+	ready           bool
 
 	// Command mode
 	viewMode     ViewMode
@@ -45,20 +46,29 @@ type Model struct {
 	// Detail view
 	detailField string
 	detailValue string
+
+	// Search and filter
+	searchQuery  string
+	filterActive bool
+	filterType   string
 }
 
 // NewModel creates a new model with certificates
 func NewModel(certs []*certificate.CertificateInfo) Model {
 	return Model{
-		certificates: certs,
-		cursor:       0,
-		focus:        FocusLeft,
-		ready:        false,
-		viewMode:     ViewNormal,
-		commandInput: "",
-		commandError: "",
-		detailField:  "",
-		detailValue:  "",
+		certificates:    certs,
+		allCertificates: certs,
+		cursor:          0,
+		focus:           FocusLeft,
+		ready:           false,
+		viewMode:        ViewNormal,
+		commandInput:    "",
+		commandError:    "",
+		detailField:     "",
+		detailValue:     "",
+		searchQuery:     "",
+		filterActive:    false,
+		filterType:      "",
 	}
 }
 
@@ -179,6 +189,33 @@ func (m *Model) executeCommand() {
 	cmd := strings.TrimSpace(m.commandInput)
 	m.commandError = ""
 
+	if len(m.certificates) == 0 && !strings.HasPrefix(cmd, "search") && !strings.HasPrefix(cmd, "filter") && cmd != "reset" {
+		m.commandError = "No certificates available"
+		return
+	}
+
+	// Handle commands that don't require a selected certificate
+	switch {
+	case strings.HasPrefix(cmd, "search "):
+		query := strings.TrimSpace(cmd[7:])
+		m.searchCertificates(query)
+		return
+	case cmd == "reset":
+		m.resetView()
+		return
+	case strings.HasPrefix(cmd, "filter "):
+		filterType := strings.TrimSpace(cmd[7:])
+		m.filterCertificates(filterType)
+		return
+	case cmd == "validate" || cmd == "val":
+		result := certificate.ValidateChain(m.allCertificates)
+		m.showDetail("Chain Validation", certificate.FormatChainValidation(result))
+		return
+	case strings.HasPrefix(cmd, "export "):
+		m.exportCertificate(cmd)
+		return
+	}
+
 	if len(m.certificates) == 0 {
 		m.commandError = "No certificates available"
 		return
@@ -217,16 +254,37 @@ func (m *Model) executeCommand() {
 		return
 	case cmd == "help" || cmd == "h":
 		m.showDetail("Commands", `Available commands:
-subject, s     - Show certificate subject
-issuer, i      - Show certificate issuer  
-validity, v    - Show validity period
-san            - Show Subject Alternative Names
+
+Certificate Information:
+subject, s      - Show certificate subject
+issuer, i       - Show certificate issuer  
+validity, v     - Show validity period
+san             - Show Subject Alternative Names
 fingerprint, fp - Show SHA256 fingerprint
-serial         - Show serial number
-pubkey, pk     - Show public key info
-goto N, g N    - Go to certificate N
-help, h        - Show this help
-quit, q        - Quit application
+serial          - Show serial number
+pubkey, pk      - Show public key info
+
+Navigation:
+goto N, g N     - Go to certificate N
+
+Chain Operations:
+validate, val   - Validate certificate chain
+
+Search & Filter:
+search <query>  - Search certificates by CN, org, DNS, issuer
+filter expired  - Show only expired certificates
+filter expiring - Show only expiring certificates
+filter valid    - Show only valid certificates
+filter self-signed - Show only self-signed certificates
+reset           - Reset search/filter
+
+Export:
+export pem <file> - Export current cert as PEM
+export der <file> - Export current cert as DER
+
+Other:
+help, h         - Show this help
+quit, q         - Quit application
 
 Press ESC to return to normal mode`)
 	case cmd == "quit" || cmd == "q":
@@ -236,6 +294,96 @@ Press ESC to return to normal mode`)
 		m.commandError = fmt.Sprintf("Unknown command: %s (type 'help' for available commands)", cmd)
 		return
 	}
+}
+
+// searchCertificates searches certificates based on query
+func (m *Model) searchCertificates(query string) {
+	if query == "" {
+		m.commandError = "Search query cannot be empty"
+		return
+	}
+
+	results := certificate.SearchCertificates(m.allCertificates, query)
+	m.certificates = results
+	m.searchQuery = query
+	m.filterActive = true
+	m.filterType = fmt.Sprintf("search: %s", query)
+	m.cursor = 0
+
+	m.viewMode = ViewNormal
+	m.focus = FocusLeft
+
+	if len(results) == 0 {
+		m.commandError = fmt.Sprintf("No certificates found matching '%s'", query)
+	}
+}
+
+// filterCertificates filters certificates based on criteria
+func (m *Model) filterCertificates(filterType string) {
+	validFilters := []string{"expired", "expiring", "valid", "self-signed"}
+	found := false
+	for _, valid := range validFilters {
+		if filterType == valid {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		m.commandError = fmt.Sprintf("Invalid filter type: %s (valid: %s)", filterType, strings.Join(validFilters, ", "))
+		return
+	}
+
+	results := certificate.FilterCertificates(m.allCertificates, filterType)
+	m.certificates = results
+	m.filterActive = true
+	m.filterType = filterType
+	m.cursor = 0
+
+	m.viewMode = ViewNormal
+	m.focus = FocusLeft
+
+	if len(results) == 0 {
+		m.commandError = fmt.Sprintf("No certificates found with filter '%s'", filterType)
+	}
+}
+
+// resetView resets search and filter
+func (m *Model) resetView() {
+	m.certificates = m.allCertificates
+	m.searchQuery = ""
+	m.filterActive = false
+	m.filterType = ""
+	m.cursor = 0
+	m.viewMode = ViewNormal
+	m.focus = FocusLeft
+}
+
+// exportCertificate exports the current certificate
+func (m *Model) exportCertificate(cmd string) {
+	if len(m.certificates) == 0 {
+		m.commandError = "No certificate selected"
+		return
+	}
+
+	parts := strings.Fields(cmd)
+	if len(parts) != 3 {
+		m.commandError = "Usage: export <format> <filename> (format: pem, der)"
+		return
+	}
+
+	format := parts[1]
+	filename := parts[2]
+
+	cert := m.certificates[m.cursor].Certificate
+	err := certificate.ExportCertificate(cert, format, filename)
+	if err != nil {
+		m.commandError = fmt.Sprintf("Export failed: %v", err)
+		return
+	}
+
+	m.showDetail("Export Success", fmt.Sprintf("Certificate exported successfully!\n\nFormat: %s\nFile: %s\nCertificate: %s",
+		strings.ToUpper(format), filename, cert.Subject.CommonName))
 }
 
 // showDetail switches to detail view mode
@@ -251,7 +399,7 @@ func (m Model) View() string {
 		return "Loading..."
 	}
 
-	if len(m.certificates) == 0 {
+	if len(m.allCertificates) == 0 {
 		return "No certificates found."
 	}
 
@@ -276,7 +424,11 @@ func (m Model) renderNormalView() string {
 
 	// Render left pane (certificate list)
 	leftContent := m.renderCertificateList(contentHeight - 2) // Account for borders
-	leftPane := m.createPane(leftContent, leftWidth, contentHeight, m.focus == FocusLeft, "Certificates")
+	leftTitle := "Certificates"
+	if m.filterActive {
+		leftTitle = fmt.Sprintf("Certificates (%s)", m.filterType)
+	}
+	leftPane := m.createPane(leftContent, leftWidth, contentHeight, m.focus == FocusLeft, leftTitle)
 
 	// Render right pane (certificate details)
 	rightContent := m.renderCertificateDetails(rightWidth-2, contentHeight-2) // Account for borders and padding
@@ -299,7 +451,10 @@ func (m Model) renderNormalView() string {
 
 // renderDetailView renders the full-screen detail view
 func (m Model) renderDetailView() string {
-	title := fmt.Sprintf("%s - Certificate %d/%d", m.detailField, m.cursor+1, len(m.certificates))
+	title := m.detailField
+	if len(m.certificates) > 0 {
+		title = fmt.Sprintf("%s - Certificate %d/%d", m.detailField, m.cursor+1, len(m.certificates))
+	}
 
 	// Create full-screen pane
 	content := m.detailValue
@@ -340,6 +495,13 @@ func (m Model) renderCommandBar() string {
 
 // renderCertificateList renders the list of certificates
 func (m Model) renderCertificateList(height int) string {
+	if len(m.certificates) == 0 {
+		if m.filterActive {
+			return fmt.Sprintf("No certificates match filter: %s\n\nUse ':reset' to clear filter", m.filterType)
+		}
+		return "No certificates available"
+	}
+
 	var content string
 	start := 0
 	end := len(m.certificates)
@@ -457,6 +619,10 @@ func (m Model) renderStatusBar() string {
 		}
 
 		helpText = certInfo + " • " + helpText
+	}
+
+	if m.filterActive {
+		helpText = fmt.Sprintf("Filter: %s • %s", m.filterType, helpText)
 	}
 
 	return lipgloss.NewStyle().

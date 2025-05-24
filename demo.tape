@@ -52,11 +52,48 @@ Sleep 3s
 Escape
 Sleep 1s
 
-# Enter command mode for help
+# Test chain validation
 Type ":"
+Sleep 1s
+Type "validate"
+Enter
+Sleep 3s
+
+# Exit detail view
+Escape
+Sleep 1s
+
+# Test search functionality
+Type ":"
+Sleep 1s
+Type "search example"
+Enter
+Sleep 2s
+
+# Reset search
+Type ":"
+Sleep 1s
+Type "reset"
+Enter
+Sleep 1s
+
+# Test filter functionality
+Type ":"
+Sleep 1s
+Type "filter expiring"
+Enter
+Sleep 2s
+
+# Reset filter
+Type ":"
+Sleep 1s
+Type "reset"
+Enter
 Sleep 1s
 
 # Show help
+Type ":"
+Sleep 1s
 Type "help"
 Enter
 Sleep 4s

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -18,6 +19,13 @@ type CertificateInfo struct {
 	Certificate *x509.Certificate
 	Index       int
 	Label       string
+}
+
+// ChainValidationResult holds the result of chain validation
+type ChainValidationResult struct {
+	IsValid  bool
+	Errors   []string
+	Warnings []string
 }
 
 // LoadCertificates loads certificates from file or stdin
@@ -305,4 +313,203 @@ func FormatPublicKey(cert *x509.Certificate) string {
 	}
 
 	return details.String()
+}
+
+// ValidateChain validates the certificate chain
+func ValidateChain(certs []*CertificateInfo) *ChainValidationResult {
+	result := &ChainValidationResult{
+		IsValid:  true,
+		Errors:   []string{},
+		Warnings: []string{},
+	}
+
+	if len(certs) == 0 {
+		result.IsValid = false
+		result.Errors = append(result.Errors, "No certificates in chain")
+		return result
+	}
+
+	// Check each certificate individually
+	for i, certInfo := range certs {
+		cert := certInfo.Certificate
+
+		// Check if certificate is expired
+		now := time.Now()
+		if cert.NotAfter.Before(now) {
+			result.Errors = append(result.Errors, fmt.Sprintf("Certificate %d is expired", i+1))
+			result.IsValid = false
+		}
+
+		// Check if certificate is not yet valid
+		if cert.NotBefore.After(now) {
+			result.Errors = append(result.Errors, fmt.Sprintf("Certificate %d is not yet valid", i+1))
+			result.IsValid = false
+		}
+
+		// Check if certificate expires soon
+		if IsExpiringSoon(cert) && !IsExpired(cert) {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("Certificate %d expires within 30 days", i+1))
+		}
+	}
+
+	// Check chain order and signatures
+	if len(certs) > 1 {
+		for i := 0; i < len(certs)-1; i++ {
+			current := certs[i].Certificate
+			next := certs[i+1].Certificate
+
+			// Check if current certificate is signed by next certificate
+			err := current.CheckSignatureFrom(next)
+			if err != nil {
+				result.Warnings = append(result.Warnings, fmt.Sprintf("Certificate %d signature verification failed against certificate %d: %v", i+1, i+2, err))
+			}
+		}
+	}
+
+	return result
+}
+
+// FormatChainValidation formats chain validation results
+func FormatChainValidation(result *ChainValidationResult) string {
+	var details strings.Builder
+
+	if result.IsValid {
+		details.WriteString("✅ Certificate chain is VALID\n\n")
+	} else {
+		details.WriteString("❌ Certificate chain is INVALID\n\n")
+	}
+
+	if len(result.Errors) > 0 {
+		details.WriteString("Errors:\n")
+		for _, err := range result.Errors {
+			details.WriteString(fmt.Sprintf("  • %s\n", err))
+		}
+		details.WriteString("\n")
+	}
+
+	if len(result.Warnings) > 0 {
+		details.WriteString("Warnings:\n")
+		for _, warning := range result.Warnings {
+			details.WriteString(fmt.Sprintf("  • %s\n", warning))
+		}
+		details.WriteString("\n")
+	}
+
+	if len(result.Errors) == 0 && len(result.Warnings) == 0 {
+		details.WriteString("No issues found in the certificate chain.\n")
+	}
+
+	return details.String()
+}
+
+// ExportCertificate exports a certificate in the specified format
+func ExportCertificate(cert *x509.Certificate, format string, filename string) error {
+	var data []byte
+	var err error
+
+	switch strings.ToLower(format) {
+	case "pem":
+		data = pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		})
+	case "der":
+		data = cert.Raw
+	default:
+		return fmt.Errorf("unsupported format: %s (supported: pem, der)", format)
+	}
+
+	// Create directory if it doesn't exist
+	dir := filepath.Dir(filename)
+	if dir != "." {
+		err = os.MkdirAll(dir, 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create directory: %w", err)
+		}
+	}
+
+	err = os.WriteFile(filename, data, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
+// SearchCertificates searches certificates based on query
+func SearchCertificates(certs []*CertificateInfo, query string) []*CertificateInfo {
+	if query == "" {
+		return certs
+	}
+
+	query = strings.ToLower(query)
+	var results []*CertificateInfo
+
+	for _, certInfo := range certs {
+		cert := certInfo.Certificate
+
+		// Search in common name
+		if strings.Contains(strings.ToLower(cert.Subject.CommonName), query) {
+			results = append(results, certInfo)
+			continue
+		}
+
+		// Search in organization
+		for _, org := range cert.Subject.Organization {
+			if strings.Contains(strings.ToLower(org), query) {
+				results = append(results, certInfo)
+				goto next
+			}
+		}
+
+		// Search in DNS names
+		for _, dns := range cert.DNSNames {
+			if strings.Contains(strings.ToLower(dns), query) {
+				results = append(results, certInfo)
+				goto next
+			}
+		}
+
+		// Search in issuer
+		if strings.Contains(strings.ToLower(cert.Issuer.CommonName), query) {
+			results = append(results, certInfo)
+			continue
+		}
+
+	next:
+	}
+
+	return results
+}
+
+// FilterCertificates filters certificates based on criteria
+func FilterCertificates(certs []*CertificateInfo, filterType string) []*CertificateInfo {
+	var results []*CertificateInfo
+
+	for _, certInfo := range certs {
+		cert := certInfo.Certificate
+
+		switch filterType {
+		case "expired":
+			if IsExpired(cert) {
+				results = append(results, certInfo)
+			}
+		case "expiring":
+			if IsExpiringSoon(cert) && !IsExpired(cert) {
+				results = append(results, certInfo)
+			}
+		case "valid":
+			if !IsExpired(cert) && !IsExpiringSoon(cert) {
+				results = append(results, certInfo)
+			}
+		case "self-signed":
+			if cert.Subject.String() == cert.Issuer.String() {
+				results = append(results, certInfo)
+			}
+		default:
+			results = append(results, certInfo)
+		}
+	}
+
+	return results
 }
