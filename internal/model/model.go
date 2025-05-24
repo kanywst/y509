@@ -512,31 +512,6 @@ func (m *Model) showDetail(field, value string) {
 	m.detailValue = value
 }
 
-// renderSplashScreen renders the y509 ASCII art splash screen
-func (m Model) renderSplashScreen() string {
-	asciiArt := `
-    ██    ██ ███████  ██████   ██████   █████  
-     ██  ██  ██      ██    ██ ██    ██ ██   ██ 
-      ████   ███████ ██    ██ ██    ██  █████  
-       ██         ██ ██    ██ ██    ██      ██ 
-       ██    ███████  ██████   ██████   █████  
-                                              
-    Certificate Chain TUI Viewer
-    
-    Analyzing window size...
-    `
-
-	// Center the ASCII art
-	style := lipgloss.NewStyle().
-		Width(m.width).
-		Height(m.height).
-		Align(lipgloss.Center, lipgloss.Center).
-		Foreground(lipgloss.Color("62")).
-		Bold(true)
-
-	return style.Render(asciiArt)
-}
-
 // View renders the model - WITH SPLASH SCREEN
 func (m Model) View() string {
 	if !m.ready {

@@ -17,7 +17,8 @@ A terminal user interface (TUI) tool for viewing and analyzing X.509 certificate
 - **Search & Filter**: Search certificates by CN, organization, DNS names, or filter by status
 - **Export Functionality**: Export certificates in PEM or DER format
 - **Certificate Status**: Color-coded indicators for expired and expiring certificates
-- **Detailed Information**: Subject, Issuer, validity, SAN, public key info, SHA256 fingerprint
+- **Detailed Public Key Information**: RSA key sizes (RSA2048, RSA4096), ECDSA curves (P-256, P-384, P-521), modulus size, public exponent
+- **Comprehensive Certificate Details**: Subject, Issuer, validity, SAN, SHA256 fingerprint, serial number
 - **Keyboard Navigation**: Arrow keys for navigation, left/right for pane switching
 - **Multiple Input Sources**: Read from files or stdin
 
@@ -284,7 +285,10 @@ y509 displays comprehensive certificate information including:
 - **Issuer**: Certificate authority information
 - **Validity**: Not before/after dates, current status, and time remaining
 - **Subject Alternative Names**: DNS names, IP addresses, email addresses
-- **Public Key**: Algorithm, key type, and size information
+- **Public Key**: Detailed algorithm information including:
+  - **RSA Keys**: Type (RSA2048, RSA4096), key size in bits, modulus size, public exponent
+  - **ECDSA Keys**: Curve name (P-256, P-384, P-521), key size, NIST standard identification
+  - **Key Specifications**: Comprehensive technical details for security analysis
 - **SHA256 Fingerprint**: Certificate fingerprint
 - **Serial Number**: Certificate serial number
 - **Chain Validation**: Signature verification, expiration checks, and warnings

@@ -24,7 +24,7 @@ func main() {
 
 	// Create and run the TUI
 	m := model.NewModel(certs)
-	program := tea.NewProgram(m) // Remove alt screen mode for debugging
+	program := tea.NewProgram(m, tea.WithAltScreen())
 
 	if _, err := program.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error running program: %v\n", err)
