@@ -159,13 +159,11 @@ func GetCertificateDetails(cert *x509.Certificate) string {
 
 	// Public Key Info
 	details.WriteString("Public Key:\n")
-	details.WriteString(fmt.Sprintf("  Algorithm: %s\n", cert.PublicKeyAlgorithm.String()))
-	switch pub := cert.PublicKey.(type) {
-	case *x509.Certificate:
-		// This shouldn't happen, but just in case
-		details.WriteString("  Type: Certificate (unexpected)\n")
-	default:
-		details.WriteString(fmt.Sprintf("  Type: %T\n", pub))
+	publicKeyInfo := FormatPublicKey(cert)
+	for _, line := range strings.Split(publicKeyInfo, "\n") {
+		if line != "" {
+			details.WriteString(fmt.Sprintf("  %s\n", line))
+		}
 	}
 	details.WriteString("\n")
 
@@ -297,19 +295,41 @@ func FormatFingerprint(cert *x509.Certificate) string {
 	return fmt.Sprintf("%x", fingerprint)
 }
 
-// FormatPublicKey formats public key information
+// FormatPublicKey formats public key information with detailed specifications
 func FormatPublicKey(cert *x509.Certificate) string {
 	var details strings.Builder
 
 	details.WriteString(fmt.Sprintf("Algorithm: %s\n", cert.PublicKeyAlgorithm.String()))
-	details.WriteString(fmt.Sprintf("Type: %T\n", cert.PublicKey))
 
-	// Add key size information if available
+	// Detailed key information based on type
 	switch pub := cert.PublicKey.(type) {
 	case *rsa.PublicKey:
-		details.WriteString(fmt.Sprintf("Key Size: %d bits\n", pub.Size()*8))
+		keySize := pub.Size() * 8
+		details.WriteString(fmt.Sprintf("Type: RSA%d\n", keySize))
+		details.WriteString(fmt.Sprintf("Key Size: %d bits\n", keySize))
+		details.WriteString(fmt.Sprintf("Modulus Size: %d bytes\n", pub.Size()))
+		details.WriteString(fmt.Sprintf("Public Exponent: %d\n", pub.E))
+
 	case *ecdsa.PublicKey:
-		details.WriteString(fmt.Sprintf("Curve: %s\n", pub.Curve.Params().Name))
+		curveName := pub.Curve.Params().Name
+		keySize := pub.Curve.Params().BitSize
+		details.WriteString(fmt.Sprintf("Type: ECDSA\n"))
+		details.WriteString(fmt.Sprintf("Curve: %s\n", curveName))
+		details.WriteString(fmt.Sprintf("Key Size: %d bits\n", keySize))
+
+		// Add common curve information
+		switch curveName {
+		case "P-256":
+			details.WriteString("Standard: NIST P-256 (secp256r1)\n")
+		case "P-384":
+			details.WriteString("Standard: NIST P-384 (secp384r1)\n")
+		case "P-521":
+			details.WriteString("Standard: NIST P-521 (secp521r1)\n")
+		}
+
+	default:
+		details.WriteString(fmt.Sprintf("Type: %T\n", pub))
+		details.WriteString("Key Size: Unknown\n")
 	}
 
 	return details.String()
