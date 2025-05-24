@@ -277,6 +277,15 @@ go test -v ./pkg/certificate
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
 - [Lip Gloss](https://github.com/charmbracelet/lipgloss) - Styling library
 
+### Record demo
+
+To record a new demo:
+
+```bash
+# Record demo
+vhs demo.tape
+```
+
 ## Certificate Information Displayed
 
 y509 displays comprehensive certificate information including:
