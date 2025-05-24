@@ -189,38 +189,72 @@ func (m *Model) executeCommand() {
 	cmd := strings.TrimSpace(m.commandInput)
 	m.commandError = ""
 
-	if len(m.certificates) == 0 && !strings.HasPrefix(cmd, "search") && !strings.HasPrefix(cmd, "filter") && cmd != "reset" {
+	// Check if we have certificates for commands that require them
+	if !m.hasValidCertificatesForCommand(cmd) {
 		m.commandError = "No certificates available"
 		return
 	}
 
-	// Handle commands that don't require a selected certificate
-	switch {
-	case strings.HasPrefix(cmd, "search "):
-		query := strings.TrimSpace(cmd[7:])
-		m.searchCertificates(query)
-		return
-	case cmd == "reset":
-		m.resetView()
-		return
-	case strings.HasPrefix(cmd, "filter "):
-		filterType := strings.TrimSpace(cmd[7:])
-		m.filterCertificates(filterType)
-		return
-	case cmd == "validate" || cmd == "val":
-		result := certificate.ValidateChain(m.allCertificates)
-		m.showDetail("Chain Validation", certificate.FormatChainValidation(result))
-		return
-	case strings.HasPrefix(cmd, "export "):
-		m.exportCertificate(cmd)
+	// Handle global commands (don't require selected certificate)
+	if m.handleGlobalCommands(cmd) {
 		return
 	}
 
+	// Handle certificate-specific commands
 	if len(m.certificates) == 0 {
 		m.commandError = "No certificates available"
 		return
 	}
 
+	m.handleCertificateCommands(cmd)
+}
+
+// hasValidCertificatesForCommand checks if we have certificates for the given command
+func (m *Model) hasValidCertificatesForCommand(cmd string) bool {
+	globalCommands := []string{"search", "filter", "reset", "validate", "val", "export", "help", "h", "quit", "q"}
+
+	for _, globalCmd := range globalCommands {
+		if cmd == globalCmd || strings.HasPrefix(cmd, globalCmd+" ") {
+			return true
+		}
+	}
+
+	return len(m.certificates) > 0
+}
+
+// handleGlobalCommands processes commands that don't require a selected certificate
+func (m *Model) handleGlobalCommands(cmd string) bool {
+	switch {
+	case strings.HasPrefix(cmd, "search "):
+		query := strings.TrimSpace(cmd[7:])
+		m.searchCertificates(query)
+		return true
+	case cmd == "reset":
+		m.resetView()
+		return true
+	case strings.HasPrefix(cmd, "filter "):
+		filterType := strings.TrimSpace(cmd[7:])
+		m.filterCertificates(filterType)
+		return true
+	case cmd == "validate" || cmd == "val":
+		m.handleValidateCommand()
+		return true
+	case strings.HasPrefix(cmd, "export "):
+		m.exportCertificate(cmd)
+		return true
+	case cmd == "help" || cmd == "h":
+		m.showHelpCommand()
+		return true
+	case cmd == "quit" || cmd == "q":
+		m.viewMode = ViewNormal
+		m.focus = FocusLeft
+		return true
+	}
+	return false
+}
+
+// handleCertificateCommands processes commands that require a selected certificate
+func (m *Model) handleCertificateCommands(cmd string) {
 	cert := m.certificates[m.cursor].Certificate
 
 	switch {
@@ -239,21 +273,45 @@ func (m *Model) executeCommand() {
 	case cmd == "pubkey" || cmd == "pk":
 		m.showDetail("Public Key", certificate.FormatPublicKey(cert))
 	case strings.HasPrefix(cmd, "goto ") || strings.HasPrefix(cmd, "g "):
-		parts := strings.Fields(cmd)
-		if len(parts) == 2 {
-			if index, err := strconv.Atoi(parts[1]); err == nil {
-				if index >= 1 && index <= len(m.certificates) {
-					m.cursor = index - 1
-					m.viewMode = ViewNormal
-					m.focus = FocusLeft
-					return
-				}
-			}
-		}
+		m.handleGotoCommand(cmd)
+	default:
+		m.commandError = fmt.Sprintf("Unknown command: %s (type 'help' for available commands)", cmd)
+	}
+}
+
+// handleValidateCommand processes the validate command
+func (m *Model) handleValidateCommand() {
+	result := certificate.ValidateChain(m.allCertificates)
+	m.showDetail("Chain Validation", certificate.FormatChainValidation(result))
+}
+
+// handleGotoCommand processes the goto command
+func (m *Model) handleGotoCommand(cmd string) {
+	parts := strings.Fields(cmd)
+	if len(parts) != 2 {
+		m.commandError = "Usage: goto <number> or g <number>"
+		return
+	}
+
+	index, err := strconv.Atoi(parts[1])
+	if err != nil {
 		m.commandError = "Invalid certificate number"
 		return
-	case cmd == "help" || cmd == "h":
-		m.showDetail("Commands", `Available commands:
+	}
+
+	if index < 1 || index > len(m.certificates) {
+		m.commandError = "Invalid certificate number"
+		return
+	}
+
+	m.cursor = index - 1
+	m.viewMode = ViewNormal
+	m.focus = FocusLeft
+}
+
+// showHelpCommand displays the help information
+func (m *Model) showHelpCommand() {
+	helpText := `Available commands:
 
 Certificate Information:
 subject, s      - Show certificate subject
@@ -286,14 +344,9 @@ Other:
 help, h         - Show this help
 quit, q         - Quit application
 
-Press ESC to return to normal mode`)
-	case cmd == "quit" || cmd == "q":
-		m.viewMode = ViewNormal
-		m.focus = FocusLeft
-	default:
-		m.commandError = fmt.Sprintf("Unknown command: %s (type 'help' for available commands)", cmd)
-		return
-	}
+Press ESC to return to normal mode`
+
+	m.showDetail("Commands", helpText)
 }
 
 // searchCertificates searches certificates based on query
