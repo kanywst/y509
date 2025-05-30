@@ -612,7 +612,7 @@ func (m *Model) showDetail(field, value string) {
 // getQuickHelp returns contextual quick help text
 func (m Model) getQuickHelp() string {
 	var help strings.Builder
-	
+
 	if m.shouldUseSinglePane() {
 		help.WriteString("SINGLE PANE MODE\n\n")
 		help.WriteString("Navigation:\n")
@@ -627,7 +627,7 @@ func (m Model) getQuickHelp() string {
 		help.WriteString("  ←/→ or h/l  - Switch between panes\n")
 		help.WriteString("  Tab         - Switch between panes\n")
 	}
-	
+
 	help.WriteString("\nCommands:\n")
 	help.WriteString("  :           - Enter command mode\n")
 	help.WriteString("  :help       - Show full help\n")
@@ -637,7 +637,7 @@ func (m Model) getQuickHelp() string {
 	help.WriteString("  ?           - Show this quick help\n")
 	help.WriteString("  Esc         - Exit command/detail mode\n")
 	help.WriteString("  q           - Quit application\n")
-	
+
 	if len(m.certificates) > 0 {
 		help.WriteString("\nCertificate Commands:\n")
 		help.WriteString("  :subject    - Show certificate subject\n")
@@ -645,7 +645,7 @@ func (m Model) getQuickHelp() string {
 		help.WriteString("  :validity   - Show validity period\n")
 		help.WriteString("  :san        - Show Subject Alternative Names\n")
 	}
-	
+
 	return help.String()
 }
 
@@ -676,16 +676,16 @@ func (m Model) View() string {
 
 // renderMinimumSizeWarning renders a warning when terminal is too small
 func (m Model) renderMinimumSizeWarning(minWidth, minHeight int) string {
-	warning := fmt.Sprintf("Terminal too small!\nMinimum: %dx%d\nCurrent: %dx%d\n\nResize terminal or press 'q' to quit", 
+	warning := fmt.Sprintf("Terminal too small!\nMinimum: %dx%d\nCurrent: %dx%d\n\nResize terminal or press 'q' to quit",
 		minWidth, minHeight, m.width, m.height)
-	
+
 	style := lipgloss.NewStyle().
 		Width(m.width).
 		Height(m.height).
 		Align(lipgloss.Center, lipgloss.Center).
 		Foreground(lipgloss.Color("196")).
 		Bold(true)
-	
+
 	return style.Render(warning)
 }
 
@@ -716,13 +716,13 @@ func (m Model) renderNormalView() string {
 // renderSinglePaneView renders a single pane view for very narrow terminals
 func (m Model) renderSinglePaneView(mainHeight int) string {
 	var content string
-	
+
 	// Calculate content height (subtract borders)
 	contentHeight := mainHeight - 2
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
-	
+
 	if m.focus == FocusLeft {
 		// Show certificate list
 		content = m.renderCertificateList(contentHeight)
@@ -730,20 +730,20 @@ func (m Model) renderSinglePaneView(mainHeight int) string {
 		// Show certificate details
 		content = m.renderCertificateDetails(m.width-4, contentHeight)
 	}
-	
+
 	// Create single pane
 	pane := m.createPane(content, m.width, mainHeight, true, "")
-	
+
 	// Build final view
 	var parts []string
 	parts = append(parts, pane)
-	
+
 	if m.viewMode == ViewCommand {
 		parts = append(parts, m.renderCommandBar())
 	}
-	
+
 	parts = append(parts, m.renderStatusBar())
-	
+
 	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }
 
@@ -1036,6 +1036,245 @@ func (m Model) renderCertificateDetails(width, height int) string {
 		}
 		if scrollInfo != "" {
 			scrollInfo = fmt.Sprintf(" [%s%d/%d]", scrollInfo, start+1, len(lines))
+			if len(scrollInfo) <= width {
+				scrolledContent += "\n" + scrollInfo
+			}
+		}
+	}
+
+	return scrolledContent
+}
+
+// renderImprovedCertificateDetails renders certificate details with enhanced UX and better formatting
+func (m Model) renderImprovedCertificateDetails(width, height int) string {
+	if len(m.certificates) == 0 {
+		return "No certificate selected"
+	}
+
+	cert := m.certificates[m.cursor]
+
+	// Format details based on width with better content prioritization
+	var details string
+	if width < 30 {
+		// Ultra compact: Focus on critical information only
+		status := ""
+		if certificate.IsExpired(cert.Certificate) {
+			status = "❌ EXPIRED"
+		} else if certificate.IsExpiringSoon(cert.Certificate) {
+			status = "⚠️ EXPIRING"
+		} else {
+			status = "✅ VALID"
+		}
+
+		details = fmt.Sprintf("Certificate %d/%d\n%s\n\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nValidity:\n%s\n\nDNS:\n%s",
+			m.cursor+1, len(m.certificates),
+			truncateText(cert.Label, width-2),
+			status,
+			truncateText(cert.Certificate.Subject.CommonName, width-2),
+			truncateText(cert.Certificate.Issuer.CommonName, width-2),
+			cert.Certificate.NotAfter.Format("2006-01-02"),
+			truncateText(strings.Join(cert.Certificate.DNSNames, ", "), width-2))
+
+	} else if width < 50 {
+		// Compact: Essential information with better organization
+		status := ""
+		statusIcon := ""
+		now := time.Now()
+		if certificate.IsExpired(cert.Certificate) {
+			status = "EXPIRED"
+			statusIcon = "❌"
+		} else if certificate.IsExpiringSoon(cert.Certificate) {
+			status = "EXPIRING SOON"
+			statusIcon = "⚠️"
+		} else {
+			status = "VALID"
+			statusIcon = "✅"
+		}
+
+		// Add days remaining/expired info
+		daysInfo := ""
+		if cert.Certificate.NotAfter.Before(now) {
+			duration := now.Sub(cert.Certificate.NotAfter)
+			days := int(duration.Hours() / 24)
+			daysInfo = fmt.Sprintf(" (%d days ago)", days)
+		} else {
+			duration := cert.Certificate.NotAfter.Sub(now)
+			days := int(duration.Hours() / 24)
+			daysInfo = fmt.Sprintf(" (%d days)", days)
+		}
+
+		details = fmt.Sprintf("Certificate %d/%d\n%s\n%s Status: %s%s\n\nSubject: %s",
+			m.cursor+1, len(m.certificates),
+			wrapText(cert.Label, width-2),
+			statusIcon, status, daysInfo,
+			wrapText(cert.Certificate.Subject.CommonName, width-10))
+
+		if len(cert.Certificate.Subject.Organization) > 0 {
+			details += fmt.Sprintf("\nOrganization: %s", wrapText(strings.Join(cert.Certificate.Subject.Organization, ", "), width-14))
+		}
+
+		details += fmt.Sprintf("\nIssuer: %s", wrapText(cert.Certificate.Issuer.CommonName, width-8))
+
+		// Add key DNS names if available
+		if len(cert.Certificate.DNSNames) > 0 {
+			details += "\nDNS: " + strings.Join(cert.Certificate.DNSNames[:min(len(cert.Certificate.DNSNames), 2)], ", ")
+			if len(cert.Certificate.DNSNames) > 2 {
+				details += fmt.Sprintf(" +%d more", len(cert.Certificate.DNSNames)-2)
+			}
+		}
+
+		details += fmt.Sprintf("\nValidity: %s to %s",
+			cert.Certificate.NotBefore.Format("2006-01-02"),
+			cert.Certificate.NotAfter.Format("2006-01-02"))
+
+	} else {
+		// Full width: Ultra-compact comprehensive information
+		var builder strings.Builder
+
+		// Header with certificate position and status
+		statusIcon := ""
+		statusText := ""
+		statusDetail := ""
+		now := time.Now()
+
+		if certificate.IsExpired(cert.Certificate) {
+			statusIcon = "❌"
+			statusText = "EXPIRED"
+			duration := now.Sub(cert.Certificate.NotAfter)
+			days := int(duration.Hours() / 24)
+			statusDetail = fmt.Sprintf("Expired %d days ago", days)
+		} else if certificate.IsExpiringSoon(cert.Certificate) {
+			statusIcon = "⚠️"
+			statusText = "EXPIRING SOON"
+			duration := cert.Certificate.NotAfter.Sub(now)
+			days := int(duration.Hours() / 24)
+			statusDetail = fmt.Sprintf("Expires in %d days", days)
+		} else {
+			statusIcon = "✅"
+			statusText = "VALID"
+			duration := cert.Certificate.NotAfter.Sub(now)
+			days := int(duration.Hours() / 24)
+			statusDetail = fmt.Sprintf("Valid for %d days", days)
+		}
+
+		builder.WriteString(fmt.Sprintf("Certificate %d/%d %s %s\n",
+			m.cursor+1, len(m.certificates), statusIcon, statusText))
+		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-2, 40))))
+
+		// Subject information - ultra compact format
+		builder.WriteString("📋 Subject:\n")
+		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Subject.CommonName))
+		if len(cert.Certificate.Subject.Organization) > 0 {
+			builder.WriteString(fmt.Sprintf("  Organization: %s\n", strings.Join(cert.Certificate.Subject.Organization, ", ")))
+		}
+		if len(cert.Certificate.Subject.OrganizationalUnit) > 0 {
+			builder.WriteString(fmt.Sprintf("  Organizational Unit: %s\n", strings.Join(cert.Certificate.Subject.OrganizationalUnit, ", ")))
+		}
+		// Combine geographic fields on one line
+		var geoFields []string
+		if len(cert.Certificate.Subject.Country) > 0 {
+			geoFields = append(geoFields, "Country: "+strings.Join(cert.Certificate.Subject.Country, ", "))
+		}
+		if len(cert.Certificate.Subject.Province) > 0 {
+			geoFields = append(geoFields, "Province: "+strings.Join(cert.Certificate.Subject.Province, ", "))
+		}
+		if len(cert.Certificate.Subject.Locality) > 0 {
+			geoFields = append(geoFields, "Locality: "+strings.Join(cert.Certificate.Subject.Locality, ", "))
+		}
+		if len(geoFields) > 0 {
+			builder.WriteString(fmt.Sprintf("  %s\n", strings.Join(geoFields, ", ")))
+		}
+
+		// Issuer information - ultra compact format
+		builder.WriteString("🏢 Issuer:\n")
+		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Issuer.CommonName))
+		var issuerFields []string
+		if len(cert.Certificate.Issuer.Organization) > 0 {
+			issuerFields = append(issuerFields, "Organization: "+strings.Join(cert.Certificate.Issuer.Organization, ", "))
+		}
+		if len(cert.Certificate.Issuer.Country) > 0 {
+			issuerFields = append(issuerFields, "Country: "+strings.Join(cert.Certificate.Issuer.Country, ", "))
+		}
+		if len(issuerFields) > 0 {
+			builder.WriteString(fmt.Sprintf("  %s\n", strings.Join(issuerFields, ", ")))
+		}
+
+		// Validity information - compact format
+		builder.WriteString("📅 Validity:\n")
+		builder.WriteString(fmt.Sprintf("  Not Before: %s\n", cert.Certificate.NotBefore.Format("2006-01-02 15:04:05 MST")))
+		builder.WriteString(fmt.Sprintf("  Not After:  %s\n", cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST")))
+		builder.WriteString(fmt.Sprintf("  Status: %s %s, %s\n", statusIcon, statusText, statusDetail))
+
+		// Subject Alternative Names - prioritized and compact
+		builder.WriteString("🌐 Subject Alternative Names:\n")
+		if len(cert.Certificate.DNSNames) > 0 || len(cert.Certificate.IPAddresses) > 0 || len(cert.Certificate.EmailAddresses) > 0 {
+			for _, dns := range cert.Certificate.DNSNames {
+				builder.WriteString(fmt.Sprintf("  DNS: %s\n", dns))
+			}
+			for _, ip := range cert.Certificate.IPAddresses {
+				builder.WriteString(fmt.Sprintf("  IP: %s\n", ip.String()))
+			}
+			for _, email := range cert.Certificate.EmailAddresses {
+				builder.WriteString(fmt.Sprintf("  Email: %s\n", email))
+			}
+		} else {
+			builder.WriteString("  None\n")
+		}
+
+		// Fingerprint and Serial Number - compact format
+		fingerprint := certificate.FormatFingerprint(cert.Certificate)
+		// Format fingerprint with colons for better readability
+		formattedFingerprint := ""
+		for i, char := range fingerprint {
+			if i > 0 && i%2 == 0 {
+				formattedFingerprint += ":"
+			}
+			formattedFingerprint += string(char)
+		}
+		builder.WriteString("🔒 SHA256 Fingerprint:\n")
+		builder.WriteString(fmt.Sprintf("  %s\n", formattedFingerprint))
+		builder.WriteString(fmt.Sprintf("🔢 Serial Number: %s\n", cert.Certificate.SerialNumber.String()))
+
+		details = builder.String()
+	}
+
+	// Apply scrolling with improved scroll indicators
+	lines := strings.Split(details, "\n")
+	start := m.rightPaneScroll
+	end := start + height
+
+	// Ensure we don't scroll past the content
+	if start >= len(lines) && len(lines) > 0 {
+		start = max(0, len(lines)-height)
+		// Note: We can't modify m.rightPaneScroll here as this is a read-only method
+	}
+	if end > len(lines) {
+		end = len(lines)
+	}
+
+	// Get visible lines
+	var visibleLines []string
+	if start < len(lines) {
+		visibleLines = lines[start:end]
+	}
+
+	scrolledContent := strings.Join(visibleLines, "\n")
+
+	// Add enhanced scroll indicators
+	if len(lines) > height && width > 15 {
+		scrollInfo := ""
+		if start > 0 {
+			scrollInfo += "↑ "
+		}
+		if end < len(lines) {
+			scrollInfo += "↓ "
+		}
+		if scrollInfo != "" {
+			percentage := int(float64(start+height) / float64(len(lines)) * 100)
+			if percentage > 100 {
+				percentage = 100
+			}
+			scrollInfo = fmt.Sprintf(" [%s%d%%]", scrollInfo, percentage)
 			if len(scrollInfo) <= width {
 				scrolledContent += "\n" + scrollInfo
 			}
