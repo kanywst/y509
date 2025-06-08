@@ -22,6 +22,7 @@ It provides an interactive way to examine and validate X.509 certificate chains
 with a user-friendly interface that adapts to the terminal size.`,
 	Example: `  y509 certificate.pem         View certificates from a file
   cat certificate.pem | y509   Read certificates from stdin`,
+	Args: cobra.MaximumNArgs(1),  // Allow at most one argument for the file
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get filename from args
 		var filename string
@@ -63,8 +64,12 @@ func Execute() {
 func init() {
 	// フラグの追加などの初期化処理はここに記述
 	
-	// Enable command sorting and disable default completion
+	// Disable default help command and completion
 	RootCmd.CompletionOptions.DisableDefaultCmd = true
+	RootCmd.SetHelpCommand(&cobra.Command{
+		Hidden: true,
+		Use:    "no-help",
+	})
 	
 	// Add help command explicitly as a subcommand (for testing purposes)
 	helpCmd := &cobra.Command{
