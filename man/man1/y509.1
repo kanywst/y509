@@ -1,0 +1,89 @@
+.TH Y509 1 "June 2025" "y509 manual" "User Commands"
+.SH NAME
+y509 \- Certificate Chain TUI Viewer
+.SH SYNOPSIS
+.B y509
+[\fIOPTIONS\fR] [\fIFILE\fR]
+.SH DESCRIPTION
+.B y509
+is a terminal-based (TUI) certificate chain viewer written in Go. It provides an
+interactive way to examine and validate X.509 certificate chains with a user-friendly
+interface that adapts to the terminal size.
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Show help message and exit.
+.TP
+.BR \-v ", " \-\-version
+Show version information and exit.
+.SH EXAMPLES
+.TP
+View certificates from a file:
+.B y509 certificate.pem
+.TP
+Read certificates from stdin:
+.B cat certificate.pem | y509
+.SH INTERACTIVE COMMANDS
+Once y509 is running, the following commands are available:
+.TP
+.B Navigation
+.RS
+.TP
+\fB↑/↓\fR or \fBj/k\fR
+Navigate certificates (left pane) / Scroll details (right pane)
+.TP
+\fB←/→\fR or \fBh/l\fR
+Switch between panes
+.TP
+\fBTab\fR
+Switch between panes
+.RE
+.TP
+.B Command Mode (press :)
+.RS
+.TP
+\fBsubject\fR, \fBs\fR
+Show certificate subject
+.TP
+\fBissuer\fR, \fBi\fR
+Show certificate issuer
+.TP
+\fBvalidity\fR, \fBv\fR
+Show validity period
+.TP
+\fBsan\fR
+Show Subject Alternative Names
+.TP
+\fBfingerprint\fR, \fBfp\fR
+Show SHA256 fingerprint
+.TP
+\fBserial\fR
+Show serial number
+.TP
+\fBpubkey\fR, \fBpk\fR
+Show public key info
+.TP
+\fBvalidate\fR, \fBval\fR
+Validate certificate chain
+.TP
+\fBsearch\fR <query>
+Search certificates by CN, org, DNS, issuer
+.TP
+\fBfilter\fR expired|expiring|valid|self\-signed
+Filter certificates
+.TP
+\fBreset\fR
+Reset search/filter
+.TP
+\fBhelp\fR, \fBh\fR
+Show help
+.TP
+\fBquit\fR, \fBq\fR
+Quit application
+.RE
+.SH AUTHOR
+Written by kanywst
+.SH REPORTING BUGS
+Report bugs to: https://github.com/kanywst/y509/issues
+.SH COPYRIGHT
+Copyright © 2023-2025 kanywst. License MIT.

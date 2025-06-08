@@ -24,10 +24,55 @@ A terminal user interface (TUI) tool for viewing and analyzing X.509 certificate
 
 ## Installation
 
+### Using Homebrew (macOS)
+
+```bash
+# Install via homebrew tap
+brew tap kanywst/y509 https://github.com/kanywst/y509
+brew install y509
+
+# Or install with a single command
+brew install kanywst/y509/y509
+
+# You can also use the provided Brewfile
+brew bundle --file=https://raw.githubusercontent.com/kanywst/y509/main/Brewfile
+```
+
+Once installed, you'll have:
+- The `y509` command in your path
+- Man pages accessible via `man y509`
+- Shell completions for bash and zsh
+
 ### Using go install
 
 ```bash
 go install github.com/kanywst/y509@latest
+```
+
+### Building from source
+
+```bash
+# Clone the repository
+git clone https://github.com/kanywst/y509.git
+cd y509
+
+# Build the binary
+make build
+
+# Install to your $GOPATH/bin
+make install
+```
+
+```bash
+# Clone the repository
+git clone https://github.com/kanywst/y509.git
+cd y509
+
+# Build the binary
+make build
+
+# Install to your $GOPATH/bin
+make install
 ```
 
 ### From Source
@@ -43,6 +88,42 @@ go build -o y509 ./cmd/y509
 ```bash
 brew install kanywst/tap/y509
 ```
+
+## Command Line Usage
+
+y509 now uses a modern command-line interface with subcommands:
+
+```bash
+# Basic usage - opens the TUI
+y509 certificate.pem
+
+# Show help
+y509 --help
+
+# Show version information
+y509 version
+
+# Validate a certificate chain
+y509 validate certificate.pem
+
+# Export a certificate 
+y509 export input.pem output.pem --format pem --index 0
+
+# Generate shell completions
+y509 completion bash > y509.bash
+y509 completion zsh > _y509
+```
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `y509 [file]` | Main command, opens the TUI for certificate viewing |
+| `y509 validate [file]` | Validate a certificate chain and display results |
+| `y509 export [input] [output]` | Export a certificate to a new file |
+| `y509 version` | Display version information |
+| `y509 completion [shell]` | Generate shell completion scripts |
+| `y509 help` | Display help for any command |
 
 ## Usage
 
@@ -331,6 +412,23 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Homebrew Information
+
+The `y509` command can be installed via Homebrew. The Homebrew formula is maintained in the main repository and automatically updated with each release.
+
+### Homebrew Repository Structure
+
+- **Formula/y509.rb**: The Homebrew formula for installing y509
+- **Brewfile**: Simple Brewfile for quick installation
+- **scripts/release.sh**: Script to prepare a new release, including updating the Homebrew formula
+- **scripts/brew-test.sh**: Script to verify the Homebrew installation
+
+### Releasing a New Version
+
+1. Tag a new version: `git tag -a v0.1.0 -m "Release v0.1.0"`
+2. Push the tag: `git push origin v0.1.0`
+3. The GitHub Actions workflow will automatically build, create the release, and update the Homebrew formula
 
 ## Acknowledgments
 

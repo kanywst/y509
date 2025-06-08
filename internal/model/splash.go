@@ -12,7 +12,7 @@ const (
 	// コンパクトバージョンの表示閾値（minimum screen requirements are 20x6）
 	CompactArtWidthThreshold  = 45
 	CompactArtHeightThreshold = 10
-	
+
 	// ミディアムバージョンの表示閾値
 	MediumArtWidthThreshold  = 60
 	MediumArtHeightThreshold = 12
