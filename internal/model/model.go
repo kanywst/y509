@@ -6,9 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"crypto/x509"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kanywst/y509/internal/logger"
 	"github.com/kanywst/y509/pkg/certificate"
+	"go.uber.org/zap"
 )
 
 // Focus represents which pane is currently focused
@@ -199,8 +203,8 @@ func truncateText(text string, width int) string {
 }
 
 // NewModel creates a new model with certificates
-func NewModel(certs []*certificate.CertificateInfo) Model {
-	return Model{
+func NewModel(certs []*certificate.CertificateInfo) *Model {
+	return &Model{
 		certificates:    certs,
 		allCertificates: certs,
 		cursor:          0,
@@ -221,52 +225,50 @@ func NewModel(certs []*certificate.CertificateInfo) Model {
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
-	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+	// スプラッシュスクリーンを表示するために少し待機
+	return tea.Tick(time.Millisecond*500, func(t time.Time) tea.Msg {
 		return SplashDoneMsg{}
 	})
 }
 
-// Update handles messages and updates the model
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+// Update handles messages and updates the model accordingly
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
+		logger.Log.Debug("window size updated",
+			zap.Int("width", m.width),
+			zap.Int("height", m.height))
 		return m, nil
 
 	case SplashDoneMsg:
-		if m.viewMode == ViewSplash {
-			m.splashTimer++
-			if m.splashTimer >= 20 { // 2 seconds (20 * 100ms)
-				m.viewMode = ViewNormal
-				return m, nil
-			}
-			return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
-				return SplashDoneMsg{}
-			})
-		}
+		m.viewMode = ViewNormal
 		return m, nil
 
 	case tea.KeyMsg:
-		// Skip splash screen on any key press
-		if m.viewMode == ViewSplash {
-			m.viewMode = ViewNormal
-		}
-
 		// Handle Ctrl+C globally
 		if msg.Type == tea.KeyCtrlC {
 			return m, tea.Quit
 		}
 
-		fmt.Println("[DEBUG] Update m.viewMode:", m.viewMode)
+		// Skip splash screen if ready
+		if m.viewMode == ViewSplash {
+			m.viewMode = ViewNormal
+		}
+
+		logger.Log.Debug("processing key message",
+			zap.String("key", msg.String()),
+			zap.Int("viewMode", int(m.viewMode)))
+
 		switch m.viewMode {
+		case ViewNormal:
+			return m.updateNormalMode(msg)
 		case ViewCommand:
 			return m.updateCommandMode(msg)
 		case ViewDetail:
 			return m.updateDetailMode(msg)
-		default:
-			return m.updateNormalMode(msg)
 		}
 	}
 
@@ -275,7 +277,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // updateNormalMode handles key events in normal mode
 func (m *Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	fmt.Println("[DEBUG] updateNormalMode msg.String():", msg.String())
+	logger.Log.Debug("processing normal mode key",
+		zap.String("key", msg.String()))
 	switch msg.Type {
 	case tea.KeyUp, tea.KeyDown, tea.KeyLeft, tea.KeyRight, tea.KeyTab:
 		switch msg.Type {
@@ -396,7 +399,8 @@ func (m *Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // updateCommandMode handles key events in command mode
 func (m *Model) updateCommandMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	fmt.Println("[DEBUG] updateCommandMode msg.String():", msg.String())
+	logger.Log.Debug("processing command mode key",
+		zap.String("key", msg.String()))
 	switch msg.String() {
 	case "ctrl+c", "esc", "escape":
 		m.resetAllFields()
@@ -405,6 +409,7 @@ func (m *Model) updateCommandMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		// Execute command
 		m.executeCommand()
+		m.viewMode = ViewNormal
 
 	case "backspace":
 		if len(m.commandInput) > 0 {
@@ -423,7 +428,8 @@ func (m *Model) updateCommandMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // updateDetailMode handles key events in detail mode
 func (m *Model) updateDetailMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	fmt.Println("[DEBUG] updateDetailMode msg.String():", msg.String())
+	logger.Log.Debug("processing detail mode key",
+		zap.String("key", msg.String()))
 	switch msg.String() {
 	case "ctrl+c", "esc", "escape", "q":
 		m.resetAllFields()
@@ -438,9 +444,14 @@ func (m *Model) executeCommand() *Model {
 	cmd := strings.TrimSpace(m.commandInput)
 	m.commandError = ""
 
+	logger.Log.Debug("executing command",
+		zap.String("command", cmd))
+
 	// Check if we have certificates for commands that require them
 	if !m.hasValidCertificatesForCommand(cmd) {
 		m.commandError = "No certificates available"
+		logger.Log.Warn("no certificates available for command",
+			zap.String("command", cmd))
 		return m
 	}
 
@@ -454,6 +465,8 @@ func (m *Model) executeCommand() *Model {
 	// Handle certificate-specific commands
 	if len(m.certificates) == 0 {
 		m.commandError = "No certificates available"
+		logger.Log.Warn("no certificates available for certificate-specific command",
+			zap.String("command", cmd))
 		return m
 	}
 
@@ -476,6 +489,8 @@ func (m *Model) hasValidCertificatesForCommand(cmd string) bool {
 
 // handleGlobalCommands processes commands that don't require a selected certificate
 func (m *Model) handleGlobalCommands(cmd string) (*Model, bool) {
+	logger.Log.Debug("handling global command",
+		zap.String("command", cmd))
 	switch {
 	case strings.HasPrefix(cmd, "search "):
 		query := strings.TrimSpace(cmd[7:])
@@ -508,6 +523,9 @@ func (m *Model) handleGlobalCommands(cmd string) (*Model, bool) {
 // handleCertificateCommands processes commands that require a selected certificate
 func (m *Model) handleCertificateCommands(cmd string) *Model {
 	cert := m.certificates[m.cursor].Certificate
+	logger.Log.Debug("handling certificate command",
+		zap.String("command", cmd),
+		zap.String("certificate", cert.Subject.CommonName))
 
 	switch {
 	case cmd == "subject" || cmd == "s":
@@ -528,14 +546,28 @@ func (m *Model) handleCertificateCommands(cmd string) *Model {
 		m.handleGotoCommand(cmd)
 	default:
 		m.commandError = fmt.Sprintf("Unknown command: %s (type 'help' for available commands)", cmd)
+		logger.Log.Warn("unknown certificate command",
+			zap.String("command", cmd))
 	}
 	return m
 }
 
 // handleValidateCommand processes the validate command
 func (m *Model) handleValidateCommand() *Model {
-	result := certificate.ValidateChain(m.allCertificates)
-	m.showDetail("Chain Validation", certificate.FormatChainValidation(result))
+	logger.Log.Debug("validating certificate chain")
+
+	// Convert CertificateInfo to x509.Certificate
+	certs := make([]*x509.Certificate, len(m.allCertificates))
+	for i, cert := range m.allCertificates {
+		certs[i] = cert.Certificate
+	}
+
+	isValid, err := certificate.ValidateChain(certs)
+	if err != nil {
+		m.showDetail("Chain Validation", fmt.Sprintf("Validation failed: %v", err))
+	} else {
+		m.showDetail("Chain Validation", fmt.Sprintf("Certificate chain is %s", map[bool]string{true: "valid", false: "invalid"}[isValid]))
+	}
 	return m
 }
 
@@ -544,17 +576,26 @@ func (m *Model) handleGotoCommand(cmd string) *Model {
 	parts := strings.Fields(cmd)
 	if len(parts) != 2 {
 		m.commandError = "Usage: goto <number> or g <number>"
+		logger.Log.Warn("invalid goto command format",
+			zap.String("command", cmd))
 		return m
 	}
 
 	index, err := strconv.Atoi(parts[1])
 	if err != nil {
 		m.commandError = "Invalid certificate number"
+		logger.Log.Warn("invalid certificate number in goto command",
+			zap.String("command", cmd),
+			zap.Error(err))
 		return m
 	}
 
 	if index < 1 || index > len(m.certificates) {
 		m.commandError = "Invalid certificate number"
+		logger.Log.Warn("certificate number out of range",
+			zap.String("command", cmd),
+			zap.Int("index", index),
+			zap.Int("max", len(m.certificates)))
 		return m
 	}
 
@@ -562,6 +603,8 @@ func (m *Model) handleGotoCommand(cmd string) *Model {
 	m.rightPaneScroll = 0 // Reset scroll when jumping to certificate
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
+	logger.Log.Debug("goto command executed",
+		zap.Int("new_cursor", m.cursor))
 	return m
 }
 
@@ -610,22 +653,34 @@ Press ESC to return to normal mode`
 func (m *Model) searchCertificates(query string) *Model {
 	if query == "" {
 		m.commandError = "Search query cannot be empty"
+		logger.Log.Warn("empty search query")
 		return m
 	}
 
-	results := certificate.SearchCertificates(m.allCertificates, query)
-	m.certificates = results
+	logger.Log.Debug("searching certificates",
+		zap.String("query", query))
+
 	m.searchQuery = query
 	m.filterActive = true
 	m.filterType = fmt.Sprintf("search: %s", query)
 	m.cursor = 0
-	m.rightPaneScroll = 0 // Reset scroll when searching
-
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
 
-	if len(results) == 0 {
+	// Filter certificates based on search query
+	var filtered []*certificate.CertificateInfo
+	for _, cert := range m.allCertificates {
+		if strings.Contains(strings.ToLower(cert.Label), strings.ToLower(query)) {
+			filtered = append(filtered, cert)
+		}
+	}
+
+	if len(filtered) > 0 {
+		m.certificates = filtered
+	} else {
 		m.commandError = fmt.Sprintf("No certificates found matching '%s'", query)
+		logger.Log.Warn("no certificates found matching search query",
+			zap.String("query", query))
 	}
 	return m
 }
@@ -634,8 +689,8 @@ func (m *Model) searchCertificates(query string) *Model {
 func (m *Model) filterCertificates(filterType string) *Model {
 	validFilters := []string{"expired", "expiring", "valid", "self-signed"}
 	found := false
-	for _, valid := range validFilters {
-		if filterType == valid {
+	for _, f := range validFilters {
+		if f == filterType {
 			found = true
 			break
 		}
@@ -643,33 +698,64 @@ func (m *Model) filterCertificates(filterType string) *Model {
 
 	if !found {
 		m.commandError = fmt.Sprintf("Invalid filter type: %s (valid: %s)", filterType, strings.Join(validFilters, ", "))
+		logger.Log.Warn("invalid filter type",
+			zap.String("filter_type", filterType),
+			zap.Strings("valid_filters", validFilters))
 		return m
 	}
 
-	results := certificate.FilterCertificates(m.allCertificates, filterType)
-	m.certificates = results
+	logger.Log.Debug("filtering certificates",
+		zap.String("filter_type", filterType))
+
 	m.filterActive = true
 	m.filterType = filterType
 	m.cursor = 0
-	m.rightPaneScroll = 0 // Reset scroll when filtering
-
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
 
-	if len(results) == 0 {
+	// Filter certificates based on criteria
+	var filtered []*certificate.CertificateInfo
+	now := time.Now()
+
+	for _, cert := range m.allCertificates {
+		switch filterType {
+		case "expired":
+			if cert.Certificate.NotAfter.Before(now) {
+				filtered = append(filtered, cert)
+			}
+		case "expiring":
+			if cert.Certificate.NotAfter.After(now) && cert.Certificate.NotAfter.Before(now.AddDate(0, 0, 30)) {
+				filtered = append(filtered, cert)
+			}
+		case "valid":
+			if cert.Certificate.NotAfter.After(now) {
+				filtered = append(filtered, cert)
+			}
+		case "self-signed":
+			if cert.Certificate.Subject.CommonName == cert.Certificate.Issuer.CommonName {
+				filtered = append(filtered, cert)
+			}
+		}
+	}
+
+	if len(filtered) > 0 {
+		m.certificates = filtered
+	} else {
 		m.commandError = fmt.Sprintf("No certificates found with filter '%s'", filterType)
+		logger.Log.Warn("no certificates found matching filter",
+			zap.String("filter_type", filterType))
 	}
 	return m
 }
 
 // resetView resets search and filter
 func (m *Model) resetView() *Model {
+	logger.Log.Debug("resetting view")
 	m.certificates = m.allCertificates
 	m.searchQuery = ""
 	m.filterActive = false
 	m.filterType = ""
 	m.cursor = 0
-	m.rightPaneScroll = 0 // Reset scroll when resetting view
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
 	return m
@@ -679,22 +765,34 @@ func (m *Model) resetView() *Model {
 func (m *Model) exportCertificate(cmd string) *Model {
 	if len(m.certificates) == 0 {
 		m.commandError = "No certificate selected"
+		logger.Log.Warn("no certificate selected for export")
 		return m
 	}
 
 	parts := strings.Fields(cmd)
 	if len(parts) != 3 {
 		m.commandError = "Usage: export <format> <filename> (format: pem, der)"
+		logger.Log.Warn("invalid export command format",
+			zap.String("command", cmd))
 		return m
 	}
 
-	format := parts[1]
+	format := strings.ToLower(parts[1])
 	filename := parts[2]
-
 	cert := m.certificates[m.cursor].Certificate
+
+	logger.Log.Debug("exporting certificate",
+		zap.String("format", format),
+		zap.String("filename", filename),
+		zap.String("certificate", cert.Subject.CommonName))
+
 	err := certificate.ExportCertificate(cert, format, filename)
 	if err != nil {
 		m.commandError = fmt.Sprintf("Export failed: %v", err)
+		logger.Log.Error("certificate export failed",
+			zap.String("format", format),
+			zap.String("filename", filename),
+			zap.Error(err))
 		return m
 	}
 
@@ -705,6 +803,8 @@ func (m *Model) exportCertificate(cmd string) *Model {
 
 // showDetail switches to detail view mode
 func (m *Model) showDetail(field, value string) *Model {
+	logger.Log.Debug("showing detail view",
+		zap.String("field", field))
 	m.viewMode = ViewDetail
 	m.detailField = field
 	m.detailValue = value
@@ -1385,11 +1485,16 @@ func (m Model) renderStatusBar() string {
 
 // 全フィールドをクリアする共通メソッド
 func (m *Model) resetAllFields() *Model {
+	logger.Log.Debug("resetting all fields")
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
 	m.commandInput = ""
 	m.commandError = ""
 	m.detailField = ""
 	m.detailValue = ""
+	m.searchQuery = ""
+	m.filterActive = false
+	m.filterType = ""
+	m.rightPaneScroll = 0
 	return m
 }

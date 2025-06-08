@@ -1,44 +1,72 @@
 package model
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
+	"math/big"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/kanywst/y509/pkg/certificate"
 )
 
 // createTestCertificates creates test certificates for testing
-func createTestCertificates() []*certificate.CertificateInfo {
-	// Create a simple test certificate
-	cert := &x509.Certificate{
-		Subject: pkix.Name{
-			CommonName: "test.example.com",
-		},
-		SerialNumber: nil,
-	}
+func createTestCertificates(count int) []*certificate.CertificateInfo {
+	certs := make([]*certificate.CertificateInfo, count)
+	for i := 0; i < count; i++ {
+		// Create a new RSA private key
+		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			panic(err)
+		}
 
-	return []*certificate.CertificateInfo{
-		{
+		// Create certificate template
+		template := &x509.Certificate{
+			SerialNumber: big.NewInt(int64(i + 1)),
+			Subject: pkix.Name{
+				CommonName:   "Test Certificate " + string(rune('A'+i)),
+				Organization: []string{"Test Org"},
+			},
+			NotBefore: time.Now(),
+			NotAfter:  time.Now().Add(24 * time.Hour),
+			KeyUsage:  x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		}
+
+		// Create certificate
+		derBytes, err := x509.CreateCertificate(rand.Reader, template, template, &privateKey.PublicKey, privateKey)
+		if err != nil {
+			panic(err)
+		}
+
+		// Parse certificate
+		cert, err := x509.ParseCertificate(derBytes)
+		if err != nil {
+			panic(err)
+		}
+
+		// Create CertificateInfo
+		certs[i] = &certificate.CertificateInfo{
 			Certificate: cert,
-			Label:       "test.example.com",
-		},
+		}
 	}
+	return certs
 }
 
 func TestNewModel(t *testing.T) {
-	certs := createTestCertificates()
+	certs := createTestCertificates(3)
 	model := NewModel(certs)
 
-	if len(model.certificates) != 1 {
-		t.Errorf("Expected 1 certificate, got %d", len(model.certificates))
+	if len(model.certificates) != 3 {
+		t.Errorf("Expected 3 certificates, got %d", len(model.certificates))
 	}
 
-	if len(model.allCertificates) != 1 {
-		t.Errorf("Expected 1 certificate in allCertificates, got %d", len(model.allCertificates))
+	if len(model.allCertificates) != 3 {
+		t.Errorf("Expected 3 certificates in allCertificates, got %d", len(model.allCertificates))
 	}
 
 	if model.cursor != 0 {
@@ -55,7 +83,7 @@ func TestNewModel(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	model := NewModel(createTestCertificates(3))
 	cmd := model.Init()
 	if cmd == nil {
 		t.Error("Expected Init to return a command, got nil")
@@ -63,55 +91,76 @@ func TestInit(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	m := NewModel(createTestCertificates(3))
+	var updatedModel tea.Model
+	var cmd tea.Cmd
+
+	// Test window size message
+	msg := tea.WindowSizeMsg{Width: 100, Height: 50}
+	updatedModel, cmd = m.Update(msg)
+	if cmd != nil {
+		t.Errorf("Expected no command from window size message, got %v", cmd)
+	}
+
+	// Test window size handling
+	msg = tea.WindowSizeMsg{Width: 100, Height: 50}
+	updatedModel, _ = m.Update(msg)
+	m = updatedModel.(*Model)
+	if m.width != 100 || m.height != 50 {
+		t.Errorf("Expected window size to be updated, got width=%d, height=%d", m.width, m.height)
+	}
 
 	// Test key press in splash mode
-	model.viewMode = ViewSplash
-	updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m, ok := updatedModel.(*Model)
-	if !ok {
-		t.Fatal("Failed to convert to Model")
-	}
+	m.viewMode = ViewSplash
+	updatedModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updatedModel.(*Model)
 	if m.viewMode != ViewNormal {
-		t.Error("Expected Enter key to switch from splash to normal mode")
+		t.Errorf("Expected view mode to be ViewNormal, got %v", m.viewMode)
 	}
-	if cmd != nil {
-		t.Errorf("Expected no command, got %v", cmd)
+
+	// Test key press in normal mode
+	m.viewMode = ViewNormal
+	updatedModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updatedModel.(*Model)
+	if m.cursor != 1 {
+		t.Errorf("Expected cursor to be 1, got %d", m.cursor)
+	}
+
+	// Test key press in command mode
+	m.viewMode = ViewCommand
+	updatedModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updatedModel.(*Model)
+	if m.viewMode != ViewNormal {
+		t.Errorf("Expected view mode to be ViewNormal, got %v", m.viewMode)
 	}
 
 	// Test quit command
-	model = NewModel(createTestCertificates())
-	model.viewMode = ViewNormal
-	updatedModel, cmd = model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	m = NewModel(createTestCertificates(3))
+	m.viewMode = ViewNormal
+	updatedModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	if cmd == nil {
 		t.Error("Expected quit command")
 	}
 
 	// Test colon key to enter command mode
-	model.viewMode = ViewNormal
-	updatedModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{':'}})
-	m, ok = updatedModel.(*Model)
-	if !ok {
-		t.Fatal("Failed to convert to Model")
-	}
+	m.viewMode = ViewNormal
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{':'}})
+	m = updatedModel.(*Model)
 	if m.viewMode != ViewCommand {
 		t.Error("Expected colon to enter command mode")
 	}
 
 	// Test escape key in detail mode
-	model.viewMode = ViewDetail
-	updatedModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	m, ok = updatedModel.(*Model)
-	if !ok {
-		t.Fatal("Failed to convert to Model")
-	}
+	m.viewMode = ViewDetail
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = updatedModel.(*Model)
 	if m.viewMode != ViewNormal {
 		t.Error("Expected Escape to return to normal view")
 	}
 }
 
 func TestView(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	model := NewModel(createTestCertificates(3))
 	model.ready = true // Set ready to true to avoid "Initializing..." message
 
 	// Test splash view - check for splash screen content
@@ -195,9 +244,9 @@ func TestHasValidCertificatesForCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var model Model
+			var model *Model
 			if tt.hasCerts {
-				model = NewModel(createTestCertificates())
+				model = NewModel(createTestCertificates(3))
 			} else {
 				model = NewModel([]*certificate.CertificateInfo{})
 			}
@@ -246,7 +295,7 @@ func TestHandleGlobalCommands(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			model := NewModel(createTestCertificates())
+			model := NewModel(createTestCertificates(3))
 			_, result := model.handleGlobalCommands(tt.cmd)
 			if result != tt.expected {
 				t.Errorf("handleGlobalCommands(%q) = %v, expected %v. %s",
@@ -268,7 +317,7 @@ func TestHandleGotoCommand(t *testing.T) {
 		{
 			name:           "valid goto command",
 			cmd:            "goto 1",
-			numCerts:       2,
+			numCerts:       3,
 			expectedError:  false,
 			expectedCursor: 0,
 			description:    "goto 1 should set cursor to 0",
@@ -276,29 +325,17 @@ func TestHandleGotoCommand(t *testing.T) {
 		{
 			name:           "invalid certificate number - too high",
 			cmd:            "goto 5",
-			numCerts:       2,
+			numCerts:       3,
 			expectedError:  true,
 			expectedCursor: 0,
-			description:    "goto 5 with 2 certs should error",
+			description:    "goto 5 with 3 certs should error",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test certificates
-			certs := make([]*certificate.CertificateInfo, tt.numCerts)
-			for i := 0; i < tt.numCerts; i++ {
-				cert := &x509.Certificate{
-					Subject: pkix.Name{
-						CommonName: "test.example.com",
-					},
-				}
-				certs[i] = &certificate.CertificateInfo{
-					Certificate: cert,
-					Label:       "test.example.com",
-				}
-			}
-
+			certs := createTestCertificates(tt.numCerts)
 			model := NewModel(certs)
 			model.commandError = "" // Clear any existing error
 
@@ -319,7 +356,7 @@ func TestHandleGotoCommand(t *testing.T) {
 }
 
 func TestResetView(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	model := NewModel(createTestCertificates(3))
 
 	// Set up some state to reset
 	model.searchQuery = "test"
@@ -360,7 +397,7 @@ func TestResetView(t *testing.T) {
 }
 
 func TestShowDetail(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	model := NewModel(createTestCertificates(3))
 
 	field := "Test Field"
 	value := "Test Value"
@@ -381,7 +418,7 @@ func TestShowDetail(t *testing.T) {
 }
 
 func TestSearchCertificates(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	model := NewModel(createTestCertificates(3))
 
 	// Test empty query
 	model.searchCertificates("")
@@ -419,7 +456,7 @@ func TestSearchCertificates(t *testing.T) {
 }
 
 func TestFilterCertificates(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	model := NewModel(createTestCertificates(3))
 
 	// Test invalid filter
 	model.filterCertificates("invalid")
@@ -454,7 +491,7 @@ func TestFilterCertificates(t *testing.T) {
 
 // Test splash screen functionality
 func TestSplashScreen(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	model := NewModel(createTestCertificates(3))
 	model.ready = true
 
 	// Test that splash screen is rendered
@@ -473,35 +510,38 @@ func TestSplashScreen(t *testing.T) {
 
 // Test window size handling
 func TestWindowSizeHandling(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	m := NewModel(createTestCertificates(3))
+	var updatedModel tea.Model
+	var cmd tea.Cmd
 
-	// Test window size message
-	updatedModel, cmd := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	m, ok := updatedModel.(Model)
-	if !ok {
-		t.Fatal("Failed to convert to Model")
-	}
-
-	if m.width != 80 {
-		t.Errorf("Expected width 80, got %d", m.width)
-	}
-
-	if m.height != 24 {
-		t.Errorf("Expected height 24, got %d", m.height)
-	}
-
-	if !m.ready {
-		t.Error("Expected model to be ready after window size message")
-	}
-
+	// Test initial window size
+	msg := tea.WindowSizeMsg{Width: 100, Height: 50}
+	updatedModel, cmd = m.Update(msg)
 	if cmd != nil {
 		t.Errorf("Expected no command from window size message, got %v", cmd)
+	}
+
+	m = updatedModel.(*Model)
+	if m.width != 100 || m.height != 50 {
+		t.Errorf("Expected window size to be updated, got width=%d, height=%d", m.width, m.height)
+	}
+
+	// Test window size update
+	msg = tea.WindowSizeMsg{Width: 200, Height: 100}
+	updatedModel, cmd = m.Update(msg)
+	if cmd != nil {
+		t.Errorf("Expected no command from window size message, got %v", cmd)
+	}
+
+	m = updatedModel.(*Model)
+	if m.width != 200 || m.height != 100 {
+		t.Errorf("Expected window size to be updated, got width=%d, height=%d", m.width, m.height)
 	}
 }
 
 // Test command mode functionality
 func TestCommandMode(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	model := NewModel(createTestCertificates(3))
 	model.viewMode = ViewCommand
 
 	// Test adding characters to command input
@@ -528,7 +568,7 @@ func TestCommandMode(t *testing.T) {
 
 // TestUXResponsiveness tests the UI responsiveness across different terminal sizes
 func TestUXResponsiveness(t *testing.T) {
-	certs := createTestCertificates()
+	certs := createTestCertificates(3)
 	model := NewModel(certs)
 
 	tests := []struct {
@@ -642,7 +682,7 @@ func TestTextTruncation(t *testing.T) {
 
 // TestSinglePaneModeNavigation tests navigation in single pane mode
 func TestSinglePaneModeNavigation(t *testing.T) {
-	certs := createTestCertificates()
+	certs := createTestCertificates(3)
 	model := NewModel(certs)
 	model.width = 30 // Force single pane mode
 	model.height = 15
@@ -676,7 +716,7 @@ func TestSinglePaneModeNavigation(t *testing.T) {
 
 // TestDualPaneModeNavigation tests navigation in dual pane mode
 func TestDualPaneModeNavigation(t *testing.T) {
-	certs := createTestCertificates()
+	certs := createTestCertificates(3)
 	model := NewModel(certs)
 	model.width = 80 // Force dual pane mode
 	model.height = 25
@@ -710,7 +750,7 @@ func TestDualPaneModeNavigation(t *testing.T) {
 
 // TestAdaptiveStatusBar tests status bar adaptation to different screen sizes
 func TestAdaptiveStatusBar(t *testing.T) {
-	certs := createTestCertificates()
+	certs := createTestCertificates(3)
 	model := NewModel(certs)
 	model.ready = true
 	model.viewMode = ViewNormal
@@ -757,19 +797,7 @@ func TestAdaptiveStatusBar(t *testing.T) {
 // TestCertificateListRendering tests certificate list rendering at different sizes
 func TestCertificateListRendering(t *testing.T) {
 	// Create multiple test certificates
-	certs := make([]*certificate.CertificateInfo, 0)
-	for i := 0; i < 5; i++ {
-		cert := &x509.Certificate{
-			Subject: pkix.Name{
-				CommonName: fmt.Sprintf("test%d.example.com", i),
-			},
-			SerialNumber: nil,
-		}
-		certs = append(certs, &certificate.CertificateInfo{
-			Certificate: cert,
-			Label:       fmt.Sprintf("test%d.example.com", i),
-		})
-	}
+	certs := createTestCertificates(5)
 
 	model := NewModel(certs)
 	model.ready = true
@@ -809,7 +837,7 @@ func TestCertificateListRendering(t *testing.T) {
 
 // TestSplashScreenAdaptation tests splash screen adaptation to different sizes
 func TestSplashScreenAdaptation(t *testing.T) {
-	certs := createTestCertificates()
+	certs := createTestCertificates(3)
 	model := NewModel(certs)
 	model.ready = true
 	model.viewMode = ViewSplash
@@ -846,7 +874,7 @@ func TestSplashScreenAdaptation(t *testing.T) {
 
 // TestCommandModeInSmallTerminal tests command mode in small terminals
 func TestCommandModeInSmallTerminal(t *testing.T) {
-	certs := createTestCertificates()
+	certs := createTestCertificates(3)
 	model := NewModel(certs)
 	model.width = minUltraCompactWidth // Very narrow
 	model.height = 10
@@ -870,7 +898,7 @@ func TestCommandModeInSmallTerminal(t *testing.T) {
 
 // TestMinimumSizeHandling tests handling of extremely small terminal sizes
 func TestMinimumSizeHandling(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	model := NewModel(createTestCertificates(3))
 	model.ready = true
 
 	// Test minimum size warning
@@ -941,7 +969,7 @@ func TestScrollingInSmallPanes(t *testing.T) {
 
 // TestQuickHelp tests the quick help functionality
 func TestQuickHelp(t *testing.T) {
-	certs := createTestCertificates()
+	certs := createTestCertificates(3)
 	model := NewModel(certs)
 	model.ready = true
 	model.viewMode = ViewNormal
@@ -975,7 +1003,7 @@ func TestQuickHelp(t *testing.T) {
 
 // TestEscapeKeyHandling tests escape key behavior
 func TestEscapeKeyHandling(t *testing.T) {
-	certs := createTestCertificates()
+	certs := createTestCertificates(3)
 
 	// Test escape from command mode
 	model := NewModel(certs)
@@ -1024,7 +1052,7 @@ func TestEscapeKeyHandling(t *testing.T) {
 
 // TestKeyboardAccessibility tests keyboard accessibility features
 func TestKeyboardAccessibility(t *testing.T) {
-	certs := createTestCertificates()
+	certs := createTestCertificates(3)
 	model := NewModel(certs)
 	model.ready = true
 	model.viewMode = ViewNormal
@@ -1086,7 +1114,7 @@ func TestErrorHandling(t *testing.T) {
 
 // TestLayoutConsistency tests that layout is consistent across different operations
 func TestLayoutConsistency(t *testing.T) {
-	certs := createTestCertificates()
+	certs := createTestCertificates(3)
 	model := NewModel(certs)
 	model.ready = true
 	model.viewMode = ViewNormal
@@ -1126,5 +1154,25 @@ func TestLayoutConsistency(t *testing.T) {
 				t.Error("Normal view should not be empty after command mode")
 			}
 		})
+	}
+}
+
+func TestDebugMinimumSizeWarning(t *testing.T) {
+	// Create a model with minimum size
+	model := NewModel([]*certificate.CertificateInfo{})
+	model.ready = true // Set ready to true to avoid "Initializing..." message
+	model.width = 10
+	model.height = 3
+
+	// Test minimum size warning
+	view := model.View()
+	if view == "" {
+		t.Error("View should not be empty")
+	}
+
+	// Check if the warning message is displayed
+	expected := " Terminal \ntoo small!\n Minimum: \n   20x6   \n Current: \n   10x3   \n          \n  Resize  \n terminal \n or press \n  'q' to  \n   quit   "
+	if view != expected {
+		t.Errorf("Unexpected view content:\nExpected: %q\nGot: %q", expected, view)
 	}
 }

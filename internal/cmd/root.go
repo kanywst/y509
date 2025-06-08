@@ -6,48 +6,33 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/kanywst/y509/internal/logger"
 	"github.com/kanywst/y509/internal/model"
 	"github.com/kanywst/y509/internal/version"
 	"github.com/kanywst/y509/pkg/certificate"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
-	Use:   "y509 [file]",
-	Short: "Certificate Chain TUI Viewer",
-	Long: `y509 is a terminal-based (TUI) certificate chain viewer.
-
-It provides an interactive way to examine and validate X.509 certificate chains
-with a user-friendly interface that adapts to the terminal size.`,
-	Example: `  y509 certificate.pem         View certificates from a file
-  cat certificate.pem | y509   Read certificates from stdin`,
-	Args: cobra.MaximumNArgs(1), // Allow at most one argument for the file
-	Run: func(cmd *cobra.Command, args []string) {
-		// Get filename from args
-		var filename string
-		if len(args) > 0 {
-			filename = args[0]
-		}
-
-		// Load certificates
-		certs, err := certificate.LoadCertificates(filename)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading certificates: %v\n", err)
-			os.Exit(1)
-		}
-
-		// Create and run the TUI
-		m := model.NewModel(certs)
-		program := tea.NewProgram(m, tea.WithAltScreen())
-
-		if _, err := program.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error running program: %v\n", err)
-			os.Exit(1)
-		}
-	},
-	Version: version.GetVersion(),
-}
+var (
+	// RootCmd represents the base command when called without any subcommands
+	RootCmd = &cobra.Command{
+		Use:   "y509",
+		Short: "A certificate management tool",
+		Long: `y509 is a certificate management tool that provides functionality for:
+- Viewing certificate information
+- Validating certificate chains
+- Exporting certificates in various formats
+- Managing certificate stores`,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			// Initialize logger
+			if err := logger.Init(); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+				os.Exit(1)
+			}
+		},
+	}
+)
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
@@ -55,36 +40,56 @@ func Execute() {
 	RootCmd.SetVersionTemplate("y509 version {{.Version}}\nBuild: " + version.GetFullVersion() + "\n")
 
 	if err := RootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
 func init() {
-	// Disable default help command and completion
-	RootCmd.CompletionOptions.DisableDefaultCmd = true
-	RootCmd.SetHelpCommand(&cobra.Command{
-		Hidden: true,
-		Use:    "no-help",
-	})
+	// Add flags
+	RootCmd.Flags().StringP("input", "i", "", "Input file containing certificates (default: stdin)")
 
-	// Add help command explicitly as a subcommand (for testing purposes)
-	helpCmd := &cobra.Command{
-		Use:   "help [command]",
-		Short: "Help about any command",
-		Long: `Help provides help for any command in the application.
-Simply type y509 help [path to command] for full details.`,
-		Run: func(c *cobra.Command, args []string) {
-			cmd, _, e := c.Root().Find(args)
-			if cmd == nil || e != nil {
-				c.Printf("Unknown help topic %#q\n", args)
-				c.Root().Usage()
-			} else {
-				cmd.InitDefaultHelpFlag()
-				cmd.Help()
-			}
-		},
+	// Add subcommands
+	RootCmd.AddCommand(validateCmd)
+	RootCmd.AddCommand(exportCmd)
+	RootCmd.AddCommand(versionCmd)
+	RootCmd.AddCommand(completionCmd)
+
+	// Handle arguments
+	RootCmd.Args = func(cmd *cobra.Command, args []string) error {
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+		return nil
 	}
 
-	RootCmd.AddCommand(helpCmd)
+	// Set default behavior for no arguments
+	RootCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		var inputFile string
+		if len(args) > 0 {
+			inputFile = args[0]
+		}
+
+		// Load certificates
+		certs, err := certificate.LoadCertificates(inputFile)
+		if err != nil {
+			logger.Log.Error("Failed to load certificates", zap.Error(err))
+			return err
+		}
+
+		// Create and run the TUI
+		model := model.NewModel(certs)
+		p := tea.NewProgram(
+			model,
+			tea.WithAltScreen(),
+			tea.WithMouseCellMotion(),
+		)
+
+		if _, err := p.Run(); err != nil {
+			logger.Log.Error("Failed to run TUI", zap.Error(err))
+			return err
+		}
+
+		return nil
+	}
 }

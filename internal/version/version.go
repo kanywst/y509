@@ -1,49 +1,50 @@
 package version
 
 import (
-	"fmt"
-	"runtime/debug"
+	"strings"
+
+	"go.uber.org/zap"
 )
 
 var (
 	// Version is set via ldflags during build
 	Version = "dev"
 	// GitCommit is set via ldflags during build
-	GitCommit = ""
+	GitCommit = "unknown"
 	// BuildDate is set via ldflags during build
-	BuildDate = ""
+	BuildDate = "unknown"
+	logger    *zap.Logger
 )
+
+func init() {
+	var err error
+	logger, err = zap.NewProduction()
+	if err != nil {
+		panic("failed to initialize zap logger")
+	}
+}
 
 // GetVersion returns the version string
 func GetVersion() string {
-	if Version != "dev" {
-		return Version
-	}
-
-	// Try to get version from build info (for go install)
-	if info, ok := debug.ReadBuildInfo(); ok {
-		if info.Main.Version != "(devel)" && info.Main.Version != "" {
-			return info.Main.Version
-		}
-	}
-
-	return "dev"
+	return Version
 }
 
-// GetFullVersion returns the full version string with build info
+// GetFullVersion returns the full version string including git commit and build date
 func GetFullVersion() string {
-	version := GetVersion()
+	version := Version
 
-	if GitCommit != "" {
+	// Add git commit if available
+	if GitCommit != "unknown" {
 		if len(GitCommit) > 7 {
-			version += fmt.Sprintf(" (%s)", GitCommit[:7])
+			version += " (" + GitCommit[:7] + ")"
 		} else {
-			version += fmt.Sprintf(" (%s)", GitCommit)
+			version += " (" + GitCommit + ")"
 		}
 	}
 
-	if BuildDate != "" {
-		version += fmt.Sprintf(" built on %s", BuildDate)
+	// Add build date if available
+	if BuildDate != "unknown" {
+		version += " built on " + BuildDate
 	}
 
 	return version
@@ -56,4 +57,14 @@ func GetShortVersion() string {
 		return "dev"
 	}
 	return version
+}
+
+// IsDevVersion returns true if this is a development version
+func IsDevVersion() bool {
+	return Version == "dev"
+}
+
+// IsReleaseVersion returns true if this is a release version
+func IsReleaseVersion() bool {
+	return !IsDevVersion() && !strings.Contains(Version, "-")
 }

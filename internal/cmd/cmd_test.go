@@ -26,7 +26,7 @@ func TestRootCommandHelp(t *testing.T) {
 }
 
 func TestCommandStructure(t *testing.T) {
-	subcommands := []string{"validate", "export", "version", "completion", "help"}
+	subcommands := []string{"validate", "export", "version", "completion"}
 
 	for _, name := range subcommands {
 		found := false
