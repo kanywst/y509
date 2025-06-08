@@ -64,6 +64,41 @@ type Model struct {
 	rightPaneScroll int
 }
 
+// SetDimensions sets the width and height of the model (for testing only)
+func (m *Model) SetDimensions(width, height int) {
+	m.width = width
+	m.height = height
+}
+
+// SetReady sets the ready state of the model (for testing only)
+func (m *Model) SetReady(ready bool) {
+	m.ready = ready
+}
+
+// GetWidth returns the width of the model (for testing only)
+func (m Model) GetWidth() int {
+	return m.width
+}
+
+// GetHeight returns the height of the model (for testing only)
+func (m Model) GetHeight() int {
+	return m.height
+}
+
+// calculateAvailableWidth calculates the available width for display elements
+// based on the current screen width and view mode (single or dual pane)
+func (m Model) calculateAvailableWidth() int {
+	if m.shouldUseSinglePane() {
+		return m.width - 4 // subtract padding/borders for single pane
+	}
+
+	// In dual pane mode, calculate left pane width
+	if m.width < 60 {
+		return max(12, m.width*2/5) - 4 // subtract padding/borders
+	}
+	return m.width/3 - 4
+}
+
 // max returns the maximum of two integers
 func max(a, b int) int {
 	if a > b {
@@ -78,6 +113,67 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// getMinimumSize returns the minimum required width and height for the TUI
+func getMinimumSize() (int, int) {
+	return 20, 6 // minimum 20 chars wide, 6 lines high
+}
+
+// shouldUseSinglePane determines if single pane mode should be used
+func (m Model) shouldUseSinglePane() bool {
+	minWidth, _ := getMinimumSize()
+	return m.width < minWidth*2 // Use single pane if less than 40 chars wide
+}
+
+// wrapText wraps text to fit within the specified width
+func wrapText(text string, width int) string {
+	if width <= 0 {
+		return text
+	}
+
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return text
+	}
+
+	var lines []string
+	var currentLine strings.Builder
+
+	for _, word := range words {
+		// If adding this word would exceed width, start new line
+		if currentLine.Len() > 0 && currentLine.Len()+1+len(word) > width {
+			lines = append(lines, currentLine.String())
+			currentLine.Reset()
+		}
+
+		// Add word to current line
+		if currentLine.Len() > 0 {
+			currentLine.WriteString(" ")
+		}
+		currentLine.WriteString(word)
+	}
+
+	// Add the last line
+	if currentLine.Len() > 0 {
+		lines = append(lines, currentLine.String())
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+// truncateText truncates text to fit within the specified width with ellipsis
+func truncateText(text string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if len(text) <= width {
+		return text
+	}
+	if width <= 3 {
+		return strings.Repeat(".", width)
+	}
+	return text[:width-3] + "..."
 }
 
 // NewModel creates a new model with certificates
@@ -183,10 +279,30 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "left", "h":
-		m.focus = FocusLeft
+		if m.shouldUseSinglePane() {
+			// In single pane mode, left arrow goes back to list
+			m.focus = FocusLeft
+		} else {
+			// In dual pane mode, left arrow switches to left pane
+			m.focus = FocusLeft
+		}
 
 	case "right", "l":
-		m.focus = FocusRight
+		if m.shouldUseSinglePane() {
+			// In single pane mode, right arrow goes to details
+			m.focus = FocusRight
+		} else {
+			// In dual pane mode, right arrow switches to right pane
+			m.focus = FocusRight
+		}
+
+	case "tab":
+		// Tab always switches focus between panes
+		if m.focus == FocusLeft {
+			m.focus = FocusRight
+		} else {
+			m.focus = FocusLeft
+		}
 
 	case ":":
 		// Enter command mode
@@ -198,6 +314,22 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		// Could be used for additional actions like exporting certificate
 		return m, nil
+
+	case "escape":
+		// Quick exit from any special mode
+		if m.viewMode == ViewCommand || m.viewMode == ViewDetail {
+			m.viewMode = ViewNormal
+			m.focus = FocusLeft
+			m.commandInput = ""
+			m.commandError = ""
+			m.detailField = ""
+			m.detailValue = ""
+		}
+
+	case "?":
+		// Show quick help in normal mode
+		helpText := m.getQuickHelp()
+		m.showDetail("Quick Help", helpText)
 	}
 
 	return m, nil
@@ -512,10 +644,56 @@ func (m *Model) showDetail(field, value string) {
 	m.detailValue = value
 }
 
+// getQuickHelp returns contextual quick help text
+func (m Model) getQuickHelp() string {
+	var help strings.Builder
+
+	if m.shouldUseSinglePane() {
+		help.WriteString("SINGLE PANE MODE\n\n")
+		help.WriteString("Navigation:\n")
+		help.WriteString("  ↑/↓ or j/k  - Navigate certificates (in list mode)\n")
+		help.WriteString("  ↑/↓ or j/k  - Scroll details (in detail mode)\n")
+		help.WriteString("  ←/→ or h/l  - Switch between list and details\n")
+		help.WriteString("  Tab         - Switch between list and details\n")
+	} else {
+		help.WriteString("DUAL PANE MODE\n\n")
+		help.WriteString("Navigation:\n")
+		help.WriteString("  ↑/↓ or j/k  - Navigate certificates (left) / Scroll details (right)\n")
+		help.WriteString("  ←/→ or h/l  - Switch between panes\n")
+		help.WriteString("  Tab         - Switch between panes\n")
+	}
+
+	help.WriteString("\nCommands:\n")
+	help.WriteString("  :           - Enter command mode\n")
+	help.WriteString("  :help       - Show full help\n")
+	help.WriteString("  :search X   - Search certificates\n")
+	help.WriteString("  :filter X   - Filter certificates (expired, valid, etc.)\n")
+	help.WriteString("  :reset      - Clear search/filter\n")
+	help.WriteString("  ?           - Show this quick help\n")
+	help.WriteString("  Esc         - Exit command/detail mode\n")
+	help.WriteString("  q           - Quit application\n")
+
+	if len(m.certificates) > 0 {
+		help.WriteString("\nCertificate Commands:\n")
+		help.WriteString("  :subject    - Show certificate subject\n")
+		help.WriteString("  :issuer     - Show certificate issuer\n")
+		help.WriteString("  :validity   - Show validity period\n")
+		help.WriteString("  :san        - Show Subject Alternative Names\n")
+	}
+
+	return help.String()
+}
+
 // View renders the model - WITH SPLASH SCREEN
 func (m Model) View() string {
 	if !m.ready {
 		return "Initializing..."
+	}
+
+	// Ensure minimum terminal size
+	minWidth, minHeight := getMinimumSize()
+	if m.width < minWidth || m.height < minHeight {
+		return m.renderMinimumSizeWarning(minWidth, minHeight)
 	}
 
 	switch m.viewMode {
@@ -531,7 +709,22 @@ func (m Model) View() string {
 	}
 }
 
-// renderNormalView renders the normal two-pane view - ALWAYS DUAL PANE
+// renderMinimumSizeWarning renders a warning when terminal is too small
+func (m Model) renderMinimumSizeWarning(minWidth, minHeight int) string {
+	warning := fmt.Sprintf("Terminal too small!\nMinimum: %dx%d\nCurrent: %dx%d\n\nResize terminal or press 'q' to quit",
+		minWidth, minHeight, m.width, m.height)
+
+	style := lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height).
+		Align(lipgloss.Center, lipgloss.Center).
+		Foreground(lipgloss.Color("196")).
+		Bold(true)
+
+	return style.Render(warning)
+}
+
+// renderNormalView renders the normal view - adaptive layout
 func (m Model) renderNormalView() string {
 	// Calculate available space for main content
 	statusBarHeight := 1
@@ -546,30 +739,74 @@ func (m Model) renderNormalView() string {
 		mainHeight = 3
 	}
 
-	// Always use dual pane layout, regardless of width
-	// Calculate pane widths - make left pane smaller for narrow screens
+	// Use single pane mode for very narrow terminals
+	if m.shouldUseSinglePane() {
+		return m.renderSinglePaneView(mainHeight)
+	}
+
+	// Use dual pane layout for wider terminals
+	return m.renderDualPaneView(mainHeight)
+}
+
+// renderSinglePaneView renders a single pane view for very narrow terminals
+func (m Model) renderSinglePaneView(mainHeight int) string {
+	var content string
+
+	// Calculate content height (subtract borders)
+	contentHeight := mainHeight - 2
+	if contentHeight < 1 {
+		contentHeight = 1
+	}
+
+	if m.focus == FocusLeft {
+		// Show certificate list
+		content = m.renderCertificateList(contentHeight)
+	} else {
+		// Show certificate details
+		content = m.renderCertificateDetails(m.width-4, contentHeight)
+	}
+
+	// Create single pane
+	pane := m.createPane(content, m.width, mainHeight, true, "")
+
+	// Build final view
+	var parts []string
+	parts = append(parts, pane)
+
+	if m.viewMode == ViewCommand {
+		parts = append(parts, m.renderCommandBar())
+	}
+
+	parts = append(parts, m.renderStatusBar())
+
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
+}
+
+// renderDualPaneView renders the dual pane view for wider terminals
+func (m Model) renderDualPaneView(mainHeight int) string {
+	// Calculate pane widths - more flexible allocation
 	var leftWidth, rightWidth int
-	if m.width < 40 {
-		// Very narrow: 1/4 and 3/4
-		leftWidth = max(8, m.width/4)
+	if m.width < 60 {
+		// Narrow: give more space to details
+		leftWidth = max(12, m.width*2/5)
 		rightWidth = m.width - leftWidth
-	} else if m.width < 60 {
-		// Narrow: 1/3 and 2/3
-		leftWidth = max(12, m.width/3)
+	} else if m.width < 100 {
+		// Medium: balanced split
+		leftWidth = m.width / 3
 		rightWidth = m.width - leftWidth
 	} else {
-		// Normal: 1/3 and 2/3
-		leftWidth = m.width / 3
+		// Wide: give more space to details
+		leftWidth = m.width / 4
 		rightWidth = m.width - leftWidth
 	}
 
 	// Ensure minimum widths
-	if leftWidth < 8 {
-		leftWidth = 8
+	if leftWidth < 10 {
+		leftWidth = 10
 		rightWidth = m.width - leftWidth
 	}
-	if rightWidth < 8 {
-		rightWidth = 8
+	if rightWidth < 15 {
+		rightWidth = 15
 		leftWidth = m.width - rightWidth
 	}
 
@@ -652,11 +889,11 @@ func (m Model) renderCommandBar() string {
 	return commandStyle.Render(prompt + input)
 }
 
-// renderCertificateList renders the list of certificates - COMPACT FOR SMALL SCREENS
+// renderCertificateList renders the list of certificates - optimized for all screen sizes
 func (m Model) renderCertificateList(height int) string {
 	if len(m.certificates) == 0 {
 		if m.filterActive {
-			return fmt.Sprintf("No certs match filter: %s\n\nUse ':reset' to clear", m.filterType)
+			return fmt.Sprintf("No certs match filter: %s\n\nUse ':reset' to clear", truncateText(m.filterType, 20))
 		}
 		return "No certificates"
 	}
@@ -683,30 +920,46 @@ func (m Model) renderCertificateList(height int) string {
 	for i := start; i < end && i < len(m.certificates); i++ {
 		cert := m.certificates[i]
 
-		// Create compact label for narrow screens
+		// Create adaptive label based on available width
 		var line string
-		if m.width < 40 {
-			// Very compact: just number and status
+		availableWidth := m.calculateAvailableWidth()
+
+		// Build line based on available width
+		if availableWidth < 15 {
+			// Ultra compact: just number and emoji
 			line = fmt.Sprintf("%d", i+1)
-		} else if m.width < 60 {
+		} else if availableWidth < 25 {
+			// Very compact: number only
+			line = fmt.Sprintf("%d. %s", i+1, truncateText(cert.Label, availableWidth-5))
+		} else if availableWidth < 40 {
 			// Compact: number and short name
-			shortName := cert.Label
-			if len(shortName) > 15 {
-				shortName = shortName[:12] + "..."
-			}
+			shortName := truncateText(cert.Label, availableWidth-8)
 			line = fmt.Sprintf("%d. %s", i+1, shortName)
 		} else {
-			// Normal: full label
-			line = fmt.Sprintf("%d. %s", i+1, cert.Label)
+			// Normal: full label (truncated if necessary)
+			maxLabelWidth := availableWidth - 8 // account for number, dots, emoji, spaces
+			line = fmt.Sprintf("%d. %s", i+1, truncateText(cert.Label, maxLabelWidth))
 		}
 
 		// Add status indicators
 		if certificate.IsExpired(cert.Certificate) {
-			line = "🔴 " + line
+			if availableWidth >= 15 {
+				line = "🔴 " + line
+			} else {
+				line = "X " + line
+			}
 		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			line = "🟡 " + line
+			if availableWidth >= 15 {
+				line = "🟡 " + line
+			} else {
+				line = "! " + line
+			}
 		} else {
-			line = "🟢 " + line
+			if availableWidth >= 15 {
+				line = "🟢 " + line
+			} else {
+				line = "✓ " + line
+			}
 		}
 
 		// Highlight current selection
@@ -733,7 +986,7 @@ func (m Model) renderCertificateList(height int) string {
 	return content.String()
 }
 
-// renderCertificateDetails renders the details of the selected certificate with scrolling support
+// renderCertificateDetails renders the details of the selected certificate with improved text handling
 func (m Model) renderCertificateDetails(width, height int) string {
 	if len(m.certificates) == 0 {
 		return "No certificate selected"
@@ -741,20 +994,35 @@ func (m Model) renderCertificateDetails(width, height int) string {
 
 	cert := m.certificates[m.cursor]
 
-	// Get full details
+	// Get appropriate details based on width
 	var details string
-	if width < 30 {
-		// Very compact details
-		details = fmt.Sprintf("Cert %d/%d\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nValid:\n%s - %s",
+	if width < 25 {
+		// Ultra compact details - only essential info
+		details = fmt.Sprintf("Cert %d/%d\n%s\n\nCN: %s\nExp: %s",
+			m.cursor+1, len(m.certificates),
+			truncateText(cert.Label, width),
+			truncateText(cert.Certificate.Subject.CommonName, width),
+			cert.Certificate.NotAfter.Format("2006-01-02"))
+	} else if width < 40 {
+		// Compact details
+		details = fmt.Sprintf("Certificate %d/%d\n%s\n\nSubject:\n%s\n\nExpires:\n%s",
+			m.cursor+1, len(m.certificates),
+			truncateText(cert.Label, width),
+			truncateText(cert.Certificate.Subject.CommonName, width),
+			cert.Certificate.NotAfter.Format("2006-01-02 15:04"))
+	} else if width < 60 {
+		// Medium details
+		details = fmt.Sprintf("Certificate %d/%d\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nValid:\n%s - %s",
 			m.cursor+1, len(m.certificates),
 			cert.Label,
-			cert.Certificate.Subject.CommonName,
-			cert.Certificate.Issuer.CommonName,
+			wrapText(cert.Certificate.Subject.CommonName, width),
+			wrapText(cert.Certificate.Issuer.CommonName, width),
 			cert.Certificate.NotBefore.Format("2006-01-02"),
 			cert.Certificate.NotAfter.Format("2006-01-02"))
 	} else {
-		// Use full details
-		details = certificate.GetCertificateDetails(cert.Certificate)
+		// Full details with proper wrapping
+		fullDetails := certificate.GetCertificateDetails(cert.Certificate)
+		details = wrapText(fullDetails, width)
 	}
 
 	// Split details into lines for scrolling
@@ -782,8 +1050,8 @@ func (m Model) renderCertificateDetails(width, height int) string {
 	// Join visible lines
 	scrolledContent := strings.Join(visibleLines, "\n")
 
-	// Add scroll indicator if there's more content
-	if len(lines) > height {
+	// Add scroll indicator if there's more content (only if there's room)
+	if len(lines) > height && width > 10 {
 		scrollInfo := ""
 		if start > 0 {
 			scrollInfo += "↑ "
@@ -793,15 +1061,252 @@ func (m Model) renderCertificateDetails(width, height int) string {
 		}
 		if scrollInfo != "" {
 			scrollInfo = fmt.Sprintf(" [%s%d/%d]", scrollInfo, start+1, len(lines))
-			scrolledContent += "\n" + scrollInfo
+			if len(scrollInfo) <= width {
+				scrolledContent += "\n" + scrollInfo
+			}
 		}
 	}
 
-	// Apply text wrapping with proper width
-	style := lipgloss.NewStyle().
-		Width(width)
+	return scrolledContent
+}
 
-	return style.Render(scrolledContent)
+// renderImprovedCertificateDetails renders certificate details with enhanced UX and better formatting
+func (m Model) renderImprovedCertificateDetails(width, height int) string {
+	if len(m.certificates) == 0 {
+		return "No certificate selected"
+	}
+
+	cert := m.certificates[m.cursor]
+
+	// Format details based on width with better content prioritization
+	var details string
+	if width < 30 {
+		// Ultra compact: Focus on critical information only
+		status := ""
+		if certificate.IsExpired(cert.Certificate) {
+			status = "❌ EXPIRED"
+		} else if certificate.IsExpiringSoon(cert.Certificate) {
+			status = "⚠️ EXPIRING"
+		} else {
+			status = "✅ VALID"
+		}
+
+		details = fmt.Sprintf("Certificate %d/%d\n%s\n\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nValidity:\n%s\n\nDNS:\n%s",
+			m.cursor+1, len(m.certificates),
+			truncateText(cert.Label, width-2),
+			status,
+			truncateText(cert.Certificate.Subject.CommonName, width-2),
+			truncateText(cert.Certificate.Issuer.CommonName, width-2),
+			cert.Certificate.NotAfter.Format("2006-01-02"),
+			truncateText(strings.Join(cert.Certificate.DNSNames, ", "), width-2))
+
+	} else if width < 50 {
+		// Compact: Essential information with better organization
+		status := ""
+		statusIcon := ""
+		now := time.Now()
+		if certificate.IsExpired(cert.Certificate) {
+			status = "EXPIRED"
+			statusIcon = "❌"
+		} else if certificate.IsExpiringSoon(cert.Certificate) {
+			status = "EXPIRING SOON"
+			statusIcon = "⚠️"
+		} else {
+			status = "VALID"
+			statusIcon = "✅"
+		}
+
+		// Add days remaining/expired info
+		daysInfo := ""
+		if cert.Certificate.NotAfter.Before(now) {
+			duration := now.Sub(cert.Certificate.NotAfter)
+			days := int(duration.Hours() / 24)
+			daysInfo = fmt.Sprintf(" (%d days ago)", days)
+		} else {
+			duration := cert.Certificate.NotAfter.Sub(now)
+			days := int(duration.Hours() / 24)
+			daysInfo = fmt.Sprintf(" (%d days)", days)
+		}
+
+		details = fmt.Sprintf("Certificate %d/%d\n%s\n%s Status: %s%s\n\nSubject: %s",
+			m.cursor+1, len(m.certificates),
+			wrapText(cert.Label, width-2),
+			statusIcon, status, daysInfo,
+			wrapText(cert.Certificate.Subject.CommonName, width-10))
+
+		if len(cert.Certificate.Subject.Organization) > 0 {
+			details += fmt.Sprintf("\nOrganization: %s", wrapText(strings.Join(cert.Certificate.Subject.Organization, ", "), width-14))
+		}
+
+		details += fmt.Sprintf("\nIssuer: %s", wrapText(cert.Certificate.Issuer.CommonName, width-8))
+
+		// Add key DNS names if available
+		if len(cert.Certificate.DNSNames) > 0 {
+			details += "\nDNS: " + strings.Join(cert.Certificate.DNSNames[:min(len(cert.Certificate.DNSNames), 2)], ", ")
+			if len(cert.Certificate.DNSNames) > 2 {
+				details += fmt.Sprintf(" +%d more", len(cert.Certificate.DNSNames)-2)
+			}
+		}
+
+		details += fmt.Sprintf("\nValidity: %s to %s",
+			cert.Certificate.NotBefore.Format("2006-01-02"),
+			cert.Certificate.NotAfter.Format("2006-01-02"))
+
+	} else {
+		// Full width: Ultra-compact comprehensive information
+		var builder strings.Builder
+
+		// Header with certificate position and status
+		statusIcon := ""
+		statusText := ""
+		statusDetail := ""
+		now := time.Now()
+
+		if certificate.IsExpired(cert.Certificate) {
+			statusIcon = "❌"
+			statusText = "EXPIRED"
+			duration := now.Sub(cert.Certificate.NotAfter)
+			days := int(duration.Hours() / 24)
+			statusDetail = fmt.Sprintf("Expired %d days ago", days)
+		} else if certificate.IsExpiringSoon(cert.Certificate) {
+			statusIcon = "⚠️"
+			statusText = "EXPIRING SOON"
+			duration := cert.Certificate.NotAfter.Sub(now)
+			days := int(duration.Hours() / 24)
+			statusDetail = fmt.Sprintf("Expires in %d days", days)
+		} else {
+			statusIcon = "✅"
+			statusText = "VALID"
+			duration := cert.Certificate.NotAfter.Sub(now)
+			days := int(duration.Hours() / 24)
+			statusDetail = fmt.Sprintf("Valid for %d days", days)
+		}
+
+		builder.WriteString(fmt.Sprintf("Certificate %d/%d %s %s\n",
+			m.cursor+1, len(m.certificates), statusIcon, statusText))
+		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-2, 40))))
+
+		// Subject information - ultra compact format
+		builder.WriteString("📋 Subject:\n")
+		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Subject.CommonName))
+		if len(cert.Certificate.Subject.Organization) > 0 {
+			builder.WriteString(fmt.Sprintf("  Organization: %s\n", strings.Join(cert.Certificate.Subject.Organization, ", ")))
+		}
+		if len(cert.Certificate.Subject.OrganizationalUnit) > 0 {
+			builder.WriteString(fmt.Sprintf("  Organizational Unit: %s\n", strings.Join(cert.Certificate.Subject.OrganizationalUnit, ", ")))
+		}
+		// Combine geographic fields on one line
+		var geoFields []string
+		if len(cert.Certificate.Subject.Country) > 0 {
+			geoFields = append(geoFields, "Country: "+strings.Join(cert.Certificate.Subject.Country, ", "))
+		}
+		if len(cert.Certificate.Subject.Province) > 0 {
+			geoFields = append(geoFields, "Province: "+strings.Join(cert.Certificate.Subject.Province, ", "))
+		}
+		if len(cert.Certificate.Subject.Locality) > 0 {
+			geoFields = append(geoFields, "Locality: "+strings.Join(cert.Certificate.Subject.Locality, ", "))
+		}
+		if len(geoFields) > 0 {
+			builder.WriteString(fmt.Sprintf("  %s\n", strings.Join(geoFields, ", ")))
+		}
+
+		// Issuer information - ultra compact format
+		builder.WriteString("🏢 Issuer:\n")
+		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Issuer.CommonName))
+		var issuerFields []string
+		if len(cert.Certificate.Issuer.Organization) > 0 {
+			issuerFields = append(issuerFields, "Organization: "+strings.Join(cert.Certificate.Issuer.Organization, ", "))
+		}
+		if len(cert.Certificate.Issuer.Country) > 0 {
+			issuerFields = append(issuerFields, "Country: "+strings.Join(cert.Certificate.Issuer.Country, ", "))
+		}
+		if len(issuerFields) > 0 {
+			builder.WriteString(fmt.Sprintf("  %s\n", strings.Join(issuerFields, ", ")))
+		}
+
+		// Validity information - compact format
+		builder.WriteString("📅 Validity:\n")
+		builder.WriteString(fmt.Sprintf("  Not Before: %s\n", cert.Certificate.NotBefore.Format("2006-01-02 15:04:05 MST")))
+		builder.WriteString(fmt.Sprintf("  Not After:  %s\n", cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST")))
+		builder.WriteString(fmt.Sprintf("  Status: %s %s, %s\n", statusIcon, statusText, statusDetail))
+
+		// Subject Alternative Names - prioritized and compact
+		builder.WriteString("🌐 Subject Alternative Names:\n")
+		if len(cert.Certificate.DNSNames) > 0 || len(cert.Certificate.IPAddresses) > 0 || len(cert.Certificate.EmailAddresses) > 0 {
+			for _, dns := range cert.Certificate.DNSNames {
+				builder.WriteString(fmt.Sprintf("  DNS: %s\n", dns))
+			}
+			for _, ip := range cert.Certificate.IPAddresses {
+				builder.WriteString(fmt.Sprintf("  IP: %s\n", ip.String()))
+			}
+			for _, email := range cert.Certificate.EmailAddresses {
+				builder.WriteString(fmt.Sprintf("  Email: %s\n", email))
+			}
+		} else {
+			builder.WriteString("  None\n")
+		}
+
+		// Fingerprint and Serial Number - compact format
+		fingerprint := certificate.FormatFingerprint(cert.Certificate)
+		// Format fingerprint with colons for better readability
+		formattedFingerprint := ""
+		for i, char := range fingerprint {
+			if i > 0 && i%2 == 0 {
+				formattedFingerprint += ":"
+			}
+			formattedFingerprint += string(char)
+		}
+		builder.WriteString("🔒 SHA256 Fingerprint:\n")
+		builder.WriteString(fmt.Sprintf("  %s\n", formattedFingerprint))
+		builder.WriteString(fmt.Sprintf("🔢 Serial Number: %s\n", cert.Certificate.SerialNumber.String()))
+
+		details = builder.String()
+	}
+
+	// Apply scrolling with improved scroll indicators
+	lines := strings.Split(details, "\n")
+	start := m.rightPaneScroll
+	end := start + height
+
+	// Ensure we don't scroll past the content
+	if start >= len(lines) && len(lines) > 0 {
+		start = max(0, len(lines)-height)
+		// Note: We can't modify m.rightPaneScroll here as this is a read-only method
+	}
+	if end > len(lines) {
+		end = len(lines)
+	}
+
+	// Get visible lines
+	var visibleLines []string
+	if start < len(lines) {
+		visibleLines = lines[start:end]
+	}
+
+	scrolledContent := strings.Join(visibleLines, "\n")
+
+	// Add enhanced scroll indicators
+	if len(lines) > height && width > 15 {
+		scrollInfo := ""
+		if start > 0 {
+			scrollInfo += "↑ "
+		}
+		if end < len(lines) {
+			scrollInfo += "↓ "
+		}
+		if scrollInfo != "" {
+			percentage := int(float64(start+height) / float64(len(lines)) * 100)
+			if percentage > 100 {
+				percentage = 100
+			}
+			scrollInfo = fmt.Sprintf(" [%s%d%%]", scrollInfo, percentage)
+			if len(scrollInfo) <= width {
+				scrolledContent += "\n" + scrollInfo
+			}
+		}
+	}
+
+	return scrolledContent
 }
 
 // createPane creates a styled pane with border (no internal title)
@@ -821,7 +1326,7 @@ func (m Model) createPane(content string, width, height int, focused bool, title
 	return borderStyle.Render(content)
 }
 
-// renderStatusBar renders the status bar with help text and pane titles - COMPACT FOR SMALL SCREENS
+// renderStatusBar renders the status bar with adaptive help text
 func (m Model) renderStatusBar() string {
 	// Build pane titles
 	leftTitle := "Certs"
@@ -829,48 +1334,79 @@ func (m Model) renderStatusBar() string {
 		if m.width < 40 {
 			leftTitle = "Filtered"
 		} else {
-			leftTitle = fmt.Sprintf("Certs (%s)", m.filterType)
-			if len(leftTitle) > 15 {
-				leftTitle = "Certs (filtered)"
+			filterTitle := fmt.Sprintf("Certs (%s)", m.filterType)
+			if len(filterTitle) > 20 {
+				leftTitle = "Filtered"
+			} else {
+				leftTitle = filterTitle
 			}
 		}
 	}
 	rightTitle := "Details"
 
-	// Add focus indicators
-	if m.focus == FocusLeft {
-		leftTitle = "[" + leftTitle + "]"
-	} else {
-		rightTitle = "[" + rightTitle + "]"
-	}
-
-	// Build help text - compact for narrow screens
+	// Adaptive help text based on current mode and width
 	var helpText string
-	if m.width < 50 {
-		if m.focus == FocusRight {
-			helpText = "↑/↓:scroll ←/→:pane ::cmd q:quit"
+	if m.shouldUseSinglePane() {
+		// Single pane mode - different help text
+		if m.focus == FocusLeft {
+			if m.width < 30 {
+				helpText = "↑↓:nav →:detail ::cmd q:quit"
+			} else {
+				helpText = "↑/↓:navigate • →:view details • ::command • q:quit"
+			}
 		} else {
-			helpText = "↑/↓:nav ←/→:pane ::cmd q:quit"
+			if m.width < 30 {
+				helpText = "↑↓:scroll ←:list ::cmd q:quit"
+			} else {
+				helpText = "↑/↓:scroll • ←:back to list • ::command • q:quit"
+			}
 		}
 	} else {
-		if m.focus == FocusRight {
-			helpText = "↑/↓: scroll details • ←/→: switch panes • :: command mode • q: quit"
+		// Dual pane mode
+		// Add focus indicators
+		if m.focus == FocusLeft {
+			leftTitle = "[" + leftTitle + "]"
 		} else {
-			helpText = "↑/↓: navigate • ←/→: switch panes • :: command mode • q: quit"
+			rightTitle = "[" + rightTitle + "]"
+		}
+
+		if m.width < 50 {
+			if m.focus == FocusRight {
+				helpText = "↑↓:scroll ←→:pane ::cmd q:quit"
+			} else {
+				helpText = "↑↓:nav ←→:pane ::cmd q:quit"
+			}
+		} else if m.width < 80 {
+			if m.focus == FocusRight {
+				helpText = "↑/↓:scroll • ←/→:pane • ::cmd • q:quit"
+			} else {
+				helpText = "↑/↓:navigate • ←/→:pane • ::cmd • q:quit"
+			}
+		} else {
+			if m.focus == FocusRight {
+				helpText = "↑/↓: scroll details • ←/→: switch panes • :: command mode • q: quit"
+			} else {
+				helpText = "↑/↓: navigate • ←/→: switch panes • :: command mode • q: quit"
+			}
 		}
 	}
 
+	// Add certificate info if available
 	if len(m.certificates) > 0 {
 		cert := m.certificates[m.cursor]
 		var certInfo string
-		if m.width < 50 {
+		if m.width < 40 {
 			certInfo = fmt.Sprintf("%d/%d", m.cursor+1, len(m.certificates))
 		} else {
 			certInfo = fmt.Sprintf("Certificate %d/%d", m.cursor+1, len(m.certificates))
 		}
 
 		if certificate.IsExpired(cert.Certificate) {
-			certInfo += " (EXPIRED)"
+			if m.width < 50 {
+				certInfo += " (EXP!)"
+			} else {
+				certInfo += " (EXPIRED)"
+			}
 		} else if certificate.IsExpiringSoon(cert.Certificate) {
 			if m.width < 50 {
 				certInfo += " (EXP)"
@@ -884,10 +1420,23 @@ func (m Model) renderStatusBar() string {
 
 	// Combine titles and help text
 	var statusText string
-	if m.width < 50 {
-		statusText = fmt.Sprintf("%s|%s • %s", leftTitle, rightTitle, helpText)
+	if m.shouldUseSinglePane() {
+		if m.focus == FocusLeft {
+			statusText = fmt.Sprintf("%s • %s", leftTitle, helpText)
+		} else {
+			statusText = fmt.Sprintf("%s • %s", rightTitle, helpText)
+		}
 	} else {
-		statusText = fmt.Sprintf("%s | %s • %s", leftTitle, rightTitle, helpText)
+		if m.width < 50 {
+			statusText = fmt.Sprintf("%s|%s • %s", leftTitle, rightTitle, helpText)
+		} else {
+			statusText = fmt.Sprintf("%s | %s • %s", leftTitle, rightTitle, helpText)
+		}
+	}
+
+	// Truncate if too long
+	if len(statusText) > m.width-2 {
+		statusText = truncateText(statusText, m.width-2)
 	}
 
 	return lipgloss.NewStyle().

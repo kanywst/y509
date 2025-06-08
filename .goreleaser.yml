@@ -1,0 +1,79 @@
+project_name: y509
+
+builds:
+  - binary: y509
+    main: ./cmd/y509
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/kanywst/y509/internal/version.Version={{.Version}} -X github.com/kanywst/y509/internal/version.GitCommit={{.Commit}} -X github.com/kanywst/y509/internal/version.BuildDate={{.Date}}
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - man/man1/*
+
+# 自動的にシェル補完スクリプトを生成
+release:
+  prerelease: auto
+
+checksum:
+  name_template: "{{ .ProjectName }}-{{ .Version }}-checksums.txt"
+
+# シェル補完スクリプトを生成
+# コマンド内の completion サブコマンドを利用
+snapcrafts:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    summary: Certificate Chain TUI Viewer
+    description: |
+      y509 is a terminal-based (TUI) certificate chain viewer
+      that provides an interactive way to examine and validate 
+      X.509 certificate chains.
+    
+    # Generate shell completions
+    apps:
+      y509:
+        command: y509
+        completer: completions/y509.bash
+
+brews:
+  - name: y509
+    tap:
+      owner: kanywst
+      name: homebrew-y509
+    homepage: "https://github.com/kanywst/y509"
+    description: "Certificate Chain TUI Viewer"
+    license: "MIT"
+    dependencies:
+      - go
+    install: |
+      bin.install "y509"
+      man1.install "man/man1/y509.1"
+      # Generate shell completions directly using the binary
+      generate_completions_from_executable(bin/"y509", "completion")
+    test: |
+      system "#{bin}/y509", "--version"
+      system "#{bin}/y509", "--help"
+
+nfpms:
+  - maintainer: kanywst
+    description: Certificate Chain TUI Viewer
+    homepage: https://github.com/kanywst/y509
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: completions/y509.bash
+        dst: /usr/share/bash-completion/completions/y509
+      - src: completions/y509.zsh
+        dst: /usr/share/zsh/site-functions/_y509
+      - src: man/man1/y509.1
+        dst: /usr/share/man/man1/y509.1

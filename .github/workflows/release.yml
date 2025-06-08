@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.20'
+
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Build binaries
+        run: |
+          mkdir -p release
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X github.com/kanywst/y509/internal/version.Version=${VERSION#v}" -o "release/y509-${VERSION#v}-darwin-amd64" ./cmd/y509
+          GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X github.com/kanywst/y509/internal/version.Version=${VERSION#v}" -o "release/y509-${VERSION#v}-darwin-arm64" ./cmd/y509
+          GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X github.com/kanywst/y509/internal/version.Version=${VERSION#v}" -o "release/y509-${VERSION#v}-linux-amd64" ./cmd/y509
+          GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X github.com/kanywst/y509/internal/version.Version=${VERSION#v}" -o "release/y509-${VERSION#v}-linux-arm64" ./cmd/y509
+
+      - name: Create archives
+        run: |
+          cd release
+          tar -czf "y509-${VERSION#v}-darwin-amd64.tar.gz" "y509-${VERSION#v}-darwin-amd64"
+          tar -czf "y509-${VERSION#v}-darwin-arm64.tar.gz" "y509-${VERSION#v}-darwin-arm64"
+          tar -czf "y509-${VERSION#v}-linux-amd64.tar.gz" "y509-${VERSION#v}-linux-amd64"
+          tar -czf "y509-${VERSION#v}-linux-arm64.tar.gz" "y509-${VERSION#v}-linux-arm64"
+          shasum -a 256 *.tar.gz > "y509-${VERSION#v}-checksums.txt"
+          cd ..
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release/y509-${{ env.VERSION#v }}-darwin-amd64.tar.gz
+            release/y509-${{ env.VERSION#v }}-darwin-arm64.tar.gz
+            release/y509-${{ env.VERSION#v }}-linux-amd64.tar.gz
+            release/y509-${{ env.VERSION#v }}-linux-arm64.tar.gz
+            release/y509-${{ env.VERSION#v }}-checksums.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Homebrew formula
+        run: |
+          VERSION_NUM=${VERSION#v}
+          SHA256=$(shasum -a 256 "release/y509-${VERSION_NUM}-darwin-amd64.tar.gz" | cut -d ' ' -f 1)
+          sed -i "s/url \"https:\/\/github.com\/kanywst\/y509\/archive\/refs\/tags\/v.*\.tar\.gz\"/url \"https:\/\/github.com\/kanywst\/y509\/archive\/refs\/tags\/${VERSION}.tar.gz\"/" Formula/y509.rb
+          sed -i "s/sha256 \"[a-f0-9]*\"/sha256 \"${SHA256}\"/" Formula/y509.rb
+          sed -i "s/sha256 \"REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE\"/sha256 \"${SHA256}\"/" Formula/y509.rb
+          
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add Formula/y509.rb
+          git commit -m "Update Homebrew formula for ${VERSION}"
+          git push
