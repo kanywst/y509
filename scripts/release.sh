@@ -44,14 +44,20 @@ cd ..
 
 # Update homebrew formula
 echo "Updating homebrew formula..."
-SHA256=$(shasum -a 256 "release/y509-$VERSION_NUM-darwin-amd64.tar.gz" | cut -d ' ' -f 1)
+# Update URL in Formula
 sed -i '' "s/url \"https:\/\/github.com\/kanywst\/y509\/archive\/refs\/tags\/v.*\.tar\.gz\"/url \"https:\/\/github.com\/kanywst\/y509\/archive\/refs\/tags\/$VERSION.tar.gz\"/" Formula/y509.rb
-sed -i '' "s/sha256 \"[a-f0-9]*\"/sha256 \"$SHA256\"/" Formula/y509.rb
-sed -i '' "s/sha256 \"REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE\"/sha256 \"$SHA256\"/" Formula/y509.rb
+
+echo "⚠️ WARNING: The SHA256 hash needs to be updated after creating the GitHub release."
+echo "⚠️ You need to update Formula/y509.rb with the correct SHA256 after uploading the release."
+echo "⚠️ Run the following command to get the correct SHA256 hash:"
+echo "curl -L https://github.com/kanywst/y509/archive/refs/tags/$VERSION.tar.gz | shasum -a 256"
 
 echo "Release preparation complete!"
 echo "Files are available in the 'release' directory"
 echo "Next steps:"
 echo "1. Create a new GitHub release with tag $VERSION"
 echo "2. Upload the .tar.gz files and checksums"
-echo "3. Push the updated homebrew formula"
+echo "3. Get the SHA256 hash of the GitHub source tarball with:"
+echo "   curl -L https://github.com/kanywst/y509/archive/refs/tags/$VERSION.tar.gz | shasum -a 256"
+echo "4. Update Formula/y509.rb with the correct SHA256 hash"
+echo "5. Push the updated homebrew formula"
