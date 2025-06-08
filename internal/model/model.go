@@ -64,6 +64,27 @@ type Model struct {
 	rightPaneScroll int
 }
 
+// SetDimensions sets the width and height of the model (for testing only)
+func (m *Model) SetDimensions(width, height int) {
+	m.width = width
+	m.height = height
+}
+
+// SetReady sets the ready state of the model (for testing only)
+func (m *Model) SetReady(ready bool) {
+	m.ready = ready
+}
+
+// GetWidth returns the width of the model (for testing only)
+func (m Model) GetWidth() int {
+	return m.width
+}
+
+// GetHeight returns the height of the model (for testing only)
+func (m Model) GetHeight() int {
+	return m.height
+}
+
 // calculateAvailableWidth calculates the available width for display elements
 // based on the current screen width and view mode (single or dual pane)
 func (m Model) calculateAvailableWidth() int {
