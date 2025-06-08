@@ -62,4 +62,27 @@ func Execute() {
 
 func init() {
 	// フラグの追加などの初期化処理はここに記述
+	
+	// Enable command sorting and disable default completion
+	RootCmd.CompletionOptions.DisableDefaultCmd = true
+	
+	// Add help command explicitly as a subcommand (for testing purposes)
+	helpCmd := &cobra.Command{
+		Use:   "help [command]",
+		Short: "Help about any command",
+		Long: `Help provides help for any command in the application.
+Simply type y509 help [path to command] for full details.`,
+		Run: func(c *cobra.Command, args []string) {
+			cmd, _, e := c.Root().Find(args)
+			if cmd == nil || e != nil {
+				c.Printf("Unknown help topic %#q\n", args)
+				c.Root().Usage()
+			} else {
+				cmd.InitDefaultHelpFlag()
+				cmd.Help()
+			}
+		},
+	}
+	
+	RootCmd.AddCommand(helpCmd)
 }

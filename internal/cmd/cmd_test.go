@@ -3,23 +3,24 @@ package cmd
 import (
 	"bytes"
 	"testing"
-
-	"github.com/spf13/cobra"
 )
 
 func TestRootCommandHelp(t *testing.T) {
-	// ルートコマンドのクローンを作成（実際のコマンドを実行せずにテストするため）
-	cmd := &cobra.Command{Use: "y509"}
-	cmd.SetHelpTemplate(RootCmd.HelpTemplate())
-	
+	// 実際のRootCmdを使用してテスト
 	// バッファを作成してコマンドの出力をキャプチャ
 	b := new(bytes.Buffer)
-	cmd.SetOut(b)
-	cmd.SetErr(b)
-	cmd.SetArgs([]string{"--help"})
+	oldOut := RootCmd.OutOrStdout()
+	oldErr := RootCmd.ErrOrStderr()
+	defer func() {
+		RootCmd.SetOut(oldOut)
+		RootCmd.SetErr(oldErr)
+	}()
 	
-	// ヘルプコマンドを実行
-	cmd.Execute()
+	RootCmd.SetOut(b)
+	RootCmd.SetErr(b)
+	
+	// ヘルプメッセージを取得
+	RootCmd.Help()
 	
 	// 出力にキーワードが含まれていることを確認（実際の出力内容はテストしない）
 	out := b.String()
