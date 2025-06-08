@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/kanywst/y509/pkg/certificate"
+	"github.com/spf13/cobra"
 )
 
 var (

@@ -6,10 +6,10 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/spf13/cobra"
 	"github.com/kanywst/y509/internal/model"
 	"github.com/kanywst/y509/internal/version"
 	"github.com/kanywst/y509/pkg/certificate"
+	"github.com/spf13/cobra"
 )
 
 // RootCmd represents the base command when called without any subcommands
@@ -22,7 +22,7 @@ It provides an interactive way to examine and validate X.509 certificate chains
 with a user-friendly interface that adapts to the terminal size.`,
 	Example: `  y509 certificate.pem         View certificates from a file
   cat certificate.pem | y509   Read certificates from stdin`,
-	Args: cobra.MaximumNArgs(1),  // Allow at most one argument for the file
+	Args: cobra.MaximumNArgs(1), // Allow at most one argument for the file
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get filename from args
 		var filename string
@@ -52,7 +52,6 @@ with a user-friendly interface that adapts to the terminal size.`,
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	// カスタムバージョン出力のフォーマットを設定
 	RootCmd.SetVersionTemplate("y509 version {{.Version}}\nBuild: " + version.GetFullVersion() + "\n")
 
 	if err := RootCmd.Execute(); err != nil {
@@ -62,15 +61,13 @@ func Execute() {
 }
 
 func init() {
-	// フラグの追加などの初期化処理はここに記述
-	
 	// Disable default help command and completion
 	RootCmd.CompletionOptions.DisableDefaultCmd = true
 	RootCmd.SetHelpCommand(&cobra.Command{
 		Hidden: true,
 		Use:    "no-help",
 	})
-	
+
 	// Add help command explicitly as a subcommand (for testing purposes)
 	helpCmd := &cobra.Command{
 		Use:   "help [command]",
@@ -88,6 +85,6 @@ Simply type y509 help [path to command] for full details.`,
 			}
 		},
 	}
-	
+
 	RootCmd.AddCommand(helpCmd)
 }

@@ -12,7 +12,6 @@ A terminal user interface (TUI) tool for viewing and analyzing X.509 certificate
 ## Features
 
 - **Intuitive TUI**: Two-pane interface with certificate list and detailed information
-- **Command Mode**: k9s-style command interface for detailed certificate inspection
 - **Certificate Chain Validation**: Comprehensive chain validation with detailed error reporting
 - **Search & Filter**: Search certificates by CN, organization, DNS names, or filter by status
 - **Export Functionality**: Export certificates in PEM or DER format
@@ -151,7 +150,7 @@ openssl s_client -connect example.com:443 -showcerts | y509
 
 ### Command Mode
 
-Press `:` to enter command mode (similar to k9s). Available commands:
+Press `:` to enter command mode. Available commands:
 
 #### Certificate Information Commands
 
@@ -434,7 +433,6 @@ The `y509` command can be installed via Homebrew. The Homebrew formula is mainta
 
 - [Charm](https://charm.sh/) for the excellent TUI libraries
 - [Go team](https://golang.org/) for the robust standard library
-- [k9s](https://k9scli.io/) for command mode inspiration
 - Certificate transparency and security community
 
 ## Roadmap

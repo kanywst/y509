@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/kanywst/y509/pkg/certificate"
+	"github.com/spf13/cobra"
 )
 
 // validateCmd represents the validate command
@@ -33,7 +33,7 @@ It can check for chain validity, expiration, and trust.`,
 
 		// Validate the certificate chain
 		results := certificate.ValidateChain(certs)
-		
+
 		// Display validation results
 		fmt.Println(certificate.FormatChainValidation(results))
 	},
