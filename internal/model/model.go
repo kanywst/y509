@@ -33,6 +33,28 @@ const (
 // SplashDoneMsg indicates splash screen is complete
 type SplashDoneMsg struct{}
 
+// Formatting constants
+const (
+	// Border and padding
+	borderPadding  = 2
+	contentPadding = 4
+
+	// Minimum widths for different display modes
+	minUltraCompactWidth = 25
+	minCompactWidth      = 40
+	minMediumWidth       = 60
+
+	// Label truncation
+	labelPadding           = 8
+	cnPadding              = 4
+	subjectPadding         = 10
+	scrollIndicatorPadding = 6
+
+	// Status bar
+	statusBarHeight  = 1
+	commandBarHeight = 1
+)
+
 // Model represents the application state
 type Model struct {
 	certificates    []*certificate.CertificateInfo
@@ -727,14 +749,11 @@ func (m Model) renderMinimumSizeWarning(minWidth, minHeight int) string {
 // renderNormalView renders the normal view - adaptive layout
 func (m Model) renderNormalView() string {
 	// Calculate available space for main content
-	statusBarHeight := 1
-	commandBarHeight := 0
+	mainHeight := m.height - statusBarHeight
 	if m.viewMode == ViewCommand {
-		commandBarHeight = 1
+		mainHeight -= commandBarHeight
 	}
 
-	// Calculate main content height
-	mainHeight := m.height - statusBarHeight - commandBarHeight
 	if mainHeight < 3 {
 		mainHeight = 3
 	}
@@ -753,7 +772,7 @@ func (m Model) renderSinglePaneView(mainHeight int) string {
 	var content string
 
 	// Calculate content height (subtract borders)
-	contentHeight := mainHeight - 2
+	contentHeight := mainHeight - borderPadding
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
@@ -763,7 +782,7 @@ func (m Model) renderSinglePaneView(mainHeight int) string {
 		content = m.renderCertificateList(contentHeight)
 	} else {
 		// Show certificate details
-		content = m.renderCertificateDetails(m.width-4, contentHeight)
+		content = m.renderCertificateDetails(m.width-contentPadding, contentHeight)
 	}
 
 	// Create single pane
@@ -786,7 +805,7 @@ func (m Model) renderSinglePaneView(mainHeight int) string {
 func (m Model) renderDualPaneView(mainHeight int) string {
 	// Calculate pane widths - more flexible allocation
 	var leftWidth, rightWidth int
-	if m.width < 60 {
+	if m.width < minMediumWidth {
 		// Narrow: give more space to details
 		leftWidth = max(12, m.width*2/5)
 		rightWidth = m.width - leftWidth
@@ -811,7 +830,7 @@ func (m Model) renderDualPaneView(mainHeight int) string {
 	}
 
 	// Calculate content height for list (subtract borders only)
-	contentHeight := mainHeight - 2 // borders(2) only
+	contentHeight := mainHeight - borderPadding
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
@@ -820,7 +839,7 @@ func (m Model) renderDualPaneView(mainHeight int) string {
 	leftPane := m.createPane(leftContent, leftWidth, mainHeight, m.focus == FocusLeft, "")
 
 	// Render right pane (certificate details) with scrolling
-	rightContent := m.renderCertificateDetails(rightWidth-4, contentHeight)
+	rightContent := m.renderCertificateDetails(rightWidth-contentPadding, contentHeight)
 	rightPane := m.createPane(rightContent, rightWidth, mainHeight, m.focus == FocusRight, "")
 
 	// Combine panes
@@ -986,6 +1005,16 @@ func (m Model) renderCertificateList(height int) string {
 	return content.String()
 }
 
+// getCertificateStatus returns the status icon and text for a certificate
+func (m Model) getCertificateStatus(cert *certificate.CertificateInfo) (string, string) {
+	if certificate.IsExpired(cert.Certificate) {
+		return "❌", "EXPIRED"
+	} else if certificate.IsExpiringSoon(cert.Certificate) {
+		return "⚠️", "EXPIRING SOON"
+	}
+	return "✅", "VALID"
+}
+
 // renderCertificateDetails renders the details of the selected certificate with improved text handling
 func (m Model) renderCertificateDetails(width, height int) string {
 	if len(m.certificates) == 0 {
@@ -996,67 +1025,38 @@ func (m Model) renderCertificateDetails(width, height int) string {
 
 	// Get appropriate details based on width
 	var details string
-	if width < 25 {
+	if width < minUltraCompactWidth {
 		// Ultra compact details - only essential info
-		statusIcon := ""
-		if certificate.IsExpired(cert.Certificate) {
-			statusIcon = "❌"
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			statusIcon = "⚠️"
-		} else {
-			statusIcon = "✅"
-		}
+		statusIcon, _ := m.getCertificateStatus(cert)
 		details = fmt.Sprintf("%s Cert %d/%d\n%s\n\nCN: %s\nExp: %s",
 			statusIcon,
 			m.cursor+1, len(m.certificates),
-			truncateText(cert.Label, width-2),
-			truncateText(cert.Certificate.Subject.CommonName, width-4),
+			truncateText(cert.Label, width-borderPadding),
+			truncateText(cert.Certificate.Subject.CommonName, width-cnPadding),
 			cert.Certificate.NotAfter.Format("2006-01-02"))
-	} else if width < 40 {
+	} else if width < minCompactWidth {
 		// Compact details with better organization
-		statusIcon := ""
-		statusText := ""
-		if certificate.IsExpired(cert.Certificate) {
-			statusIcon = "❌"
-			statusText = "EXPIRED"
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			statusIcon = "⚠️"
-			statusText = "EXPIRING"
-		} else {
-			statusIcon = "✅"
-			statusText = "VALID"
-		}
+		statusIcon, statusText := m.getCertificateStatus(cert)
 
 		details = fmt.Sprintf("%s %s\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nExpires:\n%s",
 			statusIcon, statusText,
-			truncateText(cert.Label, width-2),
-			truncateText(cert.Certificate.Subject.CommonName, width-4),
-			truncateText(cert.Certificate.Issuer.CommonName, width-4),
+			truncateText(cert.Label, width-borderPadding),
+			truncateText(cert.Certificate.Subject.CommonName, width-cnPadding),
+			truncateText(cert.Certificate.Issuer.CommonName, width-cnPadding),
 			cert.Certificate.NotAfter.Format("2006-01-02 15:04"))
-	} else if width < 60 {
+	} else if width < minMediumWidth {
 		// Medium details with better structure
 		var builder strings.Builder
 
 		// Header with status
-		statusIcon := ""
-		statusText := ""
-		if certificate.IsExpired(cert.Certificate) {
-			statusIcon = "❌"
-			statusText = "EXPIRED"
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			statusIcon = "⚠️"
-			statusText = "EXPIRING"
-		} else {
-			statusIcon = "✅"
-			statusText = "VALID"
-		}
+		statusIcon, statusText := m.getCertificateStatus(cert)
 
 		builder.WriteString(fmt.Sprintf("%s %s - Cert %d/%d\n", statusIcon, statusText, m.cursor+1, len(m.certificates)))
-		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-2, 30))))
+		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-borderPadding, 30))))
 
 		// Essential information
-		builder.WriteString(fmt.Sprintf("Subject: %s\n", truncateText(cert.Certificate.Subject.CommonName, width-10)))
-		builder.WriteString(fmt.Sprintf("Issuer:  %s\n", truncateText(cert.Certificate.Issuer.CommonName, width-10)))
+		builder.WriteString(fmt.Sprintf("Subject: %s\n", truncateText(cert.Certificate.Subject.CommonName, width-subjectPadding)))
+		builder.WriteString(fmt.Sprintf("Issuer:  %s\n", truncateText(cert.Certificate.Issuer.CommonName, width-subjectPadding)))
 
 		// Validity
 		now := time.Now()
@@ -1074,7 +1074,7 @@ func (m Model) renderCertificateDetails(width, height int) string {
 		if len(cert.Certificate.DNSNames) > 0 {
 			builder.WriteString("DNS: ")
 			if len(cert.Certificate.DNSNames) == 1 {
-				builder.WriteString(truncateText(cert.Certificate.DNSNames[0], width-6))
+				builder.WriteString(truncateText(cert.Certificate.DNSNames[0], width-scrollIndicatorPadding))
 			} else {
 				builder.WriteString(fmt.Sprintf("%d names", len(cert.Certificate.DNSNames)))
 			}
@@ -1086,24 +1086,12 @@ func (m Model) renderCertificateDetails(width, height int) string {
 		var builder strings.Builder
 
 		// Header with certificate position and status
-		statusIcon := ""
-		statusText := ""
+		statusIcon, statusText := m.getCertificateStatus(cert)
 		now := time.Now()
-
-		if certificate.IsExpired(cert.Certificate) {
-			statusIcon = "❌"
-			statusText = "EXPIRED"
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			statusIcon = "⚠️"
-			statusText = "EXPIRING SOON"
-		} else {
-			statusIcon = "✅"
-			statusText = "VALID"
-		}
 
 		builder.WriteString(fmt.Sprintf("Certificate %d/%d %s %s\n",
 			m.cursor+1, len(m.certificates), statusIcon, statusText))
-		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-2, 40))))
+		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-borderPadding, 40))))
 
 		// Subject information
 		builder.WriteString("📋 Subject:\n")
