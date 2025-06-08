@@ -14,7 +14,7 @@ class Y509 < Formula
     cd "cmd/y509" do
       system "go", "build", *std_go_args(ldflags: "-s -w -X github.com/kanywst/y509/internal/version.Version=#{version}")
     end
-    
+
     # Generate shell completions
     generate_completions_from_executable(bin/"y509", "completion")
 
