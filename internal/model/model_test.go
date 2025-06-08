@@ -629,7 +629,7 @@ func TestTextTruncation(t *testing.T) {
 func TestSinglePaneModeNavigation(t *testing.T) {
 	certs := createTestCertificates()
 	model := NewModel(certs)
-	model.width = 30  // Force single pane mode
+	model.width = 30 // Force single pane mode
 	model.height = 15
 	model.ready = true
 	model.viewMode = ViewNormal
@@ -663,7 +663,7 @@ func TestSinglePaneModeNavigation(t *testing.T) {
 func TestDualPaneModeNavigation(t *testing.T) {
 	certs := createTestCertificates()
 	model := NewModel(certs)
-	model.width = 80  // Force dual pane mode
+	model.width = 80 // Force dual pane mode
 	model.height = 25
 	model.ready = true
 	model.viewMode = ViewNormal
@@ -815,7 +815,7 @@ func TestSplashScreenAdaptation(t *testing.T) {
 			model.height = tt.height
 
 			splash := model.renderSplashScreen()
-			
+
 			// Check that splash screen is not empty
 			if len(splash) == 0 {
 				t.Error("Splash screen should not be empty")
@@ -833,7 +833,7 @@ func TestSplashScreenAdaptation(t *testing.T) {
 func TestCommandModeInSmallTerminal(t *testing.T) {
 	certs := createTestCertificates()
 	model := NewModel(certs)
-	model.width = 25  // Very narrow
+	model.width = 25 // Very narrow
 	model.height = 10
 	model.ready = true
 	model.viewMode = ViewNormal
@@ -861,9 +861,9 @@ func TestMinimumSizeHandling(t *testing.T) {
 	// Test terminal smaller than minimum
 	model.width = 10
 	model.height = 3
-	
+
 	view := model.View()
-	
+
 	// Should show minimum size warning if below minimum thresholds
 	minWidth, minHeight := getMinimumSize()
 	if model.width < minWidth || model.height < minHeight {
@@ -933,7 +933,7 @@ func TestQuickHelp(t *testing.T) {
 	// Test quick help in dual pane mode
 	model.width = 80
 	model.height = 25
-	
+
 	helpText := model.getQuickHelp()
 	if !strings.Contains(helpText, "DUAL PANE MODE") {
 		t.Error("Quick help should indicate dual pane mode for wide terminal")
@@ -942,7 +942,7 @@ func TestQuickHelp(t *testing.T) {
 	// Test quick help in single pane mode
 	model.width = 30
 	model.height = 15
-	
+
 	helpText = model.getQuickHelp()
 	if !strings.Contains(helpText, "SINGLE PANE MODE") {
 		t.Error("Quick help should indicate single pane mode for narrow terminal")
@@ -967,10 +967,10 @@ func TestEscapeKeyHandling(t *testing.T) {
 	model.viewMode = ViewCommand
 	model.commandInput = "test"
 	model.commandError = "test error"
-	
+
 	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyEscape})
 	updatedModel := newModel.(Model)
-	
+
 	if updatedModel.viewMode != ViewNormal {
 		t.Error("Escape should exit command mode")
 	}
@@ -985,10 +985,10 @@ func TestEscapeKeyHandling(t *testing.T) {
 	model.viewMode = ViewDetail
 	model.detailField = "test field"
 	model.detailValue = "test value"
-	
+
 	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyEscape})
 	updatedModel = newModel.(Model)
-	
+
 	if updatedModel.viewMode != ViewNormal {
 		t.Error("Escape should exit detail mode")
 	}
@@ -1013,7 +1013,7 @@ func TestKeyboardAccessibility(t *testing.T) {
 	model.focus = FocusLeft
 	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyTab})
 	updatedModel := newModel.(Model)
-	
+
 	if updatedModel.focus != FocusRight {
 		t.Error("Tab should switch focus to right pane")
 	}
@@ -1021,7 +1021,7 @@ func TestKeyboardAccessibility(t *testing.T) {
 	// Test tab navigation back
 	newModel, _ = updatedModel.Update(tea.KeyMsg{Type: tea.KeyTab})
 	updatedModel = newModel.(Model)
-	
+
 	if updatedModel.focus != FocusLeft {
 		t.Error("Tab should switch focus back to left pane")
 	}
@@ -1029,7 +1029,7 @@ func TestKeyboardAccessibility(t *testing.T) {
 	// Test question mark for help
 	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
 	updatedModel = newModel.(Model)
-	
+
 	if updatedModel.viewMode != ViewDetail {
 		t.Error("Question mark should show quick help")
 	}
@@ -1056,7 +1056,7 @@ func TestErrorHandling(t *testing.T) {
 	model.viewMode = ViewCommand
 	model.commandInput = "subject"
 	model.executeCommand()
-	
+
 	if model.commandError == "" {
 		t.Error("Should show error when trying to view subject with no certificates")
 	}

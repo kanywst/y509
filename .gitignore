@@ -6,6 +6,7 @@
 *.dylib
 y509
 y509-*
+main
 
 # Test binary, built with `go test -c`
 *.test
@@ -66,5 +67,3 @@ coverage.html
 # Demo recording artifacts
 *.mp4
 *.webm
-
-TODO.md
