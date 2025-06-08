@@ -2,14 +2,16 @@ class Y509 < Formula
   desc "Certificate Chain TUI Viewer"
   homepage "https://github.com/kanywst/y509"
   url "https://github.com/kanywst/y509/archive/refs/tags/v0.2.0.tar.gz"
-  sha256 "REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE"
+  sha256 "6964c28c35bc1efd5a695caec6624614e188b49b8dba411915c1a3c360aaa4ad"
   license "MIT"
   head "https://github.com/kanywst/y509.git", branch: "main"
 
   depends_on "go" => :build
 
   def install
-    system "go", "build", *std_go_args(ldflags: "-s -w -X github.com/kanywst/y509/internal/version.Version=#{version}")
+    cd "cmd/y509" do
+      system "go", "build", *std_go_args(ldflags: "-s -w -X github.com/kanywst/y509/internal/version.Version=#{version}")
+    end
     
     # Generate shell completions
     generate_completions_from_executable(bin/"y509", "completion")
