@@ -426,8 +426,8 @@ The `y509` command can be installed via Homebrew. The Homebrew formula is mainta
 
 ### Releasing a New Version
 
-1. Tag a new version: `git tag -a v0.1.0 -m "Release v0.1.0"`
-2. Push the tag: `git push origin v0.1.0`
+1. Tag a new version: `git tag -a v0.2.0 -m "Release v0.2.0"`
+2. Push the tag: `git push origin v0.2.0`
 3. The GitHub Actions workflow will automatically build, create the release, and update the Homebrew formula
 
 ## Acknowledgments
