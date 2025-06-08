@@ -9,6 +9,8 @@ class Y509 < Formula
   depends_on "go" => :build
 
   def install
+    # Change to the "cmd/y509" directory, which is a common convention in Go projects
+    # for organizing binaries. The "y509" binary is located in this subdirectory.
     cd "cmd/y509" do
       system "go", "build", *std_go_args(ldflags: "-s -w -X github.com/kanywst/y509/internal/version.Version=#{version}")
     end
