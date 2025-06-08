@@ -998,31 +998,168 @@ func (m Model) renderCertificateDetails(width, height int) string {
 	var details string
 	if width < 25 {
 		// Ultra compact details - only essential info
-		details = fmt.Sprintf("Cert %d/%d\n%s\n\nCN: %s\nExp: %s",
+		statusIcon := ""
+		if certificate.IsExpired(cert.Certificate) {
+			statusIcon = "❌"
+		} else if certificate.IsExpiringSoon(cert.Certificate) {
+			statusIcon = "⚠️"
+		} else {
+			statusIcon = "✅"
+		}
+		details = fmt.Sprintf("%s Cert %d/%d\n%s\n\nCN: %s\nExp: %s",
+			statusIcon,
 			m.cursor+1, len(m.certificates),
-			truncateText(cert.Label, width),
-			truncateText(cert.Certificate.Subject.CommonName, width),
+			truncateText(cert.Label, width-2),
+			truncateText(cert.Certificate.Subject.CommonName, width-4),
 			cert.Certificate.NotAfter.Format("2006-01-02"))
 	} else if width < 40 {
-		// Compact details
-		details = fmt.Sprintf("Certificate %d/%d\n%s\n\nSubject:\n%s\n\nExpires:\n%s",
-			m.cursor+1, len(m.certificates),
-			truncateText(cert.Label, width),
-			truncateText(cert.Certificate.Subject.CommonName, width),
+		// Compact details with better organization
+		statusIcon := ""
+		statusText := ""
+		if certificate.IsExpired(cert.Certificate) {
+			statusIcon = "❌"
+			statusText = "EXPIRED"
+		} else if certificate.IsExpiringSoon(cert.Certificate) {
+			statusIcon = "⚠️"
+			statusText = "EXPIRING"
+		} else {
+			statusIcon = "✅"
+			statusText = "VALID"
+		}
+
+		details = fmt.Sprintf("%s %s\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nExpires:\n%s",
+			statusIcon, statusText,
+			truncateText(cert.Label, width-2),
+			truncateText(cert.Certificate.Subject.CommonName, width-4),
+			truncateText(cert.Certificate.Issuer.CommonName, width-4),
 			cert.Certificate.NotAfter.Format("2006-01-02 15:04"))
 	} else if width < 60 {
-		// Medium details
-		details = fmt.Sprintf("Certificate %d/%d\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nValid:\n%s - %s",
-			m.cursor+1, len(m.certificates),
-			cert.Label,
-			wrapText(cert.Certificate.Subject.CommonName, width),
-			wrapText(cert.Certificate.Issuer.CommonName, width),
-			cert.Certificate.NotBefore.Format("2006-01-02"),
-			cert.Certificate.NotAfter.Format("2006-01-02"))
+		// Medium details with better structure
+		var builder strings.Builder
+
+		// Header with status
+		statusIcon := ""
+		statusText := ""
+		if certificate.IsExpired(cert.Certificate) {
+			statusIcon = "❌"
+			statusText = "EXPIRED"
+		} else if certificate.IsExpiringSoon(cert.Certificate) {
+			statusIcon = "⚠️"
+			statusText = "EXPIRING"
+		} else {
+			statusIcon = "✅"
+			statusText = "VALID"
+		}
+
+		builder.WriteString(fmt.Sprintf("%s %s - Cert %d/%d\n", statusIcon, statusText, m.cursor+1, len(m.certificates)))
+		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-2, 30))))
+
+		// Essential information
+		builder.WriteString(fmt.Sprintf("Subject: %s\n", truncateText(cert.Certificate.Subject.CommonName, width-10)))
+		builder.WriteString(fmt.Sprintf("Issuer:  %s\n", truncateText(cert.Certificate.Issuer.CommonName, width-10)))
+
+		// Validity
+		now := time.Now()
+		if cert.Certificate.NotAfter.Before(now) {
+			duration := now.Sub(cert.Certificate.NotAfter)
+			days := int(duration.Hours() / 24)
+			builder.WriteString(fmt.Sprintf("Expired: %d days ago\n", days))
+		} else {
+			duration := cert.Certificate.NotAfter.Sub(now)
+			days := int(duration.Hours() / 24)
+			builder.WriteString(fmt.Sprintf("Valid:   %d days left\n", days))
+		}
+
+		// DNS names if available
+		if len(cert.Certificate.DNSNames) > 0 {
+			builder.WriteString("DNS: ")
+			if len(cert.Certificate.DNSNames) == 1 {
+				builder.WriteString(truncateText(cert.Certificate.DNSNames[0], width-6))
+			} else {
+				builder.WriteString(fmt.Sprintf("%d names", len(cert.Certificate.DNSNames)))
+			}
+		}
+
+		details = builder.String()
 	} else {
-		// Full details with proper wrapping
-		fullDetails := certificate.GetCertificateDetails(cert.Certificate)
-		details = wrapText(fullDetails, width)
+		// Full details with proper formatting
+		var builder strings.Builder
+
+		// Header with certificate position and status
+		statusIcon := ""
+		statusText := ""
+		now := time.Now()
+
+		if certificate.IsExpired(cert.Certificate) {
+			statusIcon = "❌"
+			statusText = "EXPIRED"
+		} else if certificate.IsExpiringSoon(cert.Certificate) {
+			statusIcon = "⚠️"
+			statusText = "EXPIRING SOON"
+		} else {
+			statusIcon = "✅"
+			statusText = "VALID"
+		}
+
+		builder.WriteString(fmt.Sprintf("Certificate %d/%d %s %s\n",
+			m.cursor+1, len(m.certificates), statusIcon, statusText))
+		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-2, 40))))
+
+		// Subject information
+		builder.WriteString("📋 Subject:\n")
+		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Subject.CommonName))
+		if len(cert.Certificate.Subject.Organization) > 0 {
+			builder.WriteString(fmt.Sprintf("  Organization: %s\n", strings.Join(cert.Certificate.Subject.Organization, ", ")))
+		}
+		if len(cert.Certificate.Subject.OrganizationalUnit) > 0 {
+			builder.WriteString(fmt.Sprintf("  Organizational Unit: %s\n", strings.Join(cert.Certificate.Subject.OrganizationalUnit, ", ")))
+		}
+
+		// Issuer information
+		builder.WriteString("\n🏢 Issuer:\n")
+		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Issuer.CommonName))
+		if len(cert.Certificate.Issuer.Organization) > 0 {
+			builder.WriteString(fmt.Sprintf("  Organization: %s\n", strings.Join(cert.Certificate.Issuer.Organization, ", ")))
+		}
+
+		// Validity information
+		builder.WriteString("\n📅 Validity:\n")
+		builder.WriteString(fmt.Sprintf("  Not Before: %s\n", cert.Certificate.NotBefore.Format("2006-01-02 15:04:05 MST")))
+		builder.WriteString(fmt.Sprintf("  Not After:  %s\n", cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST")))
+
+		// Add days remaining/expired info
+		if cert.Certificate.NotAfter.Before(now) {
+			duration := now.Sub(cert.Certificate.NotAfter)
+			days := int(duration.Hours() / 24)
+			builder.WriteString(fmt.Sprintf("  Status: %s %s (Expired %d days ago)\n", statusIcon, statusText, days))
+		} else {
+			duration := cert.Certificate.NotAfter.Sub(now)
+			days := int(duration.Hours() / 24)
+			builder.WriteString(fmt.Sprintf("  Status: %s %s (Valid for %d days)\n", statusIcon, statusText, days))
+		}
+
+		// Subject Alternative Names
+		builder.WriteString("\n🌐 Subject Alternative Names:\n")
+		if len(cert.Certificate.DNSNames) > 0 || len(cert.Certificate.IPAddresses) > 0 || len(cert.Certificate.EmailAddresses) > 0 {
+			for _, dns := range cert.Certificate.DNSNames {
+				builder.WriteString(fmt.Sprintf("  DNS: %s\n", dns))
+			}
+			for _, ip := range cert.Certificate.IPAddresses {
+				builder.WriteString(fmt.Sprintf("  IP: %s\n", ip.String()))
+			}
+			for _, email := range cert.Certificate.EmailAddresses {
+				builder.WriteString(fmt.Sprintf("  Email: %s\n", email))
+			}
+		} else {
+			builder.WriteString("  None\n")
+		}
+
+		// Fingerprint and Serial Number
+		builder.WriteString("\n🔒 SHA256 Fingerprint:\n")
+		builder.WriteString(fmt.Sprintf("  %s\n", certificate.FormatFingerprint(cert.Certificate)))
+		builder.WriteString(fmt.Sprintf("\n🔢 Serial Number: %s\n", cert.Certificate.SerialNumber.String()))
+
+		details = builder.String()
 	}
 
 	// Split details into lines for scrolling
@@ -1050,243 +1187,8 @@ func (m Model) renderCertificateDetails(width, height int) string {
 	// Join visible lines
 	scrolledContent := strings.Join(visibleLines, "\n")
 
-	// Add scroll indicator if there's more content (only if there's room)
+	// Add scroll indicator if there's more content
 	if len(lines) > height && width > 10 {
-		scrollInfo := ""
-		if start > 0 {
-			scrollInfo += "↑ "
-		}
-		if end < len(lines) {
-			scrollInfo += "↓ "
-		}
-		if scrollInfo != "" {
-			scrollInfo = fmt.Sprintf(" [%s%d/%d]", scrollInfo, start+1, len(lines))
-			if len(scrollInfo) <= width {
-				scrolledContent += "\n" + scrollInfo
-			}
-		}
-	}
-
-	return scrolledContent
-}
-
-// renderImprovedCertificateDetails renders certificate details with enhanced UX and better formatting
-func (m Model) renderImprovedCertificateDetails(width, height int) string {
-	if len(m.certificates) == 0 {
-		return "No certificate selected"
-	}
-
-	cert := m.certificates[m.cursor]
-
-	// Format details based on width with better content prioritization
-	var details string
-	if width < 30 {
-		// Ultra compact: Focus on critical information only
-		status := ""
-		if certificate.IsExpired(cert.Certificate) {
-			status = "❌ EXPIRED"
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			status = "⚠️ EXPIRING"
-		} else {
-			status = "✅ VALID"
-		}
-
-		details = fmt.Sprintf("Certificate %d/%d\n%s\n\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nValidity:\n%s\n\nDNS:\n%s",
-			m.cursor+1, len(m.certificates),
-			truncateText(cert.Label, width-2),
-			status,
-			truncateText(cert.Certificate.Subject.CommonName, width-2),
-			truncateText(cert.Certificate.Issuer.CommonName, width-2),
-			cert.Certificate.NotAfter.Format("2006-01-02"),
-			truncateText(strings.Join(cert.Certificate.DNSNames, ", "), width-2))
-
-	} else if width < 50 {
-		// Compact: Essential information with better organization
-		status := ""
-		statusIcon := ""
-		now := time.Now()
-		if certificate.IsExpired(cert.Certificate) {
-			status = "EXPIRED"
-			statusIcon = "❌"
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			status = "EXPIRING SOON"
-			statusIcon = "⚠️"
-		} else {
-			status = "VALID"
-			statusIcon = "✅"
-		}
-
-		// Add days remaining/expired info
-		daysInfo := ""
-		if cert.Certificate.NotAfter.Before(now) {
-			duration := now.Sub(cert.Certificate.NotAfter)
-			days := int(duration.Hours() / 24)
-			daysInfo = fmt.Sprintf(" (%d days ago)", days)
-		} else {
-			duration := cert.Certificate.NotAfter.Sub(now)
-			days := int(duration.Hours() / 24)
-			daysInfo = fmt.Sprintf(" (%d days)", days)
-		}
-
-		details = fmt.Sprintf("Certificate %d/%d\n%s\n%s Status: %s%s\n\nSubject: %s",
-			m.cursor+1, len(m.certificates),
-			wrapText(cert.Label, width-2),
-			statusIcon, status, daysInfo,
-			wrapText(cert.Certificate.Subject.CommonName, width-10))
-
-		if len(cert.Certificate.Subject.Organization) > 0 {
-			details += fmt.Sprintf("\nOrganization: %s", wrapText(strings.Join(cert.Certificate.Subject.Organization, ", "), width-14))
-		}
-
-		details += fmt.Sprintf("\nIssuer: %s", wrapText(cert.Certificate.Issuer.CommonName, width-8))
-
-		// Add key DNS names if available
-		if len(cert.Certificate.DNSNames) > 0 {
-			details += "\nDNS: " + strings.Join(cert.Certificate.DNSNames[:min(len(cert.Certificate.DNSNames), 2)], ", ")
-			if len(cert.Certificate.DNSNames) > 2 {
-				details += fmt.Sprintf(" +%d more", len(cert.Certificate.DNSNames)-2)
-			}
-		}
-
-		details += fmt.Sprintf("\nValidity: %s to %s",
-			cert.Certificate.NotBefore.Format("2006-01-02"),
-			cert.Certificate.NotAfter.Format("2006-01-02"))
-
-	} else {
-		// Full width: Ultra-compact comprehensive information
-		var builder strings.Builder
-
-		// Header with certificate position and status
-		statusIcon := ""
-		statusText := ""
-		statusDetail := ""
-		now := time.Now()
-
-		if certificate.IsExpired(cert.Certificate) {
-			statusIcon = "❌"
-			statusText = "EXPIRED"
-			duration := now.Sub(cert.Certificate.NotAfter)
-			days := int(duration.Hours() / 24)
-			statusDetail = fmt.Sprintf("Expired %d days ago", days)
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			statusIcon = "⚠️"
-			statusText = "EXPIRING SOON"
-			duration := cert.Certificate.NotAfter.Sub(now)
-			days := int(duration.Hours() / 24)
-			statusDetail = fmt.Sprintf("Expires in %d days", days)
-		} else {
-			statusIcon = "✅"
-			statusText = "VALID"
-			duration := cert.Certificate.NotAfter.Sub(now)
-			days := int(duration.Hours() / 24)
-			statusDetail = fmt.Sprintf("Valid for %d days", days)
-		}
-
-		builder.WriteString(fmt.Sprintf("Certificate %d/%d %s %s\n",
-			m.cursor+1, len(m.certificates), statusIcon, statusText))
-		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-2, 40))))
-
-		// Subject information - ultra compact format
-		builder.WriteString("📋 Subject:\n")
-		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Subject.CommonName))
-		if len(cert.Certificate.Subject.Organization) > 0 {
-			builder.WriteString(fmt.Sprintf("  Organization: %s\n", strings.Join(cert.Certificate.Subject.Organization, ", ")))
-		}
-		if len(cert.Certificate.Subject.OrganizationalUnit) > 0 {
-			builder.WriteString(fmt.Sprintf("  Organizational Unit: %s\n", strings.Join(cert.Certificate.Subject.OrganizationalUnit, ", ")))
-		}
-		// Combine geographic fields on one line
-		var geoFields []string
-		if len(cert.Certificate.Subject.Country) > 0 {
-			geoFields = append(geoFields, "Country: "+strings.Join(cert.Certificate.Subject.Country, ", "))
-		}
-		if len(cert.Certificate.Subject.Province) > 0 {
-			geoFields = append(geoFields, "Province: "+strings.Join(cert.Certificate.Subject.Province, ", "))
-		}
-		if len(cert.Certificate.Subject.Locality) > 0 {
-			geoFields = append(geoFields, "Locality: "+strings.Join(cert.Certificate.Subject.Locality, ", "))
-		}
-		if len(geoFields) > 0 {
-			builder.WriteString(fmt.Sprintf("  %s\n", strings.Join(geoFields, ", ")))
-		}
-
-		// Issuer information - ultra compact format
-		builder.WriteString("🏢 Issuer:\n")
-		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Issuer.CommonName))
-		var issuerFields []string
-		if len(cert.Certificate.Issuer.Organization) > 0 {
-			issuerFields = append(issuerFields, "Organization: "+strings.Join(cert.Certificate.Issuer.Organization, ", "))
-		}
-		if len(cert.Certificate.Issuer.Country) > 0 {
-			issuerFields = append(issuerFields, "Country: "+strings.Join(cert.Certificate.Issuer.Country, ", "))
-		}
-		if len(issuerFields) > 0 {
-			builder.WriteString(fmt.Sprintf("  %s\n", strings.Join(issuerFields, ", ")))
-		}
-
-		// Validity information - compact format
-		builder.WriteString("📅 Validity:\n")
-		builder.WriteString(fmt.Sprintf("  Not Before: %s\n", cert.Certificate.NotBefore.Format("2006-01-02 15:04:05 MST")))
-		builder.WriteString(fmt.Sprintf("  Not After:  %s\n", cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST")))
-		builder.WriteString(fmt.Sprintf("  Status: %s %s, %s\n", statusIcon, statusText, statusDetail))
-
-		// Subject Alternative Names - prioritized and compact
-		builder.WriteString("🌐 Subject Alternative Names:\n")
-		if len(cert.Certificate.DNSNames) > 0 || len(cert.Certificate.IPAddresses) > 0 || len(cert.Certificate.EmailAddresses) > 0 {
-			for _, dns := range cert.Certificate.DNSNames {
-				builder.WriteString(fmt.Sprintf("  DNS: %s\n", dns))
-			}
-			for _, ip := range cert.Certificate.IPAddresses {
-				builder.WriteString(fmt.Sprintf("  IP: %s\n", ip.String()))
-			}
-			for _, email := range cert.Certificate.EmailAddresses {
-				builder.WriteString(fmt.Sprintf("  Email: %s\n", email))
-			}
-		} else {
-			builder.WriteString("  None\n")
-		}
-
-		// Fingerprint and Serial Number - compact format
-		fingerprint := certificate.FormatFingerprint(cert.Certificate)
-		// Format fingerprint with colons for better readability
-		formattedFingerprint := ""
-		for i, char := range fingerprint {
-			if i > 0 && i%2 == 0 {
-				formattedFingerprint += ":"
-			}
-			formattedFingerprint += string(char)
-		}
-		builder.WriteString("🔒 SHA256 Fingerprint:\n")
-		builder.WriteString(fmt.Sprintf("  %s\n", formattedFingerprint))
-		builder.WriteString(fmt.Sprintf("🔢 Serial Number: %s\n", cert.Certificate.SerialNumber.String()))
-
-		details = builder.String()
-	}
-
-	// Apply scrolling with improved scroll indicators
-	lines := strings.Split(details, "\n")
-	start := m.rightPaneScroll
-	end := start + height
-
-	// Ensure we don't scroll past the content
-	if start >= len(lines) && len(lines) > 0 {
-		start = max(0, len(lines)-height)
-		// Note: We can't modify m.rightPaneScroll here as this is a read-only method
-	}
-	if end > len(lines) {
-		end = len(lines)
-	}
-
-	// Get visible lines
-	var visibleLines []string
-	if start < len(lines) {
-		visibleLines = lines[start:end]
-	}
-
-	scrolledContent := strings.Join(visibleLines, "\n")
-
-	// Add enhanced scroll indicators
-	if len(lines) > height && width > 15 {
 		scrollInfo := ""
 		if start > 0 {
 			scrollInfo += "↑ "

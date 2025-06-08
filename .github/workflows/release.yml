@@ -64,7 +64,7 @@ jobs:
           sed -i "s/url \"https:\/\/github.com\/kanywst\/y509\/archive\/refs\/tags\/v.*\.tar\.gz\"/url \"https:\/\/github.com\/kanywst\/y509\/archive\/refs\/tags\/${VERSION}.tar.gz\"/" Formula/y509.rb
           sed -i "s/sha256 \"[a-f0-9]*\"/sha256 \"${SHA256}\"/" Formula/y509.rb
           sed -i "s/sha256 \"REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE\"/sha256 \"${SHA256}\"/" Formula/y509.rb
-          
+
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add Formula/y509.rb
