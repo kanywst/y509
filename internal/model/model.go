@@ -64,6 +64,20 @@ type Model struct {
 	rightPaneScroll int
 }
 
+// calculateAvailableWidth calculates the available width for display elements
+// based on the current screen width and view mode (single or dual pane)
+func (m Model) calculateAvailableWidth() int {
+	if m.shouldUseSinglePane() {
+		return m.width - 4 // subtract padding/borders for single pane
+	}
+
+	// In dual pane mode, calculate left pane width
+	if m.width < 60 {
+		return max(12, m.width*2/5) - 4 // subtract padding/borders
+	}
+	return m.width/3 - 4
+}
+
 // max returns the maximum of two integers
 func max(a, b int) int {
 	if a > b {
@@ -887,17 +901,7 @@ func (m Model) renderCertificateList(height int) string {
 
 		// Create adaptive label based on available width
 		var line string
-		availableWidth := m.width
-		if !m.shouldUseSinglePane() {
-			// In dual pane mode, calculate left pane width
-			if m.width < 60 {
-				availableWidth = max(12, m.width*2/5) - 4 // subtract padding/borders
-			} else {
-				availableWidth = m.width/3 - 4
-			}
-		} else {
-			availableWidth = m.width - 4 // subtract padding/borders
-		}
+		availableWidth := m.calculateAvailableWidth()
 
 		// Build line based on available width
 		if availableWidth < 15 {
