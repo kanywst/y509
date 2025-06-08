@@ -68,7 +68,11 @@ func TestUpdate(t *testing.T) {
 	// Test key press in splash mode
 	model.viewMode = ViewSplash
 	updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	if updatedModel.(Model).viewMode != ViewNormal {
+	m, ok := updatedModel.(*Model)
+	if !ok {
+		t.Fatal("Failed to convert to Model")
+	}
+	if m.viewMode != ViewNormal {
 		t.Error("Expected Enter key to switch from splash to normal mode")
 	}
 	if cmd != nil {
@@ -86,14 +90,22 @@ func TestUpdate(t *testing.T) {
 	// Test colon key to enter command mode
 	model.viewMode = ViewNormal
 	updatedModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{':'}})
-	if updatedModel.(Model).viewMode != ViewCommand {
+	m, ok = updatedModel.(*Model)
+	if !ok {
+		t.Fatal("Failed to convert to Model")
+	}
+	if m.viewMode != ViewCommand {
 		t.Error("Expected colon to enter command mode")
 	}
 
 	// Test escape key in detail mode
 	model.viewMode = ViewDetail
 	updatedModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	if updatedModel.(Model).viewMode != ViewNormal {
+	m, ok = updatedModel.(*Model)
+	if !ok {
+		t.Fatal("Failed to convert to Model")
+	}
+	if m.viewMode != ViewNormal {
 		t.Error("Expected Escape to return to normal view")
 	}
 }
@@ -235,7 +247,7 @@ func TestHandleGlobalCommands(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			model := NewModel(createTestCertificates())
-			result := model.handleGlobalCommands(tt.cmd)
+			_, result := model.handleGlobalCommands(tt.cmd)
 			if result != tt.expected {
 				t.Errorf("handleGlobalCommands(%q) = %v, expected %v. %s",
 					tt.cmd, result, tt.expected, tt.description)
@@ -454,7 +466,7 @@ func TestSplashScreen(t *testing.T) {
 
 	// Test that any key press exits splash screen
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
-	if updatedModel.(Model).viewMode != ViewNormal {
+	if updatedModel.(*Model).viewMode != ViewNormal {
 		t.Error("Expected any key to exit splash screen")
 	}
 }
@@ -465,7 +477,10 @@ func TestWindowSizeHandling(t *testing.T) {
 
 	// Test window size message
 	updatedModel, cmd := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	m := updatedModel.(Model)
+	m, ok := updatedModel.(Model)
+	if !ok {
+		t.Fatal("Failed to convert to Model")
+	}
 
 	if m.width != 80 {
 		t.Errorf("Expected width 80, got %d", m.width)
@@ -491,21 +506,21 @@ func TestCommandMode(t *testing.T) {
 
 	// Test adding characters to command input
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
-	m := updatedModel.(Model)
+	m := updatedModel.(*Model)
 	if m.commandInput != "h" {
 		t.Errorf("Expected command input 'h', got %q", m.commandInput)
 	}
 
 	// Test backspace
 	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyBackspace})
-	m = updatedModel.(Model)
+	m = updatedModel.(*Model)
 	if m.commandInput != "" {
 		t.Errorf("Expected empty command input after backspace, got %q", m.commandInput)
 	}
 
 	// Test escape to exit command mode
 	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	m = updatedModel.(Model)
+	m = updatedModel.(*Model)
 	if m.viewMode != ViewNormal {
 		t.Error("Expected escape to exit command mode")
 	}
@@ -522,13 +537,13 @@ func TestUXResponsiveness(t *testing.T) {
 		height           int
 		expectSinglePane bool
 	}{
-		{"Ultra small terminal", 15, 5, false},
-		{"Very small terminal", 25, 8, true},
-		{"Small terminal", 35, 10, true},
-		{"Medium terminal", 60, 15, false},
+		{"Ultra small terminal", minUltraCompactWidth - 10, 5, false},
+		{"Very small terminal", minUltraCompactWidth, 8, true},
+		{"Small terminal", minCompactWidth - 5, 10, true},
+		{"Medium terminal", minMediumWidth, 15, false},
 		{"Large terminal", 100, 25, false},
 		{"Wide terminal", 150, 20, false},
-		{"Tall narrow terminal", 30, 50, true},
+		{"Tall narrow terminal", minUltraCompactWidth + 5, 50, true},
 	}
 
 	for _, tt := range tests {
@@ -644,7 +659,7 @@ func TestSinglePaneModeNavigation(t *testing.T) {
 
 	// Simulate right arrow key
 	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
-	updatedModel := newModel.(Model)
+	updatedModel := newModel.(*Model)
 
 	if updatedModel.focus != FocusRight {
 		t.Errorf("Expected focus to switch to right pane, got %v", updatedModel.focus)
@@ -652,7 +667,7 @@ func TestSinglePaneModeNavigation(t *testing.T) {
 
 	// Test navigation from details back to list
 	newModel, _ = updatedModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
-	updatedModel = newModel.(Model)
+	updatedModel = newModel.(*Model)
 
 	if updatedModel.focus != FocusLeft {
 		t.Errorf("Expected focus to switch to left pane, got %v", updatedModel.focus)
@@ -678,7 +693,7 @@ func TestDualPaneModeNavigation(t *testing.T) {
 
 	// Simulate tab key
 	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyTab})
-	updatedModel := newModel.(Model)
+	updatedModel := newModel.(*Model)
 
 	if updatedModel.focus != FocusRight {
 		t.Errorf("Expected focus to switch to right pane with tab, got %v", updatedModel.focus)
@@ -686,7 +701,7 @@ func TestDualPaneModeNavigation(t *testing.T) {
 
 	// Test tab navigation back
 	newModel, _ = updatedModel.Update(tea.KeyMsg{Type: tea.KeyTab})
-	updatedModel = newModel.(Model)
+	updatedModel = newModel.(*Model)
 
 	if updatedModel.focus != FocusLeft {
 		t.Errorf("Expected focus to switch to left pane with tab, got %v", updatedModel.focus)
@@ -765,9 +780,9 @@ func TestCertificateListRendering(t *testing.T) {
 		width  int
 		height int
 	}{
-		{"Ultra narrow", 20, 10},
-		{"Narrow", 35, 15},
-		{"Medium", 60, 20},
+		{"Ultra narrow", minUltraCompactWidth - 5, 10},
+		{"Narrow", minCompactWidth - 5, 15},
+		{"Medium", minMediumWidth, 20},
 		{"Wide", 100, 25},
 	}
 
@@ -804,9 +819,9 @@ func TestSplashScreenAdaptation(t *testing.T) {
 		width  int
 		height int
 	}{
-		{"Small", 30, 8},
-		{"Medium", 50, 12},
-		{"Large", 80, 20},
+		{"Small", minUltraCompactWidth + 5, 8},
+		{"Medium", minCompactWidth + 10, 12},
+		{"Large", minMediumWidth + 20, 20},
 	}
 
 	for _, tt := range tests {
@@ -833,14 +848,14 @@ func TestSplashScreenAdaptation(t *testing.T) {
 func TestCommandModeInSmallTerminal(t *testing.T) {
 	certs := createTestCertificates()
 	model := NewModel(certs)
-	model.width = 25 // Very narrow
+	model.width = minUltraCompactWidth // Very narrow
 	model.height = 10
 	model.ready = true
 	model.viewMode = ViewNormal
 
 	// Enter command mode
 	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{':'}})
-	updatedModel := newModel.(Model)
+	updatedModel := newModel.(*Model)
 
 	if updatedModel.viewMode != ViewCommand {
 		t.Error("Expected to enter command mode")
@@ -855,34 +870,33 @@ func TestCommandModeInSmallTerminal(t *testing.T) {
 
 // TestMinimumSizeHandling tests handling of extremely small terminal sizes
 func TestMinimumSizeHandling(t *testing.T) {
-	certs := createTestCertificates()
-	model := NewModel(certs)
+	model := NewModel(createTestCertificates())
 	model.ready = true
-	// Test terminal smaller than minimum
-	model.width = 10
-	model.height = 3
+
+	// Test minimum size warning
+	minWidth, minHeight := getMinimumSize()
+	model.width = minWidth - 1
+	model.height = minHeight - 1
 
 	view := model.View()
+	if !strings.Contains(view, "Terminal too small") {
+		t.Error("Expected minimum size warning")
+	}
 
-	// Should show minimum size warning if below minimum thresholds
-	minWidth, minHeight := getMinimumSize()
-	if model.width < minWidth || model.height < minHeight {
-		if !strings.Contains(view, "Terminal") || !strings.Contains(view, "too") || !strings.Contains(view, "small") {
-			t.Errorf("Should show minimum size warning for %dx%d terminal", model.width, model.height)
-		}
-	} else {
-		if strings.Contains(view, "Terminal") && strings.Contains(view, "too") && strings.Contains(view, "small") {
-			t.Errorf("Should not show minimum size warning for %dx%d terminal", model.width, model.height)
-		}
+	// Test just above minimum size
+	model.width = minWidth
+	model.height = minHeight
+	view = model.View()
+	if strings.Contains(view, "Terminal too small") {
+		t.Error("Expected no minimum size warning")
 	}
 }
 
 // TestScrollingInSmallPanes tests scrolling functionality in small panes
 func TestScrollingInSmallPanes(t *testing.T) {
-	model := NewModel(createTestCertificates())
+	model := NewModel([]*certificate.CertificateInfo{})
 	model.ready = true
-	model.viewMode = ViewNormal
-	model.width = 25
+	model.width = minUltraCompactWidth
 	model.height = 10
 
 	// Fill with dummy certificates
@@ -898,17 +912,19 @@ func TestScrollingInSmallPanes(t *testing.T) {
 		})
 	}
 
+	model.focus = FocusLeft
+
 	// Test navigation down
 	model.cursor = 0
 	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyDown})
-	updatedModel := newModel.(Model)
+	updatedModel := newModel.(*Model)
 	if updatedModel.cursor != 1 {
 		t.Errorf("Expected cursor to be 1 after pressing down, got %d", updatedModel.cursor)
 	}
 
 	// Test navigation up
 	newModel, _ = updatedModel.Update(tea.KeyMsg{Type: tea.KeyUp})
-	updatedModel = newModel.(Model)
+	updatedModel = newModel.(*Model)
 	if updatedModel.cursor != 0 {
 		t.Errorf("Expected cursor to be 0 after pressing up, got %d", updatedModel.cursor)
 	}
@@ -916,7 +932,7 @@ func TestScrollingInSmallPanes(t *testing.T) {
 	// Navigate to last item
 	model.cursor = len(model.certificates) - 1
 	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
-	updatedModel = newModel.(Model)
+	updatedModel = newModel.(*Model)
 	// Should not change cursor when at last item
 	if updatedModel.cursor != len(model.certificates)-1 {
 		t.Errorf("Expected cursor to remain at %d, got %d", len(model.certificates)-1, updatedModel.cursor)
@@ -960,16 +976,18 @@ func TestQuickHelp(t *testing.T) {
 // TestEscapeKeyHandling tests escape key behavior
 func TestEscapeKeyHandling(t *testing.T) {
 	certs := createTestCertificates()
-	model := NewModel(certs)
-	model.ready = true
 
 	// Test escape from command mode
+	model := NewModel(certs)
+	model.ready = true
 	model.viewMode = ViewCommand
 	model.commandInput = "test"
 	model.commandError = "test error"
 
 	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyEscape})
-	updatedModel := newModel.(Model)
+	updatedModel := newModel.(*Model)
+
+	fmt.Println("[DEBUG] after escape (command mode):", updatedModel.commandInput, updatedModel.commandError, updatedModel.detailField, updatedModel.detailValue)
 
 	if updatedModel.viewMode != ViewNormal {
 		t.Error("Escape should exit command mode")
@@ -982,12 +1000,16 @@ func TestEscapeKeyHandling(t *testing.T) {
 	}
 
 	// Test escape from detail mode
+	model = NewModel(certs)
+	model.ready = true
 	model.viewMode = ViewDetail
 	model.detailField = "test field"
 	model.detailValue = "test value"
 
 	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyEscape})
-	updatedModel = newModel.(Model)
+	updatedModel = newModel.(*Model)
+
+	fmt.Println("[DEBUG] after escape (detail mode):", updatedModel.commandInput, updatedModel.commandError, updatedModel.detailField, updatedModel.detailValue)
 
 	if updatedModel.viewMode != ViewNormal {
 		t.Error("Escape should exit detail mode")
@@ -1012,7 +1034,7 @@ func TestKeyboardAccessibility(t *testing.T) {
 	// Test tab navigation
 	model.focus = FocusLeft
 	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyTab})
-	updatedModel := newModel.(Model)
+	updatedModel := newModel.(*Model)
 
 	if updatedModel.focus != FocusRight {
 		t.Error("Tab should switch focus to right pane")
@@ -1020,7 +1042,7 @@ func TestKeyboardAccessibility(t *testing.T) {
 
 	// Test tab navigation back
 	newModel, _ = updatedModel.Update(tea.KeyMsg{Type: tea.KeyTab})
-	updatedModel = newModel.(Model)
+	updatedModel = newModel.(*Model)
 
 	if updatedModel.focus != FocusLeft {
 		t.Error("Tab should switch focus back to left pane")
@@ -1028,7 +1050,7 @@ func TestKeyboardAccessibility(t *testing.T) {
 
 	// Test question mark for help
 	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
-	updatedModel = newModel.(Model)
+	updatedModel = newModel.(*Model)
 
 	if updatedModel.viewMode != ViewDetail {
 		t.Error("Question mark should show quick help")
@@ -1074,9 +1096,9 @@ func TestLayoutConsistency(t *testing.T) {
 		width  int
 		height int
 	}{
-		{"Minimum viable", 25, 8},
-		{"Small", 40, 12},
-		{"Medium", 60, 18},
+		{"Minimum viable", minUltraCompactWidth, 8},
+		{"Small", minCompactWidth, 12},
+		{"Medium", minMediumWidth, 18},
 		{"Large", 100, 30},
 	}
 

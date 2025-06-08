@@ -252,9 +252,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Skip splash screen on any key press
 		if m.viewMode == ViewSplash {
 			m.viewMode = ViewNormal
-			return m, nil
 		}
 
+		// Handle Ctrl+C globally
+		if msg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
+		}
+
+		fmt.Println("[DEBUG] Update m.viewMode:", m.viewMode)
 		switch m.viewMode {
 		case ViewCommand:
 			return m.updateCommandMode(msg)
@@ -269,103 +274,133 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // updateNormalMode handles key events in normal mode
-func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c", "q":
-		return m, tea.Quit
-
-	case "up", "k":
-		if m.focus == FocusLeft && len(m.certificates) > 0 {
-			if m.cursor > 0 {
-				m.cursor--
-				// Reset right pane scroll when changing certificate
-				m.rightPaneScroll = 0
+func (m *Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	fmt.Println("[DEBUG] updateNormalMode msg.String():", msg.String())
+	switch msg.Type {
+	case tea.KeyUp, tea.KeyDown, tea.KeyLeft, tea.KeyRight, tea.KeyTab:
+		switch msg.Type {
+		case tea.KeyUp:
+			if m.focus == FocusLeft && len(m.certificates) > 0 {
+				if m.cursor > 0 {
+					m.cursor--
+					// Reset right pane scroll when changing certificate
+					m.rightPaneScroll = 0
+				}
+			} else if m.focus == FocusRight {
+				// Scroll up in right pane
+				if m.rightPaneScroll > 0 {
+					m.rightPaneScroll--
+				}
 			}
-		} else if m.focus == FocusRight {
-			// Scroll up in right pane
-			if m.rightPaneScroll > 0 {
-				m.rightPaneScroll--
+		case tea.KeyDown:
+			if m.focus == FocusLeft && len(m.certificates) > 0 {
+				if m.cursor < len(m.certificates)-1 {
+					m.cursor++
+					// Reset right pane scroll when changing certificate
+					m.rightPaneScroll = 0
+				}
+			} else if m.focus == FocusRight {
+				// Scroll down in right pane
+				m.rightPaneScroll++
+			}
+		case tea.KeyLeft:
+			if m.shouldUseSinglePane() {
+				// In single pane mode, left arrow goes back to list
+				m.focus = FocusLeft
+			} else {
+				// In dual pane mode, left arrow switches to left pane
+				m.focus = FocusLeft
+			}
+		case tea.KeyRight:
+			if m.shouldUseSinglePane() {
+				// In single pane mode, right arrow goes to details
+				m.focus = FocusRight
+			} else {
+				// In dual pane mode, right arrow switches to right pane
+				m.focus = FocusRight
+			}
+		case tea.KeyTab:
+			// Tab always switches focus between panes
+			if m.focus == FocusLeft {
+				m.focus = FocusRight
+			} else {
+				m.focus = FocusLeft
 			}
 		}
-
-	case "down", "j":
-		if m.focus == FocusLeft && len(m.certificates) > 0 {
-			if m.cursor < len(m.certificates)-1 {
-				m.cursor++
-				// Reset right pane scroll when changing certificate
-				m.rightPaneScroll = 0
-			}
-		} else if m.focus == FocusRight {
-			// Scroll down in right pane
-			m.rightPaneScroll++
-		}
-
-	case "left", "h":
-		if m.shouldUseSinglePane() {
-			// In single pane mode, left arrow goes back to list
-			m.focus = FocusLeft
-		} else {
-			// In dual pane mode, left arrow switches to left pane
-			m.focus = FocusLeft
-		}
-
-	case "right", "l":
-		if m.shouldUseSinglePane() {
-			// In single pane mode, right arrow goes to details
-			m.focus = FocusRight
-		} else {
-			// In dual pane mode, right arrow switches to right pane
-			m.focus = FocusRight
-		}
-
-	case "tab":
-		// Tab always switches focus between panes
-		if m.focus == FocusLeft {
-			m.focus = FocusRight
-		} else {
-			m.focus = FocusLeft
-		}
-
-	case ":":
-		// Enter command mode
-		m.viewMode = ViewCommand
-		m.focus = FocusCommand
-		m.commandInput = ""
-		m.commandError = ""
-
-	case "enter":
-		// Could be used for additional actions like exporting certificate
 		return m, nil
 
-	case "escape":
-		// Quick exit from any special mode
-		if m.viewMode == ViewCommand || m.viewMode == ViewDetail {
-			m.viewMode = ViewNormal
-			m.focus = FocusLeft
+	case tea.KeyRunes:
+		switch msg.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+		case "up", "k":
+			if m.focus == FocusLeft && len(m.certificates) > 0 {
+				if m.cursor > 0 {
+					m.cursor--
+					// Reset right pane scroll when changing certificate
+					m.rightPaneScroll = 0
+				}
+			} else if m.focus == FocusRight {
+				// Scroll up in right pane
+				if m.rightPaneScroll > 0 {
+					m.rightPaneScroll--
+				}
+			}
+		case "down", "j":
+			if m.focus == FocusLeft && len(m.certificates) > 0 {
+				if m.cursor < len(m.certificates)-1 {
+					m.cursor++
+					// Reset right pane scroll when changing certificate
+					m.rightPaneScroll = 0
+				}
+			} else if m.focus == FocusRight {
+				// Scroll down in right pane
+				m.rightPaneScroll++
+			}
+		case "left", "h":
+			if m.shouldUseSinglePane() {
+				// In single pane mode, left arrow goes back to list
+				m.focus = FocusLeft
+			} else {
+				// In dual pane mode, left arrow switches to left pane
+				m.focus = FocusLeft
+			}
+		case "right", "l":
+			if m.shouldUseSinglePane() {
+				// In single pane mode, right arrow goes to details
+				m.focus = FocusRight
+			} else {
+				// In dual pane mode, right arrow switches to right pane
+				m.focus = FocusRight
+			}
+		case ":":
+			// Enter command mode
+			m.viewMode = ViewCommand
+			m.focus = FocusCommand
 			m.commandInput = ""
 			m.commandError = ""
-			m.detailField = ""
-			m.detailValue = ""
+		case "enter":
+			// Could be used for additional actions like exporting certificate
+			return m, nil
+		case "escape", "esc":
+			m.resetAllFields()
+			return m, nil
+		case "?":
+			// Show quick help in normal mode
+			helpText := m.getQuickHelp()
+			m.showDetail("Quick Help", helpText)
 		}
-
-	case "?":
-		// Show quick help in normal mode
-		helpText := m.getQuickHelp()
-		m.showDetail("Quick Help", helpText)
 	}
-
 	return m, nil
 }
 
 // updateCommandMode handles key events in command mode
-func (m Model) updateCommandMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) updateCommandMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	fmt.Println("[DEBUG] updateCommandMode msg.String():", msg.String())
 	switch msg.String() {
-	case "ctrl+c", "esc":
-		// Exit command mode
-		m.viewMode = ViewNormal
-		m.focus = FocusLeft
-		m.commandInput = ""
-		m.commandError = ""
+	case "ctrl+c", "esc", "escape":
+		m.resetAllFields()
+		return m, nil
 
 	case "enter":
 		// Execute command
@@ -387,42 +422,43 @@ func (m Model) updateCommandMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // updateDetailMode handles key events in detail mode
-func (m Model) updateDetailMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) updateDetailMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	fmt.Println("[DEBUG] updateDetailMode msg.String():", msg.String())
 	switch msg.String() {
-	case "ctrl+c", "esc", "q":
-		// Exit detail mode
-		m.viewMode = ViewNormal
-		m.focus = FocusLeft
-		m.detailField = ""
-		m.detailValue = ""
+	case "ctrl+c", "esc", "escape", "q":
+		m.resetAllFields()
+		return m, nil
 	}
 
 	return m, nil
 }
 
 // executeCommand processes the entered command
-func (m *Model) executeCommand() {
+func (m *Model) executeCommand() *Model {
 	cmd := strings.TrimSpace(m.commandInput)
 	m.commandError = ""
 
 	// Check if we have certificates for commands that require them
 	if !m.hasValidCertificatesForCommand(cmd) {
 		m.commandError = "No certificates available"
-		return
+		return m
 	}
 
 	// Handle global commands (don't require selected certificate)
-	if m.handleGlobalCommands(cmd) {
-		return
+	var handled bool
+	m, handled = m.handleGlobalCommands(cmd)
+	if handled {
+		return m
 	}
 
 	// Handle certificate-specific commands
 	if len(m.certificates) == 0 {
 		m.commandError = "No certificates available"
-		return
+		return m
 	}
 
-	m.handleCertificateCommands(cmd)
+	m = m.handleCertificateCommands(cmd)
+	return m
 }
 
 // hasValidCertificatesForCommand checks if we have certificates for the given command
@@ -439,38 +475,38 @@ func (m *Model) hasValidCertificatesForCommand(cmd string) bool {
 }
 
 // handleGlobalCommands processes commands that don't require a selected certificate
-func (m *Model) handleGlobalCommands(cmd string) bool {
+func (m *Model) handleGlobalCommands(cmd string) (*Model, bool) {
 	switch {
 	case strings.HasPrefix(cmd, "search "):
 		query := strings.TrimSpace(cmd[7:])
 		m.searchCertificates(query)
-		return true
+		return m, true
 	case cmd == "reset":
 		m.resetView()
-		return true
+		return m, true
 	case strings.HasPrefix(cmd, "filter "):
 		filterType := strings.TrimSpace(cmd[7:])
 		m.filterCertificates(filterType)
-		return true
+		return m, true
 	case cmd == "validate" || cmd == "val":
 		m.handleValidateCommand()
-		return true
+		return m, true
 	case strings.HasPrefix(cmd, "export "):
 		m.exportCertificate(cmd)
-		return true
+		return m, true
 	case cmd == "help" || cmd == "h":
 		m.showHelpCommand()
-		return true
+		return m, true
 	case cmd == "quit" || cmd == "q":
 		m.viewMode = ViewNormal
 		m.focus = FocusLeft
-		return true
+		return m, true
 	}
-	return false
+	return m, false
 }
 
 // handleCertificateCommands processes commands that require a selected certificate
-func (m *Model) handleCertificateCommands(cmd string) {
+func (m *Model) handleCertificateCommands(cmd string) *Model {
 	cert := m.certificates[m.cursor].Certificate
 
 	switch {
@@ -493,41 +529,44 @@ func (m *Model) handleCertificateCommands(cmd string) {
 	default:
 		m.commandError = fmt.Sprintf("Unknown command: %s (type 'help' for available commands)", cmd)
 	}
+	return m
 }
 
 // handleValidateCommand processes the validate command
-func (m *Model) handleValidateCommand() {
+func (m *Model) handleValidateCommand() *Model {
 	result := certificate.ValidateChain(m.allCertificates)
 	m.showDetail("Chain Validation", certificate.FormatChainValidation(result))
+	return m
 }
 
 // handleGotoCommand processes the goto command
-func (m *Model) handleGotoCommand(cmd string) {
+func (m *Model) handleGotoCommand(cmd string) *Model {
 	parts := strings.Fields(cmd)
 	if len(parts) != 2 {
 		m.commandError = "Usage: goto <number> or g <number>"
-		return
+		return m
 	}
 
 	index, err := strconv.Atoi(parts[1])
 	if err != nil {
 		m.commandError = "Invalid certificate number"
-		return
+		return m
 	}
 
 	if index < 1 || index > len(m.certificates) {
 		m.commandError = "Invalid certificate number"
-		return
+		return m
 	}
 
 	m.cursor = index - 1
 	m.rightPaneScroll = 0 // Reset scroll when jumping to certificate
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
+	return m
 }
 
 // showHelpCommand displays the help information
-func (m *Model) showHelpCommand() {
+func (m *Model) showHelpCommand() *Model {
 	helpText := `Available commands:
 
 Certificate Information:
@@ -564,13 +603,14 @@ quit, q         - Quit application
 Press ESC to return to normal mode`
 
 	m.showDetail("Commands", helpText)
+	return m
 }
 
 // searchCertificates searches certificates based on query
-func (m *Model) searchCertificates(query string) {
+func (m *Model) searchCertificates(query string) *Model {
 	if query == "" {
 		m.commandError = "Search query cannot be empty"
-		return
+		return m
 	}
 
 	results := certificate.SearchCertificates(m.allCertificates, query)
@@ -587,10 +627,11 @@ func (m *Model) searchCertificates(query string) {
 	if len(results) == 0 {
 		m.commandError = fmt.Sprintf("No certificates found matching '%s'", query)
 	}
+	return m
 }
 
 // filterCertificates filters certificates based on criteria
-func (m *Model) filterCertificates(filterType string) {
+func (m *Model) filterCertificates(filterType string) *Model {
 	validFilters := []string{"expired", "expiring", "valid", "self-signed"}
 	found := false
 	for _, valid := range validFilters {
@@ -602,7 +643,7 @@ func (m *Model) filterCertificates(filterType string) {
 
 	if !found {
 		m.commandError = fmt.Sprintf("Invalid filter type: %s (valid: %s)", filterType, strings.Join(validFilters, ", "))
-		return
+		return m
 	}
 
 	results := certificate.FilterCertificates(m.allCertificates, filterType)
@@ -618,10 +659,11 @@ func (m *Model) filterCertificates(filterType string) {
 	if len(results) == 0 {
 		m.commandError = fmt.Sprintf("No certificates found with filter '%s'", filterType)
 	}
+	return m
 }
 
 // resetView resets search and filter
-func (m *Model) resetView() {
+func (m *Model) resetView() *Model {
 	m.certificates = m.allCertificates
 	m.searchQuery = ""
 	m.filterActive = false
@@ -630,19 +672,20 @@ func (m *Model) resetView() {
 	m.rightPaneScroll = 0 // Reset scroll when resetting view
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
+	return m
 }
 
 // exportCertificate exports the current certificate
-func (m *Model) exportCertificate(cmd string) {
+func (m *Model) exportCertificate(cmd string) *Model {
 	if len(m.certificates) == 0 {
 		m.commandError = "No certificate selected"
-		return
+		return m
 	}
 
 	parts := strings.Fields(cmd)
 	if len(parts) != 3 {
 		m.commandError = "Usage: export <format> <filename> (format: pem, der)"
-		return
+		return m
 	}
 
 	format := parts[1]
@@ -652,18 +695,20 @@ func (m *Model) exportCertificate(cmd string) {
 	err := certificate.ExportCertificate(cert, format, filename)
 	if err != nil {
 		m.commandError = fmt.Sprintf("Export failed: %v", err)
-		return
+		return m
 	}
 
 	m.showDetail("Export Success", fmt.Sprintf("Certificate exported successfully!\n\nFormat: %s\nFile: %s\nCertificate: %s",
 		strings.ToUpper(format), filename, cert.Subject.CommonName))
+	return m
 }
 
 // showDetail switches to detail view mode
-func (m *Model) showDetail(field, value string) {
+func (m *Model) showDetail(field, value string) *Model {
 	m.viewMode = ViewDetail
 	m.detailField = field
 	m.detailValue = value
+	return m
 }
 
 // getQuickHelp returns contextual quick help text
@@ -1336,4 +1381,15 @@ func (m Model) renderStatusBar() string {
 		Width(m.width).
 		Padding(0, 1).
 		Render(statusText)
+}
+
+// 全フィールドをクリアする共通メソッド
+func (m *Model) resetAllFields() *Model {
+	m.viewMode = ViewNormal
+	m.focus = FocusLeft
+	m.commandInput = ""
+	m.commandError = ""
+	m.detailField = ""
+	m.detailValue = ""
+	return m
 }
