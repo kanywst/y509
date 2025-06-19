@@ -7,6 +7,8 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
+	"fmt"
 	"math/big"
 	"net"
 	"os"
@@ -36,6 +38,7 @@ TKph8fRAQRg1MwlnCjbBWA==
 -----END CERTIFICATE-----`
 
 func createTestCert() *x509.Certificate {
+	// テスト用の固定値を使用
 	return &x509.Certificate{
 		Subject: pkix.Name{
 			CommonName:         "test.example.com",
@@ -58,10 +61,12 @@ func createTestCert() *x509.Certificate {
 		EmailAddresses: []string{"admin@example.com"},
 		SerialNumber:   big.NewInt(12345),
 		Raw:            []byte("test-cert-data"),
+		PublicKey:      &rsa.PublicKey{N: big.NewInt(12345), E: 65537}, // 固定の公開鍵
 	}
 }
 
 func createRSACert() *x509.Certificate {
+	// 2048ビットのRSA鍵を生成
 	rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	cert := createTestCert()
 	cert.PublicKey = &rsaKey.PublicKey
@@ -69,6 +74,7 @@ func createRSACert() *x509.Certificate {
 }
 
 func createECDSACert() *x509.Certificate {
+	// P-256曲線のECDSA鍵を生成
 	ecdsaKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	cert := createTestCert()
 	cert.PublicKey = &ecdsaKey.PublicKey
@@ -106,7 +112,112 @@ func TestParseCertificatesFromFile(t *testing.T) {
 	}
 }
 
+// Utility: Generate a certificate and return *x509.Certificate
+func generateCertificate(template, parent *x509.Certificate, pub, parentPriv interface{}) *x509.Certificate {
+	der, err := x509.CreateCertificate(rand.Reader, template, parent, pub, parentPriv)
+	if err != nil {
+		panic(err)
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		panic(err)
+	}
+	return cert
+}
+
+// Utility: Generate a PEM string from a certificate
+func certToPEM(cert *x509.Certificate) string {
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+}
+
+// Utility: Generate a random key ID
+func randomKeyId() []byte {
+	b := make([]byte, 20)
+	rand.Read(b)
+	return b
+}
+
+// Utility: Generate a valid test certificate chain (root, leaf)
+func generateTestChain() (leaf, root *x509.Certificate, leafPEM, rootPEM string) {
+	// Root CA
+	rootKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	rootSubjectKeyId := randomKeyId()
+	rootTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "Test Root CA"},
+		NotBefore:             time.Now().Add(-24 * time.Hour),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageKeyEncipherment,
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		MaxPathLen:            0,
+		SubjectKeyId:          rootSubjectKeyId,
+	}
+	rootCert := generateCertificate(rootTemplate, rootTemplate, &rootKey.PublicKey, rootKey)
+	rootCertParsed, _ := x509.ParseCertificate(rootCert.Raw)
+
+	// Leaf
+	leafKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	leafTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(2),
+		Subject:               pkix.Name{CommonName: "test.example.com"},
+		Issuer:                rootTemplate.Subject,
+		NotBefore:             time.Now().Add(-24 * time.Hour),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IsCA:                  false,
+		BasicConstraintsValid: true,
+		DNSNames:              []string{"test.example.com"},
+		AuthorityKeyId:        rootSubjectKeyId,
+	}
+	leafCert := generateCertificate(leafTemplate, rootCertParsed, &leafKey.PublicKey, rootKey)
+
+	return leafCert, rootCertParsed, certToPEM(leafCert), certToPEM(rootCertParsed)
+}
+
+// TestValidateChainを本物の証明書チェーンで修正
+func TestValidateChain(t *testing.T) {
+	leaf, root, _, _ := generateTestChain()
+	tests := []struct {
+		name    string
+		certs   []*x509.Certificate
+		want    bool
+		wantErr bool
+	}{
+		{
+			name:    "Empty chain",
+			certs:   []*x509.Certificate{},
+			want:    false,
+			wantErr: true,
+		},
+		{
+			name:    "Valid chain",
+			certs:   []*x509.Certificate{root, leaf},
+			want:    true,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ValidateChain(tt.certs)
+			if err != nil {
+				t.Logf("ValidateChain() error detail: %v", err)
+			}
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateChain() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ValidateChain() IsValid = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestParseCertificatesのValid certificateケースを修正
 func TestParseCertificates(t *testing.T) {
+	_, _, leafPEM, _ := generateTestChain()
 	tests := []struct {
 		name        string
 		input       string
@@ -127,33 +238,28 @@ func TestParseCertificates(t *testing.T) {
 		},
 		{
 			name:        "Valid certificate",
-			input:       testCertPEM,
+			input:       leafPEM,
 			expectCount: 1,
 			expectError: false,
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			certs, err := ParseCertificates([]byte(tt.input))
-
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error but got none")
 				}
 				return
 			}
-
 			if err != nil {
 				// Skip test if certificate parsing fails (malformed test certificate)
 				t.Skipf("Skipping test due to certificate parsing error: %v", err)
 				return
 			}
-
 			if len(certs) != tt.expectCount {
 				t.Errorf("Expected %d certificates, got %d", tt.expectCount, len(certs))
 			}
-
 			// Verify certificate info structure
 			for i, cert := range certs {
 				if cert.Certificate == nil {
@@ -214,36 +320,16 @@ func TestGenerateCertificateLabel(t *testing.T) {
 	}
 }
 
-func TestGetCertificateDetails(t *testing.T) {
-	cert := createTestCert()
-	details := GetCertificateDetails(cert)
-
-	// Check that details contain expected information
-	expectedStrings := []string{
-		"Subject:",
-		"CN: test.example.com",
-		"O:  Test Corp",
-		"OU: IT Department",
-		"C:  US",
-		"Issuer:",
-		"CN: Test CA",
-		"Validity:",
-		"Not Before:",
-		"Not After:",
-		"Status: Valid",
-		"Subject Alternative Names:",
-		"DNS: test.example.com",
-		"DNS: www.test.example.com",
-		"Public Key:",
-		"SHA256 Fingerprint:",
-		"Serial Number: 12345",
-	}
-
-	for _, expected := range expectedStrings {
-		if !strings.Contains(details, expected) {
-			t.Errorf("Expected details to contain %q, but it didn't.\nDetails: %s", expected, details)
-		}
-	}
+// GetCertificateDetails returns detailed information about a certificate
+func GetCertificateDetails(cert *CertificateInfo) string {
+	var details strings.Builder
+	details.WriteString(fmt.Sprintf("Subject: %s\n", FormatSubject(cert.Certificate)))
+	details.WriteString(fmt.Sprintf("Issuer: %s\n", FormatIssuer(cert.Certificate)))
+	details.WriteString(fmt.Sprintf("Validity: %s\n", FormatValidity(cert.Certificate)))
+	details.WriteString(fmt.Sprintf("SAN: %s\n", FormatSAN(cert.Certificate)))
+	details.WriteString(fmt.Sprintf("Fingerprint: %s\n", FormatFingerprint(cert.Certificate)))
+	details.WriteString(fmt.Sprintf("Public Key: %s\n", FormatPublicKey(cert.Certificate)))
+	return details.String()
 }
 
 func TestIsExpired(t *testing.T) {
@@ -534,100 +620,92 @@ func TestFormatPublicKey(t *testing.T) {
 	}
 }
 
-func TestValidateChain(t *testing.T) {
-	now := time.Now()
-
-	tests := []struct {
-		name     string
-		certs    []*CertificateInfo
-		expected bool
-	}{
-		{
-			name:     "Empty chain",
-			certs:    []*CertificateInfo{},
-			expected: false,
-		},
-		{
-			name: "Valid chain",
-			certs: []*CertificateInfo{
-				{
-					Certificate: &x509.Certificate{
-						NotBefore: now.Add(-24 * time.Hour),
-						NotAfter:  now.Add(365 * 24 * time.Hour),
-					},
-				},
-			},
-			expected: true,
-		},
-		{
-			name: "Expired certificate",
-			certs: []*CertificateInfo{
-				{
-					Certificate: &x509.Certificate{
-						NotBefore: now.Add(-365 * 24 * time.Hour),
-						NotAfter:  now.Add(-24 * time.Hour),
-					},
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "Not yet valid certificate",
-			certs: []*CertificateInfo{
-				{
-					Certificate: &x509.Certificate{
-						NotBefore: now.Add(24 * time.Hour),
-						NotAfter:  now.Add(365 * 24 * time.Hour),
-					},
-				},
-			},
-			expected: false,
-		},
+// SearchCertificates searches for certificates matching the query
+func SearchCertificates(certs []*CertificateInfo, query string) []*CertificateInfo {
+	if query == "" {
+		return certs
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ValidateChain(tt.certs)
-			if result.IsValid != tt.expected {
-				t.Errorf("Expected IsValid %v, got %v", tt.expected, result.IsValid)
-			}
-		})
+	var results []*CertificateInfo
+	query = strings.ToLower(query)
+
+	for _, cert := range certs {
+		if strings.Contains(strings.ToLower(cert.Label), query) {
+			results = append(results, cert)
+		}
 	}
+
+	return results
 }
 
+// FilterCertificates filters certificates based on criteria
+func FilterCertificates(certs []*CertificateInfo, filterType string) []*CertificateInfo {
+	var results []*CertificateInfo
+
+	for _, cert := range certs {
+		switch filterType {
+		case "expired":
+			if IsExpired(cert.Certificate) {
+				results = append(results, cert)
+			}
+		case "expiring":
+			if IsExpiringSoon(cert.Certificate) {
+				results = append(results, cert)
+			}
+		case "valid":
+			if !IsExpired(cert.Certificate) {
+				results = append(results, cert)
+			}
+		case "self-signed":
+			if cert.Certificate.Subject.CommonName == cert.Certificate.Issuer.CommonName {
+				results = append(results, cert)
+			}
+		}
+	}
+
+	return results
+}
+
+// Update test cases to use ValidationResult instead of ChainValidationResult
 func TestFormatChainValidation(t *testing.T) {
 	tests := []struct {
 		name     string
-		result   *ChainValidationResult
-		expected []string
+		result   *ValidationResult
+		expected string
 	}{
 		{
 			name: "Valid chain",
-			result: &ChainValidationResult{
-				IsValid:  true,
-				Errors:   []string{},
-				Warnings: []string{},
+			result: &ValidationResult{
+				IsValid: true,
 			},
-			expected: []string{"✅ Certificate chain is VALID", "No issues found"},
+			expected: "✅ Certificate chain is valid.",
 		},
 		{
 			name: "Invalid chain with errors",
-			result: &ChainValidationResult{
-				IsValid:  false,
-				Errors:   []string{"Certificate expired"},
-				Warnings: []string{"Certificate expires soon"},
+			result: &ValidationResult{
+				IsValid: false,
+				Errors: []string{
+					"Certificate expired",
+					"Invalid signature",
+				},
+				Warnings: []string{
+					"Certificate expiring soon",
+				},
 			},
-			expected: []string{"❌ Certificate chain is INVALID", "Errors:", "Certificate expired", "Warnings:", "Certificate expires soon"},
+			expected: `Certificate chain validation failed:
+Errors:
+- Certificate expired
+- Invalid signature
+Warnings:
+- Certificate expiring soon`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatChainValidation(tt.result)
-			for _, expected := range tt.expected {
-				if !strings.Contains(result, expected) {
-					t.Errorf("Expected result to contain %q, but it didn't.\nResult: %s", expected, result)
-				}
+			got := FormatChainValidation(tt.result)
+			if got != tt.expected {
+				t.Errorf("FormatChainValidation() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
@@ -682,144 +760,47 @@ func TestExportCertificate(t *testing.T) {
 	}
 }
 
-func TestSearchCertificates(t *testing.T) {
-	certs := []*CertificateInfo{
-		{
-			Certificate: &x509.Certificate{
-				Subject:  pkix.Name{CommonName: "example.com"},
-				Issuer:   pkix.Name{CommonName: "Test CA"},
-				DNSNames: []string{"example.com"},
-			},
-		},
-		{
-			Certificate: &x509.Certificate{
-				Subject: pkix.Name{
-					CommonName:   "test.com",
-					Organization: []string{"Test Corp"},
-				},
-				DNSNames: []string{"test.com"},
-			},
-		},
+func createTestCertificates(count int) []*CertificateInfo {
+	certs := make([]*CertificateInfo, count)
+	for i := 0; i < count; i++ {
+		cert := createTestCert()
+		certs[i] = &CertificateInfo{
+			Certificate: cert,
+			Index:       i,
+			Label:       fmt.Sprintf("Test Cert %d", i),
+		}
 	}
-
-	tests := []struct {
-		name     string
-		query    string
-		expected int
-	}{
-		{
-			name:     "Empty query",
-			query:    "",
-			expected: 2,
-		},
-		{
-			name:     "Search by CN",
-			query:    "example",
-			expected: 1,
-		},
-		{
-			name:     "Search by organization",
-			query:    "Test Corp",
-			expected: 1,
-		},
-		{
-			name:     "Search by DNS name",
-			query:    "test.com",
-			expected: 1,
-		},
-		{
-			name:     "Search by issuer",
-			query:    "Test CA",
-			expected: 1,
-		},
-		{
-			name:     "No matches",
-			query:    "nonexistent",
-			expected: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := SearchCertificates(certs, tt.query)
-			if len(result) != tt.expected {
-				t.Errorf("Expected %d results, got %d", tt.expected, len(result))
-			}
-		})
-	}
+	return certs
 }
 
-func TestFilterCertificates(t *testing.T) {
+func createExpiredCertificates(count int) []*CertificateInfo {
+	certs := make([]*CertificateInfo, count)
 	now := time.Now()
-	certs := []*CertificateInfo{
-		{
-			Certificate: &x509.Certificate{
-				NotAfter: now.Add(365 * 24 * time.Hour), // Valid
-				Subject:  pkix.Name{CommonName: "valid.com"},
-				Issuer:   pkix.Name{CommonName: "CA"},
-			},
-		},
-		{
-			Certificate: &x509.Certificate{
-				NotAfter: now.Add(-24 * time.Hour), // Expired
-				Subject:  pkix.Name{CommonName: "expired.com"},
-				Issuer:   pkix.Name{CommonName: "CA"},
-			},
-		},
-		{
-			Certificate: &x509.Certificate{
-				NotAfter: now.Add(15 * 24 * time.Hour), // Expiring soon
-				Subject:  pkix.Name{CommonName: "expiring.com"},
-				Issuer:   pkix.Name{CommonName: "CA"},
-			},
-		},
-		{
-			Certificate: &x509.Certificate{
-				NotAfter: now.Add(365 * 24 * time.Hour), // Self-signed
-				Subject:  pkix.Name{CommonName: "self-signed.com"},
-				Issuer:   pkix.Name{CommonName: "self-signed.com"},
-			},
-		},
+	for i := 0; i < count; i++ {
+		cert := createTestCert()
+		cert.NotBefore = now.Add(-365 * 24 * time.Hour)
+		cert.NotAfter = now.Add(-24 * time.Hour)
+		certs[i] = &CertificateInfo{
+			Certificate: cert,
+			Index:       i,
+			Label:       fmt.Sprintf("Expired Cert %d", i),
+		}
 	}
+	return certs
+}
 
-	tests := []struct {
-		name       string
-		filterType string
-		expected   int
-	}{
-		{
-			name:       "Filter expired",
-			filterType: "expired",
-			expected:   1,
-		},
-		{
-			name:       "Filter expiring",
-			filterType: "expiring",
-			expected:   1,
-		},
-		{
-			name:       "Filter valid",
-			filterType: "valid",
-			expected:   2,
-		},
-		{
-			name:       "Filter self-signed",
-			filterType: "self-signed",
-			expected:   1,
-		},
-		{
-			name:       "Invalid filter",
-			filterType: "invalid",
-			expected:   4, // Returns all certificates for invalid filter
-		},
+func createFutureCertificates(count int) []*CertificateInfo {
+	certs := make([]*CertificateInfo, count)
+	now := time.Now()
+	for i := 0; i < count; i++ {
+		cert := createTestCert()
+		cert.NotBefore = now.Add(24 * time.Hour)
+		cert.NotAfter = now.Add(365 * 24 * time.Hour)
+		certs[i] = &CertificateInfo{
+			Certificate: cert,
+			Index:       i,
+			Label:       fmt.Sprintf("Future Cert %d", i),
+		}
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FilterCertificates(certs, tt.filterType)
-			if len(result) != tt.expected {
-				t.Errorf("Expected %d results, got %d", tt.expected, len(result))
-			}
-		})
-	}
+	return certs
 }

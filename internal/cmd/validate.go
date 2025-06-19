@@ -2,40 +2,54 @@
 package cmd
 
 import (
+	"crypto/x509"
 	"fmt"
-	"os"
 
-	"github.com/spf13/cobra"
+	"github.com/kanywst/y509/internal/logger"
 	"github.com/kanywst/y509/pkg/certificate"
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 // validateCmd represents the validate command
 var validateCmd = &cobra.Command{
 	Use:   "validate [file]",
-	Short: "Validate a certificate chain",
-	Long: `Validate a certificate chain in a file.
-This command performs validation of the certificate chain and displays the results.
-It can check for chain validity, expiration, and trust.`,
-	Example: "  y509 validate certificate.pem",
-	Run: func(cmd *cobra.Command, args []string) {
-		// Get filename from args
-		var filename string
-		if len(args) > 0 {
-			filename = args[0]
-		}
-
-		// Load certificates
-		certs, err := certificate.LoadCertificates(filename)
+	Short: "Validate certificate chain",
+	Long:  `Validate the certificate chain in the specified file.`,
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		certs, err := certificate.LoadCertificates(args[0])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading certificates: %v\n", err)
-			os.Exit(1)
+			logger.Log.Error("Error loading certificates", zap.Error(err))
+			return err
 		}
 
-		// Validate the certificate chain
-		results := certificate.ValidateChain(certs)
-		
-		// Display validation results
-		fmt.Println(certificate.FormatChainValidation(results))
+		// []*CertificateInfo から []*x509.Certificate へ変換
+		chain := make([]*x509.Certificate, len(certs))
+		for i, c := range certs {
+			chain[i] = c.Certificate
+		}
+
+		isValid, err := certificate.ValidateChain(chain)
+		result := &certificate.ValidationResult{
+			IsValid: isValid,
+		}
+
+		if err != nil {
+			logger.Log.Error("Certificate chain validation failed", zap.Error(err))
+			result.Errors = append(result.Errors, err.Error())
+		}
+
+		// 検証結果を表示
+		fmt.Println(certificate.FormatChainValidation(result))
+
+		logger.Log.Info("Certificate chain validation result", zap.Bool("isValid", isValid))
+
+		if !isValid || err != nil {
+			return fmt.Errorf("certificate chain validation failed")
+		}
+		return nil
+		return nil
 	},
 }
 

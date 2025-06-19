@@ -6,9 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"crypto/x509"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kanywst/y509/internal/logger"
 	"github.com/kanywst/y509/pkg/certificate"
+	"go.uber.org/zap"
 )
 
 // Focus represents which pane is currently focused
@@ -32,6 +36,28 @@ const (
 
 // SplashDoneMsg indicates splash screen is complete
 type SplashDoneMsg struct{}
+
+// Formatting constants
+const (
+	// Border and padding
+	borderPadding  = 2
+	contentPadding = 4
+
+	// Minimum widths for different display modes
+	minUltraCompactWidth = 25
+	minCompactWidth      = 40
+	minMediumWidth       = 60
+
+	// Label truncation
+	labelPadding           = 8
+	cnPadding              = 4
+	subjectPadding         = 10
+	scrollIndicatorPadding = 6
+
+	// Status bar
+	statusBarHeight  = 1
+	commandBarHeight = 1
+)
 
 // Model represents the application state
 type Model struct {
@@ -177,8 +203,8 @@ func truncateText(text string, width int) string {
 }
 
 // NewModel creates a new model with certificates
-func NewModel(certs []*certificate.CertificateInfo) Model {
-	return Model{
+func NewModel(certs []*certificate.CertificateInfo) *Model {
+	return &Model{
 		certificates:    certs,
 		allCertificates: certs,
 		cursor:          0,
@@ -199,47 +225,56 @@ func NewModel(certs []*certificate.CertificateInfo) Model {
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
-	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+	// スプラッシュスクリーンを表示するために少し待機
+	return tea.Tick(time.Millisecond*500, func(t time.Time) tea.Msg {
 		return SplashDoneMsg{}
 	})
 }
 
-// Update handles messages and updates the model
+// Update handles messages and updates the model accordingly
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
+		logger.Log.Debug("window size updated",
+			zap.Int("width", m.width),
+			zap.Int("height", m.height))
 		return m, nil
 
 	case SplashDoneMsg:
-		if m.viewMode == ViewSplash {
-			m.splashTimer++
-			if m.splashTimer >= 20 { // 2 seconds (20 * 100ms)
-				m.viewMode = ViewNormal
-				return m, nil
-			}
-			return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
-				return SplashDoneMsg{}
-			})
-		}
+		m.viewMode = ViewNormal
 		return m, nil
 
 	case tea.KeyMsg:
-		// Skip splash screen on any key press
+		// Handle splash screen exit
 		if m.viewMode == ViewSplash {
 			m.viewMode = ViewNormal
 			return m, nil
 		}
 
+		// Handle quit command
+		if msg.Type == tea.KeyCtrlC || (msg.Type == tea.KeyRunes && msg.String() == "q") {
+			return m, tea.Quit
+		}
+
+		// If view mode is not set, default to normal mode
+		if m.viewMode == 0 {
+			m.viewMode = ViewNormal
+		}
+
+		// Handle key events based on current view mode
 		switch m.viewMode {
+		case ViewNormal:
+			logger.Log.Debug("processing key in Update",
+				zap.String("type", msg.Type.String()),
+				zap.String("runes", string(msg.Runes)))
+			return m.updateNormalMode(msg)
 		case ViewCommand:
 			return m.updateCommandMode(msg)
 		case ViewDetail:
 			return m.updateDetailMode(msg)
-		default:
-			return m.updateNormalMode(msg)
 		}
 	}
 
@@ -247,164 +282,216 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // updateNormalMode handles key events in normal mode
-func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c", "q":
-		return m, tea.Quit
+func (m Model) updateNormalMode(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		logger.Log.Debug("processing key in normal mode",
+			zap.String("type", msg.Type.String()),
+			zap.String("runes", string(msg.Runes)))
 
-	case "up", "k":
-		if m.focus == FocusLeft && len(m.certificates) > 0 {
-			if m.cursor > 0 {
-				m.cursor--
-				// Reset right pane scroll when changing certificate
-				m.rightPaneScroll = 0
+		// Handle special keys
+		switch msg.Type {
+		case tea.KeyRunes:
+			switch msg.String() {
+			case ":":
+				m.viewMode = ViewCommand
+				return m, nil
+			case "q":
+				return m, tea.Quit
+			case "?":
+				m.viewMode = ViewDetail
+				m.detailField = "Help"
+				m.detailValue = m.getQuickHelp()
+				return m, nil
+			case "h":
+				m.focus = FocusLeft
+				return m, nil
+			case "l":
+				m.focus = FocusRight
+				return m, nil
+			case "j":
+				if m.focus == FocusLeft && len(m.certificates) > 0 {
+					if m.cursor < len(m.certificates)-1 {
+						m.cursor++
+						m.rightPaneScroll = 0
+					}
+				} else if m.focus == FocusRight {
+					m.rightPaneScroll++
+				}
+				return m, nil
+			case "k":
+				if m.focus == FocusLeft && len(m.certificates) > 0 {
+					if m.cursor > 0 {
+						m.cursor--
+						m.rightPaneScroll = 0
+					}
+				} else if m.focus == FocusRight {
+					if m.rightPaneScroll > 0 {
+						m.rightPaneScroll--
+					}
+				}
+				return m, nil
 			}
-		} else if m.focus == FocusRight {
-			// Scroll up in right pane
-			if m.rightPaneScroll > 0 {
-				m.rightPaneScroll--
+		case tea.KeyDown:
+			if m.focus == FocusLeft && len(m.certificates) > 0 {
+				if m.cursor < len(m.certificates)-1 {
+					m.cursor++
+					m.rightPaneScroll = 0
+				}
+			} else if m.focus == FocusRight {
+				m.rightPaneScroll++
 			}
-		}
-
-	case "down", "j":
-		if m.focus == FocusLeft && len(m.certificates) > 0 {
-			if m.cursor < len(m.certificates)-1 {
-				m.cursor++
-				// Reset right pane scroll when changing certificate
-				m.rightPaneScroll = 0
+			return m, nil
+		case tea.KeyUp:
+			if m.focus == FocusLeft && len(m.certificates) > 0 {
+				if m.cursor > 0 {
+					m.cursor--
+					m.rightPaneScroll = 0
+				}
+			} else if m.focus == FocusRight {
+				if m.rightPaneScroll > 0 {
+					m.rightPaneScroll--
+				}
 			}
-		} else if m.focus == FocusRight {
-			// Scroll down in right pane
-			m.rightPaneScroll++
-		}
-
-	case "left", "h":
-		if m.shouldUseSinglePane() {
-			// In single pane mode, left arrow goes back to list
+			return m, nil
+		case tea.KeyLeft:
 			m.focus = FocusLeft
-		} else {
-			// In dual pane mode, left arrow switches to left pane
-			m.focus = FocusLeft
-		}
-
-	case "right", "l":
-		if m.shouldUseSinglePane() {
-			// In single pane mode, right arrow goes to details
+			return m, nil
+		case tea.KeyRight:
 			m.focus = FocusRight
-		} else {
-			// In dual pane mode, right arrow switches to right pane
-			m.focus = FocusRight
+			return m, nil
+		case tea.KeyTab:
+			if m.focus == FocusLeft {
+				m.focus = FocusRight
+			} else {
+				m.focus = FocusLeft
+			}
+			return m, nil
 		}
-
-	case "tab":
-		// Tab always switches focus between panes
-		if m.focus == FocusLeft {
-			m.focus = FocusRight
-		} else {
-			m.focus = FocusLeft
-		}
-
-	case ":":
-		// Enter command mode
-		m.viewMode = ViewCommand
-		m.focus = FocusCommand
-		m.commandInput = ""
-		m.commandError = ""
-
-	case "enter":
-		// Could be used for additional actions like exporting certificate
-		return m, nil
-
-	case "escape":
-		// Quick exit from any special mode
-		if m.viewMode == ViewCommand || m.viewMode == ViewDetail {
-			m.viewMode = ViewNormal
-			m.focus = FocusLeft
-			m.commandInput = ""
-			m.commandError = ""
-			m.detailField = ""
-			m.detailValue = ""
-		}
-
-	case "?":
-		// Show quick help in normal mode
-		helpText := m.getQuickHelp()
-		m.showDetail("Quick Help", helpText)
 	}
-
 	return m, nil
 }
 
 // updateCommandMode handles key events in command mode
-func (m Model) updateCommandMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c", "esc":
-		// Exit command mode
-		m.viewMode = ViewNormal
-		m.focus = FocusLeft
-		m.commandInput = ""
-		m.commandError = ""
-
-	case "enter":
-		// Execute command
-		m.executeCommand()
-
-	case "backspace":
-		if len(m.commandInput) > 0 {
-			m.commandInput = m.commandInput[:len(m.commandInput)-1]
-		}
-
-	default:
-		// Add character to command input
-		if len(msg.String()) == 1 {
-			m.commandInput += msg.String()
+func (m Model) updateCommandMode(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyEnter:
+			// Execute command
+			m = m.executeCommand()
+			// サブコマンド（issuer等）ならViewDetailに遷移済みなのでそのまま、それ以外はViewNormalに戻す
+			if m.viewMode != ViewDetail {
+				m.viewMode = ViewNormal
+				m.focus = FocusLeft
+			}
+			return m, nil
+		case tea.KeyEscape:
+			// Cancel command and return to normal mode
+			m.viewMode = ViewNormal
+			m.focus = FocusLeft
+			m.commandInput = ""
+			m.commandError = ""
+			return m, nil
+		case tea.KeyBackspace:
+			// Handle backspace
+			if len(m.commandInput) > 0 {
+				m.commandInput = m.commandInput[:len(m.commandInput)-1]
+			}
+			return m, nil
+		case tea.KeySpace:
+			// Add space to command input
+			m.commandInput += " "
+			return m, nil
+		case tea.KeyRunes:
+			// Add character to command input
+			m.commandInput += string(msg.Runes)
+			return m, nil
 		}
 	}
-
 	return m, nil
 }
 
 // updateDetailMode handles key events in detail mode
 func (m Model) updateDetailMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c", "esc", "q":
-		// Exit detail mode
+	logger.Log.Debug("processing detail mode key",
+		zap.String("key", msg.String()))
+
+	switch msg.Type {
+	case tea.KeyEscape:
+		// Return to normal mode
 		m.viewMode = ViewNormal
 		m.focus = FocusLeft
 		m.detailField = ""
 		m.detailValue = ""
+		return m, nil
+	case tea.KeyUp:
+		// Scroll up in detail view
+		if m.rightPaneScroll > 0 {
+			m.rightPaneScroll--
+		}
+		return m, nil
+	case tea.KeyDown:
+		// Scroll down in detail view
+		m.rightPaneScroll++
+		return m, nil
+	case tea.KeyRunes:
+		if msg.String() == ":" {
+			m.viewMode = ViewCommand
+			m.commandInput = ""
+			m.commandError = ""
+			return m, nil
+		}
 	}
-
 	return m, nil
 }
 
 // executeCommand processes the entered command
-func (m *Model) executeCommand() {
+func (m Model) executeCommand() Model {
 	cmd := strings.TrimSpace(m.commandInput)
+	if cmd == "" {
+		return m
+	}
+
 	m.commandError = ""
+
+	logger.Log.Debug("executing command",
+		zap.String("command", cmd))
 
 	// Check if we have certificates for commands that require them
 	if !m.hasValidCertificatesForCommand(cmd) {
 		m.commandError = "No certificates available"
-		return
+		logger.Log.Warn("no certificates available for command",
+			zap.String("command", cmd))
+		return m
 	}
 
 	// Handle global commands (don't require selected certificate)
-	if m.handleGlobalCommands(cmd) {
-		return
+	var handled bool
+	m, handled = m.handleGlobalCommands(cmd)
+	if handled {
+		m.commandInput = "" // Always clear commandInput after global command
+		return m
 	}
 
 	// Handle certificate-specific commands
-	if len(m.certificates) == 0 {
+	if len(m.certificates) == 0 || m.cursor >= len(m.certificates) {
 		m.commandError = "No certificates available"
-		return
+		logger.Log.Warn("no certificates available for certificate-specific command",
+			zap.String("command", cmd))
+		return m
 	}
 
-	m.handleCertificateCommands(cmd)
+	// Execute certificate command
+	m = m.handleCertificateCommands(cmd)
+
+	// Clear command input after execution
+	m.commandInput = ""
+	return m
 }
 
 // hasValidCertificatesForCommand checks if we have certificates for the given command
-func (m *Model) hasValidCertificatesForCommand(cmd string) bool {
+func (m Model) hasValidCertificatesForCommand(cmd string) bool {
 	globalCommands := []string{"search", "filter", "reset", "validate", "val", "export", "help", "h", "quit", "q"}
 
 	for _, globalCmd := range globalCommands {
@@ -417,95 +504,155 @@ func (m *Model) hasValidCertificatesForCommand(cmd string) bool {
 }
 
 // handleGlobalCommands processes commands that don't require a selected certificate
-func (m *Model) handleGlobalCommands(cmd string) bool {
+func (m Model) handleGlobalCommands(cmd string) (Model, bool) {
+	logger.Log.Debug("handling global command",
+		zap.String("command", cmd))
 	switch {
 	case strings.HasPrefix(cmd, "search "):
 		query := strings.TrimSpace(cmd[7:])
-		m.searchCertificates(query)
-		return true
+		m = m.searchCertificates(query)
+		m.viewMode = ViewNormal
+		m.focus = FocusLeft
+		return m, true
 	case cmd == "reset":
-		m.resetView()
-		return true
+		m = m.resetView()
+		m.viewMode = ViewNormal
+		m.focus = FocusLeft
+		return m, true
 	case strings.HasPrefix(cmd, "filter "):
 		filterType := strings.TrimSpace(cmd[7:])
-		m.filterCertificates(filterType)
-		return true
+		m = m.filterCertificates(filterType)
+		m.viewMode = ViewNormal
+		m.focus = FocusLeft
+		return m, true
 	case cmd == "validate" || cmd == "val":
-		m.handleValidateCommand()
-		return true
+		m = m.handleValidateCommand()
+		m.viewMode = ViewDetail
+		m.focus = FocusRight
+		return m, true
 	case strings.HasPrefix(cmd, "export "):
-		m.exportCertificate(cmd)
-		return true
+		m = m.exportCertificate(cmd)
+		m.viewMode = ViewDetail
+		m.focus = FocusRight
+		return m, true
 	case cmd == "help" || cmd == "h":
-		m.showHelpCommand()
-		return true
+		m = m.showHelpCommand()
+		m.viewMode = ViewDetail
+		m.focus = FocusRight
+		return m, true
 	case cmd == "quit" || cmd == "q":
 		m.viewMode = ViewNormal
 		m.focus = FocusLeft
-		return true
+		return m, true
 	}
-	return false
+	return m, false
 }
 
 // handleCertificateCommands processes commands that require a selected certificate
-func (m *Model) handleCertificateCommands(cmd string) {
+func (m Model) handleCertificateCommands(cmd string) Model {
+	if len(m.certificates) == 0 || m.cursor >= len(m.certificates) {
+		m.commandError = "No certificates available"
+		logger.Log.Warn("no certificates available for certificate-specific command",
+			zap.String("command", cmd))
+		return m
+	}
+
 	cert := m.certificates[m.cursor].Certificate
+	logger.Log.Debug("handling certificate command",
+		zap.String("command", cmd),
+		zap.String("certificate", cert.Subject.CommonName))
 
 	switch {
 	case cmd == "subject" || cmd == "s":
-		m.showDetail("Subject", certificate.FormatSubject(cert))
+		m = m.showDetail("Subject", certificate.FormatSubject(cert))
 	case cmd == "issuer" || cmd == "i":
-		m.showDetail("Issuer", certificate.FormatIssuer(cert))
+		m = m.showDetail("Issuer", certificate.FormatIssuer(cert))
 	case cmd == "validity" || cmd == "v":
-		m.showDetail("Validity", certificate.FormatValidity(cert))
+		m = m.showDetail("Validity", certificate.FormatValidity(cert))
 	case cmd == "san":
-		m.showDetail("Subject Alternative Names", certificate.FormatSAN(cert))
+		m = m.showDetail("Subject Alternative Names", certificate.FormatSAN(cert))
 	case cmd == "fingerprint" || cmd == "fp":
-		m.showDetail("SHA256 Fingerprint", certificate.FormatFingerprint(cert))
+		m = m.showDetail("SHA256 Fingerprint", certificate.FormatFingerprint(cert))
 	case cmd == "serial":
-		m.showDetail("Serial Number", cert.SerialNumber.String())
+		m = m.showDetail("Serial Number", cert.SerialNumber.String())
 	case cmd == "pubkey" || cmd == "pk":
-		m.showDetail("Public Key", certificate.FormatPublicKey(cert))
+		m = m.showDetail("Public Key", certificate.FormatPublicKey(cert))
 	case strings.HasPrefix(cmd, "goto ") || strings.HasPrefix(cmd, "g "):
 		m.handleGotoCommand(cmd)
 	default:
 		m.commandError = fmt.Sprintf("Unknown command: %s (type 'help' for available commands)", cmd)
+		logger.Log.Warn("unknown certificate command",
+			zap.String("command", cmd))
 	}
+	return m
 }
 
 // handleValidateCommand processes the validate command
-func (m *Model) handleValidateCommand() {
-	result := certificate.ValidateChain(m.allCertificates)
-	m.showDetail("Chain Validation", certificate.FormatChainValidation(result))
+func (m Model) handleValidateCommand() Model {
+	logger.Log.Debug("validating certificate chain")
+
+	// Convert CertificateInfo to x509.Certificate
+	certs := make([]*x509.Certificate, len(m.allCertificates))
+	for i, cert := range m.allCertificates {
+		certs[len(m.allCertificates)-1-i] = cert.Certificate // reverse: leaf→root
+	}
+
+	isValid, err := certificate.ValidateChain(certs)
+	// Create ValidationResult
+	result := &certificate.ValidationResult{
+		IsValid: isValid,
+	}
+
+	if err != nil {
+		result.Errors = append(result.Errors, err.Error())
+	}
+
+	// 検証結果を表示
+	m = m.showDetail("Certificate Chain Validation", certificate.FormatChainValidation(result))
+	m.viewMode = ViewDetail
+	m.focus = FocusRight
+	return m
 }
 
 // handleGotoCommand processes the goto command
-func (m *Model) handleGotoCommand(cmd string) {
+func (m Model) handleGotoCommand(cmd string) Model {
 	parts := strings.Fields(cmd)
 	if len(parts) != 2 {
 		m.commandError = "Usage: goto <number> or g <number>"
-		return
+		logger.Log.Warn("invalid goto command format",
+			zap.String("command", cmd))
+		return m
 	}
 
 	index, err := strconv.Atoi(parts[1])
 	if err != nil {
 		m.commandError = "Invalid certificate number"
-		return
+		logger.Log.Warn("invalid certificate number in goto command",
+			zap.String("command", cmd),
+			zap.Error(err))
+		return m
 	}
 
 	if index < 1 || index > len(m.certificates) {
 		m.commandError = "Invalid certificate number"
-		return
+		logger.Log.Warn("certificate number out of range",
+			zap.String("command", cmd),
+			zap.Int("index", index),
+			zap.Int("max", len(m.certificates)))
+		return m
 	}
 
 	m.cursor = index - 1
 	m.rightPaneScroll = 0 // Reset scroll when jumping to certificate
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
+	logger.Log.Debug("goto command executed",
+		zap.Int("new_cursor", m.cursor))
+	return m
 }
 
 // showHelpCommand displays the help information
-func (m *Model) showHelpCommand() {
+func (m Model) showHelpCommand() Model {
 	helpText := `Available commands:
 
 Certificate Information:
@@ -541,38 +688,60 @@ quit, q         - Quit application
 
 Press ESC to return to normal mode`
 
-	m.showDetail("Commands", helpText)
+	m = m.showDetail("Commands", helpText)
+	m.viewMode = ViewDetail
+	m.focus = FocusRight
+	return m
 }
 
 // searchCertificates searches certificates based on query
-func (m *Model) searchCertificates(query string) {
+func (m Model) searchCertificates(query string) Model {
 	if query == "" {
 		m.commandError = "Search query cannot be empty"
-		return
+		logger.Log.Warn("empty search query")
+		return m
 	}
 
-	results := certificate.SearchCertificates(m.allCertificates, query)
-	m.certificates = results
+	logger.Log.Debug("searching certificates",
+		zap.String("query", query))
+
 	m.searchQuery = query
 	m.filterActive = true
 	m.filterType = fmt.Sprintf("search: %s", query)
 	m.cursor = 0
-	m.rightPaneScroll = 0 // Reset scroll when searching
-
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
 
-	if len(results) == 0 {
-		m.commandError = fmt.Sprintf("No certificates found matching '%s'", query)
+	// Filter certificates based on search query (Label, CommonName, Org, OU, DNS, Issuer)
+	var filtered []*certificate.CertificateInfo
+	queryLower := strings.ToLower(query)
+	for _, cert := range m.allCertificates {
+		if strings.Contains(strings.ToLower(cert.Label), queryLower) ||
+			strings.Contains(strings.ToLower(cert.Certificate.Subject.CommonName), queryLower) ||
+			strings.Contains(strings.ToLower(strings.Join(cert.Certificate.Subject.Organization, " ")), queryLower) ||
+			strings.Contains(strings.ToLower(strings.Join(cert.Certificate.Subject.OrganizationalUnit, " ")), queryLower) ||
+			strings.Contains(strings.ToLower(strings.Join(cert.Certificate.DNSNames, " ")), queryLower) ||
+			strings.Contains(strings.ToLower(cert.Certificate.Issuer.CommonName), queryLower) {
+			filtered = append(filtered, cert)
+		}
 	}
+
+	if len(filtered) > 0 {
+		m.certificates = filtered
+	} else {
+		m.commandError = fmt.Sprintf("No certificates found matching '%s'", query)
+		logger.Log.Warn("no certificates found matching search query",
+			zap.String("query", query))
+	}
+	return m
 }
 
 // filterCertificates filters certificates based on criteria
-func (m *Model) filterCertificates(filterType string) {
+func (m Model) filterCertificates(filterType string) Model {
 	validFilters := []string{"expired", "expiring", "valid", "self-signed"}
 	found := false
-	for _, valid := range validFilters {
-		if filterType == valid {
+	for _, f := range validFilters {
+		if f == filterType {
 			found = true
 			break
 		}
@@ -580,68 +749,116 @@ func (m *Model) filterCertificates(filterType string) {
 
 	if !found {
 		m.commandError = fmt.Sprintf("Invalid filter type: %s (valid: %s)", filterType, strings.Join(validFilters, ", "))
-		return
+		logger.Log.Warn("invalid filter type",
+			zap.String("filter_type", filterType),
+			zap.Strings("valid_filters", validFilters))
+		return m
 	}
 
-	results := certificate.FilterCertificates(m.allCertificates, filterType)
-	m.certificates = results
+	logger.Log.Debug("filtering certificates",
+		zap.String("filter_type", filterType))
+
 	m.filterActive = true
 	m.filterType = filterType
 	m.cursor = 0
-	m.rightPaneScroll = 0 // Reset scroll when filtering
-
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
 
-	if len(results) == 0 {
-		m.commandError = fmt.Sprintf("No certificates found with filter '%s'", filterType)
+	// Filter certificates based on criteria
+	var filtered []*certificate.CertificateInfo
+	now := time.Now()
+
+	for _, cert := range m.allCertificates {
+		switch filterType {
+		case "expired":
+			if cert.Certificate.NotAfter.Before(now) {
+				filtered = append(filtered, cert)
+			}
+		case "expiring":
+			if cert.Certificate.NotAfter.After(now) && cert.Certificate.NotAfter.Before(now.AddDate(0, 0, 30)) {
+				filtered = append(filtered, cert)
+			}
+		case "valid":
+			if cert.Certificate.NotAfter.After(now) {
+				filtered = append(filtered, cert)
+			}
+		case "self-signed":
+			if cert.Certificate.Subject.CommonName == cert.Certificate.Issuer.CommonName {
+				filtered = append(filtered, cert)
+			}
+		}
 	}
+
+	if len(filtered) > 0 {
+		m.certificates = filtered
+	} else {
+		m.commandError = fmt.Sprintf("No certificates found with filter '%s'", filterType)
+		logger.Log.Warn("no certificates found matching filter",
+			zap.String("filter_type", filterType))
+	}
+	return m
 }
 
 // resetView resets search and filter
-func (m *Model) resetView() {
+func (m Model) resetView() Model {
+	logger.Log.Debug("resetting view")
+	m = m.resetAllFields()
 	m.certificates = m.allCertificates
-	m.searchQuery = ""
-	m.filterActive = false
-	m.filterType = ""
 	m.cursor = 0
-	m.rightPaneScroll = 0 // Reset scroll when resetting view
-	m.viewMode = ViewNormal
-	m.focus = FocusLeft
+	return m
 }
 
 // exportCertificate exports the current certificate
-func (m *Model) exportCertificate(cmd string) {
+func (m Model) exportCertificate(cmd string) Model {
 	if len(m.certificates) == 0 {
 		m.commandError = "No certificate selected"
-		return
+		logger.Log.Warn("no certificate selected for export")
+		return m
 	}
 
 	parts := strings.Fields(cmd)
 	if len(parts) != 3 {
 		m.commandError = "Usage: export <format> <filename> (format: pem, der)"
-		return
+		logger.Log.Warn("invalid export command format",
+			zap.String("command", cmd))
+		return m
 	}
 
-	format := parts[1]
+	format := strings.ToLower(parts[1])
 	filename := parts[2]
-
 	cert := m.certificates[m.cursor].Certificate
+
+	logger.Log.Debug("exporting certificate",
+		zap.String("format", format),
+		zap.String("filename", filename),
+		zap.String("certificate", cert.Subject.CommonName))
+
 	err := certificate.ExportCertificate(cert, format, filename)
 	if err != nil {
 		m.commandError = fmt.Sprintf("Export failed: %v", err)
-		return
+		logger.Log.Error("certificate export failed",
+			zap.String("format", format),
+			zap.String("filename", filename),
+			zap.Error(err))
+		return m
 	}
 
-	m.showDetail("Export Success", fmt.Sprintf("Certificate exported successfully!\n\nFormat: %s\nFile: %s\nCertificate: %s",
+	m = m.showDetail("Export Success", fmt.Sprintf("Certificate exported successfully!\n\nFormat: %s\nFile: %s\nCertificate: %s",
 		strings.ToUpper(format), filename, cert.Subject.CommonName))
+	m.viewMode = ViewDetail
+	m.focus = FocusRight
+	return m
 }
 
 // showDetail switches to detail view mode
-func (m *Model) showDetail(field, value string) {
+func (m Model) showDetail(field, value string) Model {
+	logger.Log.Debug("showing detail view",
+		zap.String("field", field))
 	m.viewMode = ViewDetail
 	m.detailField = field
 	m.detailValue = value
+	m.focus = FocusRight
+	return m
 }
 
 // getQuickHelp returns contextual quick help text
@@ -727,14 +944,11 @@ func (m Model) renderMinimumSizeWarning(minWidth, minHeight int) string {
 // renderNormalView renders the normal view - adaptive layout
 func (m Model) renderNormalView() string {
 	// Calculate available space for main content
-	statusBarHeight := 1
-	commandBarHeight := 0
+	mainHeight := m.height - statusBarHeight
 	if m.viewMode == ViewCommand {
-		commandBarHeight = 1
+		mainHeight -= commandBarHeight
 	}
 
-	// Calculate main content height
-	mainHeight := m.height - statusBarHeight - commandBarHeight
 	if mainHeight < 3 {
 		mainHeight = 3
 	}
@@ -753,7 +967,7 @@ func (m Model) renderSinglePaneView(mainHeight int) string {
 	var content string
 
 	// Calculate content height (subtract borders)
-	contentHeight := mainHeight - 2
+	contentHeight := mainHeight - borderPadding
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
@@ -763,7 +977,7 @@ func (m Model) renderSinglePaneView(mainHeight int) string {
 		content = m.renderCertificateList(contentHeight)
 	} else {
 		// Show certificate details
-		content = m.renderCertificateDetails(m.width-4, contentHeight)
+		content = m.renderCertificateDetails(m.width-contentPadding, contentHeight)
 	}
 
 	// Create single pane
@@ -786,7 +1000,7 @@ func (m Model) renderSinglePaneView(mainHeight int) string {
 func (m Model) renderDualPaneView(mainHeight int) string {
 	// Calculate pane widths - more flexible allocation
 	var leftWidth, rightWidth int
-	if m.width < 60 {
+	if m.width < minMediumWidth {
 		// Narrow: give more space to details
 		leftWidth = max(12, m.width*2/5)
 		rightWidth = m.width - leftWidth
@@ -811,7 +1025,7 @@ func (m Model) renderDualPaneView(mainHeight int) string {
 	}
 
 	// Calculate content height for list (subtract borders only)
-	contentHeight := mainHeight - 2 // borders(2) only
+	contentHeight := mainHeight - borderPadding
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
@@ -820,7 +1034,7 @@ func (m Model) renderDualPaneView(mainHeight int) string {
 	leftPane := m.createPane(leftContent, leftWidth, mainHeight, m.focus == FocusLeft, "")
 
 	// Render right pane (certificate details) with scrolling
-	rightContent := m.renderCertificateDetails(rightWidth-4, contentHeight)
+	rightContent := m.renderCertificateDetails(rightWidth-contentPadding, contentHeight)
 	rightPane := m.createPane(rightContent, rightWidth, mainHeight, m.focus == FocusRight, "")
 
 	// Combine panes
@@ -950,7 +1164,7 @@ func (m Model) renderCertificateList(height int) string {
 			}
 		} else if certificate.IsExpiringSoon(cert.Certificate) {
 			if availableWidth >= 15 {
-				line = "🟡 " + line
+				line = "⚠️ " + line
 			} else {
 				line = "! " + line
 			}
@@ -986,6 +1200,16 @@ func (m Model) renderCertificateList(height int) string {
 	return content.String()
 }
 
+// getCertificateStatus returns the status icon and text for a certificate
+func (m Model) getCertificateStatus(cert *certificate.CertificateInfo) (string, string) {
+	if certificate.IsExpired(cert.Certificate) {
+		return "❌", "EXPIRED"
+	} else if certificate.IsExpiringSoon(cert.Certificate) {
+		return "⚠️", "EXPIRING SOON"
+	}
+	return "✅", "VALID"
+}
+
 // renderCertificateDetails renders the details of the selected certificate with improved text handling
 func (m Model) renderCertificateDetails(width, height int) string {
 	if len(m.certificates) == 0 {
@@ -996,33 +1220,129 @@ func (m Model) renderCertificateDetails(width, height int) string {
 
 	// Get appropriate details based on width
 	var details string
-	if width < 25 {
+	if width < minUltraCompactWidth {
 		// Ultra compact details - only essential info
-		details = fmt.Sprintf("Cert %d/%d\n%s\n\nCN: %s\nExp: %s",
+		statusIcon, _ := m.getCertificateStatus(cert)
+		details = fmt.Sprintf("%s Cert %d/%d\n%s\n\nCN: %s\nExp: %s",
+			statusIcon,
 			m.cursor+1, len(m.certificates),
-			truncateText(cert.Label, width),
-			truncateText(cert.Certificate.Subject.CommonName, width),
+			truncateText(cert.Label, width-borderPadding),
+			truncateText(cert.Certificate.Subject.CommonName, width-cnPadding),
 			cert.Certificate.NotAfter.Format("2006-01-02"))
-	} else if width < 40 {
-		// Compact details
-		details = fmt.Sprintf("Certificate %d/%d\n%s\n\nSubject:\n%s\n\nExpires:\n%s",
-			m.cursor+1, len(m.certificates),
-			truncateText(cert.Label, width),
-			truncateText(cert.Certificate.Subject.CommonName, width),
+	} else if width < minCompactWidth {
+		// Compact details with better organization
+		statusIcon, statusText := m.getCertificateStatus(cert)
+
+		details = fmt.Sprintf("%s %s\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nExpires:\n%s",
+			statusIcon, statusText,
+			truncateText(cert.Label, width-borderPadding),
+			truncateText(cert.Certificate.Subject.CommonName, width-cnPadding),
+			truncateText(cert.Certificate.Issuer.CommonName, width-cnPadding),
 			cert.Certificate.NotAfter.Format("2006-01-02 15:04"))
-	} else if width < 60 {
-		// Medium details
-		details = fmt.Sprintf("Certificate %d/%d\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nValid:\n%s - %s",
-			m.cursor+1, len(m.certificates),
-			cert.Label,
-			wrapText(cert.Certificate.Subject.CommonName, width),
-			wrapText(cert.Certificate.Issuer.CommonName, width),
-			cert.Certificate.NotBefore.Format("2006-01-02"),
-			cert.Certificate.NotAfter.Format("2006-01-02"))
+	} else if width < minMediumWidth {
+		// Medium details with better structure
+		var builder strings.Builder
+
+		// Header with status
+		statusIcon, statusText := m.getCertificateStatus(cert)
+
+		builder.WriteString(fmt.Sprintf("%s %s - Cert %d/%d\n", statusIcon, statusText, m.cursor+1, len(m.certificates)))
+		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-borderPadding, 30))))
+
+		// Essential information
+		builder.WriteString(fmt.Sprintf("Subject: %s\n", truncateText(cert.Certificate.Subject.CommonName, width-subjectPadding)))
+		builder.WriteString(fmt.Sprintf("Issuer:  %s\n", truncateText(cert.Certificate.Issuer.CommonName, width-subjectPadding)))
+
+		// Validity
+		now := time.Now()
+		if cert.Certificate.NotAfter.Before(now) {
+			duration := now.Sub(cert.Certificate.NotAfter)
+			days := int(duration.Hours() / 24)
+			builder.WriteString(fmt.Sprintf("Expired: %d days ago\n", days))
+		} else {
+			duration := cert.Certificate.NotAfter.Sub(now)
+			days := int(duration.Hours() / 24)
+			builder.WriteString(fmt.Sprintf("Valid:   %d days left\n", days))
+		}
+
+		// DNS names if available
+		if len(cert.Certificate.DNSNames) > 0 {
+			builder.WriteString("DNS: ")
+			if len(cert.Certificate.DNSNames) == 1 {
+				builder.WriteString(truncateText(cert.Certificate.DNSNames[0], width-scrollIndicatorPadding))
+			} else {
+				builder.WriteString(fmt.Sprintf("%d names", len(cert.Certificate.DNSNames)))
+			}
+		}
+
+		details = builder.String()
 	} else {
-		// Full details with proper wrapping
-		fullDetails := certificate.GetCertificateDetails(cert.Certificate)
-		details = wrapText(fullDetails, width)
+		// Full details with proper formatting
+		var builder strings.Builder
+
+		// Header with certificate position and status
+		statusIcon, statusText := m.getCertificateStatus(cert)
+		now := time.Now()
+
+		builder.WriteString(fmt.Sprintf("Certificate %d/%d %s %s\n",
+			m.cursor+1, len(m.certificates), statusIcon, statusText))
+		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-borderPadding, 40))))
+
+		// Subject information
+		builder.WriteString("📋 Subject:\n")
+		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Subject.CommonName))
+		if len(cert.Certificate.Subject.Organization) > 0 {
+			builder.WriteString(fmt.Sprintf("  Organization: %s\n", strings.Join(cert.Certificate.Subject.Organization, ", ")))
+		}
+		if len(cert.Certificate.Subject.OrganizationalUnit) > 0 {
+			builder.WriteString(fmt.Sprintf("  Organizational Unit: %s\n", strings.Join(cert.Certificate.Subject.OrganizationalUnit, ", ")))
+		}
+
+		// Issuer information
+		builder.WriteString("\n🏢 Issuer:\n")
+		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Issuer.CommonName))
+		if len(cert.Certificate.Issuer.Organization) > 0 {
+			builder.WriteString(fmt.Sprintf("  Organization: %s\n", strings.Join(cert.Certificate.Issuer.Organization, ", ")))
+		}
+
+		// Validity information
+		builder.WriteString("\n📅 Validity:\n")
+		builder.WriteString(fmt.Sprintf("  Not Before: %s\n", cert.Certificate.NotBefore.Format("2006-01-02 15:04:05 MST")))
+		builder.WriteString(fmt.Sprintf("  Not After:  %s\n", cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST")))
+
+		// Add days remaining/expired info
+		if cert.Certificate.NotAfter.Before(now) {
+			duration := now.Sub(cert.Certificate.NotAfter)
+			days := int(duration.Hours() / 24)
+			builder.WriteString(fmt.Sprintf("  Status: %s %s (Expired %d days ago)\n", statusIcon, statusText, days))
+		} else {
+			duration := cert.Certificate.NotAfter.Sub(now)
+			days := int(duration.Hours() / 24)
+			builder.WriteString(fmt.Sprintf("  Status: %s %s (Valid for %d days)\n", statusIcon, statusText, days))
+		}
+
+		// Subject Alternative Names
+		builder.WriteString("\n🌐 Subject Alternative Names:\n")
+		if len(cert.Certificate.DNSNames) > 0 || len(cert.Certificate.IPAddresses) > 0 || len(cert.Certificate.EmailAddresses) > 0 {
+			for _, dns := range cert.Certificate.DNSNames {
+				builder.WriteString(fmt.Sprintf("  DNS: %s\n", dns))
+			}
+			for _, ip := range cert.Certificate.IPAddresses {
+				builder.WriteString(fmt.Sprintf("  IP: %s\n", ip.String()))
+			}
+			for _, email := range cert.Certificate.EmailAddresses {
+				builder.WriteString(fmt.Sprintf("  Email: %s\n", email))
+			}
+		} else {
+			builder.WriteString("  None\n")
+		}
+
+		// Fingerprint and Serial Number
+		builder.WriteString("\n🔒 SHA256 Fingerprint:\n")
+		builder.WriteString(fmt.Sprintf("  %s\n", certificate.FormatFingerprint(cert.Certificate)))
+		builder.WriteString(fmt.Sprintf("\n🔢 Serial Number: %s\n", cert.Certificate.SerialNumber.String()))
+
+		details = builder.String()
 	}
 
 	// Split details into lines for scrolling
@@ -1050,243 +1370,8 @@ func (m Model) renderCertificateDetails(width, height int) string {
 	// Join visible lines
 	scrolledContent := strings.Join(visibleLines, "\n")
 
-	// Add scroll indicator if there's more content (only if there's room)
+	// Add scroll indicator if there's more content
 	if len(lines) > height && width > 10 {
-		scrollInfo := ""
-		if start > 0 {
-			scrollInfo += "↑ "
-		}
-		if end < len(lines) {
-			scrollInfo += "↓ "
-		}
-		if scrollInfo != "" {
-			scrollInfo = fmt.Sprintf(" [%s%d/%d]", scrollInfo, start+1, len(lines))
-			if len(scrollInfo) <= width {
-				scrolledContent += "\n" + scrollInfo
-			}
-		}
-	}
-
-	return scrolledContent
-}
-
-// renderImprovedCertificateDetails renders certificate details with enhanced UX and better formatting
-func (m Model) renderImprovedCertificateDetails(width, height int) string {
-	if len(m.certificates) == 0 {
-		return "No certificate selected"
-	}
-
-	cert := m.certificates[m.cursor]
-
-	// Format details based on width with better content prioritization
-	var details string
-	if width < 30 {
-		// Ultra compact: Focus on critical information only
-		status := ""
-		if certificate.IsExpired(cert.Certificate) {
-			status = "❌ EXPIRED"
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			status = "⚠️ EXPIRING"
-		} else {
-			status = "✅ VALID"
-		}
-
-		details = fmt.Sprintf("Certificate %d/%d\n%s\n\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nValidity:\n%s\n\nDNS:\n%s",
-			m.cursor+1, len(m.certificates),
-			truncateText(cert.Label, width-2),
-			status,
-			truncateText(cert.Certificate.Subject.CommonName, width-2),
-			truncateText(cert.Certificate.Issuer.CommonName, width-2),
-			cert.Certificate.NotAfter.Format("2006-01-02"),
-			truncateText(strings.Join(cert.Certificate.DNSNames, ", "), width-2))
-
-	} else if width < 50 {
-		// Compact: Essential information with better organization
-		status := ""
-		statusIcon := ""
-		now := time.Now()
-		if certificate.IsExpired(cert.Certificate) {
-			status = "EXPIRED"
-			statusIcon = "❌"
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			status = "EXPIRING SOON"
-			statusIcon = "⚠️"
-		} else {
-			status = "VALID"
-			statusIcon = "✅"
-		}
-
-		// Add days remaining/expired info
-		daysInfo := ""
-		if cert.Certificate.NotAfter.Before(now) {
-			duration := now.Sub(cert.Certificate.NotAfter)
-			days := int(duration.Hours() / 24)
-			daysInfo = fmt.Sprintf(" (%d days ago)", days)
-		} else {
-			duration := cert.Certificate.NotAfter.Sub(now)
-			days := int(duration.Hours() / 24)
-			daysInfo = fmt.Sprintf(" (%d days)", days)
-		}
-
-		details = fmt.Sprintf("Certificate %d/%d\n%s\n%s Status: %s%s\n\nSubject: %s",
-			m.cursor+1, len(m.certificates),
-			wrapText(cert.Label, width-2),
-			statusIcon, status, daysInfo,
-			wrapText(cert.Certificate.Subject.CommonName, width-10))
-
-		if len(cert.Certificate.Subject.Organization) > 0 {
-			details += fmt.Sprintf("\nOrganization: %s", wrapText(strings.Join(cert.Certificate.Subject.Organization, ", "), width-14))
-		}
-
-		details += fmt.Sprintf("\nIssuer: %s", wrapText(cert.Certificate.Issuer.CommonName, width-8))
-
-		// Add key DNS names if available
-		if len(cert.Certificate.DNSNames) > 0 {
-			details += "\nDNS: " + strings.Join(cert.Certificate.DNSNames[:min(len(cert.Certificate.DNSNames), 2)], ", ")
-			if len(cert.Certificate.DNSNames) > 2 {
-				details += fmt.Sprintf(" +%d more", len(cert.Certificate.DNSNames)-2)
-			}
-		}
-
-		details += fmt.Sprintf("\nValidity: %s to %s",
-			cert.Certificate.NotBefore.Format("2006-01-02"),
-			cert.Certificate.NotAfter.Format("2006-01-02"))
-
-	} else {
-		// Full width: Ultra-compact comprehensive information
-		var builder strings.Builder
-
-		// Header with certificate position and status
-		statusIcon := ""
-		statusText := ""
-		statusDetail := ""
-		now := time.Now()
-
-		if certificate.IsExpired(cert.Certificate) {
-			statusIcon = "❌"
-			statusText = "EXPIRED"
-			duration := now.Sub(cert.Certificate.NotAfter)
-			days := int(duration.Hours() / 24)
-			statusDetail = fmt.Sprintf("Expired %d days ago", days)
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			statusIcon = "⚠️"
-			statusText = "EXPIRING SOON"
-			duration := cert.Certificate.NotAfter.Sub(now)
-			days := int(duration.Hours() / 24)
-			statusDetail = fmt.Sprintf("Expires in %d days", days)
-		} else {
-			statusIcon = "✅"
-			statusText = "VALID"
-			duration := cert.Certificate.NotAfter.Sub(now)
-			days := int(duration.Hours() / 24)
-			statusDetail = fmt.Sprintf("Valid for %d days", days)
-		}
-
-		builder.WriteString(fmt.Sprintf("Certificate %d/%d %s %s\n",
-			m.cursor+1, len(m.certificates), statusIcon, statusText))
-		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-2, 40))))
-
-		// Subject information - ultra compact format
-		builder.WriteString("📋 Subject:\n")
-		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Subject.CommonName))
-		if len(cert.Certificate.Subject.Organization) > 0 {
-			builder.WriteString(fmt.Sprintf("  Organization: %s\n", strings.Join(cert.Certificate.Subject.Organization, ", ")))
-		}
-		if len(cert.Certificate.Subject.OrganizationalUnit) > 0 {
-			builder.WriteString(fmt.Sprintf("  Organizational Unit: %s\n", strings.Join(cert.Certificate.Subject.OrganizationalUnit, ", ")))
-		}
-		// Combine geographic fields on one line
-		var geoFields []string
-		if len(cert.Certificate.Subject.Country) > 0 {
-			geoFields = append(geoFields, "Country: "+strings.Join(cert.Certificate.Subject.Country, ", "))
-		}
-		if len(cert.Certificate.Subject.Province) > 0 {
-			geoFields = append(geoFields, "Province: "+strings.Join(cert.Certificate.Subject.Province, ", "))
-		}
-		if len(cert.Certificate.Subject.Locality) > 0 {
-			geoFields = append(geoFields, "Locality: "+strings.Join(cert.Certificate.Subject.Locality, ", "))
-		}
-		if len(geoFields) > 0 {
-			builder.WriteString(fmt.Sprintf("  %s\n", strings.Join(geoFields, ", ")))
-		}
-
-		// Issuer information - ultra compact format
-		builder.WriteString("🏢 Issuer:\n")
-		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Issuer.CommonName))
-		var issuerFields []string
-		if len(cert.Certificate.Issuer.Organization) > 0 {
-			issuerFields = append(issuerFields, "Organization: "+strings.Join(cert.Certificate.Issuer.Organization, ", "))
-		}
-		if len(cert.Certificate.Issuer.Country) > 0 {
-			issuerFields = append(issuerFields, "Country: "+strings.Join(cert.Certificate.Issuer.Country, ", "))
-		}
-		if len(issuerFields) > 0 {
-			builder.WriteString(fmt.Sprintf("  %s\n", strings.Join(issuerFields, ", ")))
-		}
-
-		// Validity information - compact format
-		builder.WriteString("📅 Validity:\n")
-		builder.WriteString(fmt.Sprintf("  Not Before: %s\n", cert.Certificate.NotBefore.Format("2006-01-02 15:04:05 MST")))
-		builder.WriteString(fmt.Sprintf("  Not After:  %s\n", cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST")))
-		builder.WriteString(fmt.Sprintf("  Status: %s %s, %s\n", statusIcon, statusText, statusDetail))
-
-		// Subject Alternative Names - prioritized and compact
-		builder.WriteString("🌐 Subject Alternative Names:\n")
-		if len(cert.Certificate.DNSNames) > 0 || len(cert.Certificate.IPAddresses) > 0 || len(cert.Certificate.EmailAddresses) > 0 {
-			for _, dns := range cert.Certificate.DNSNames {
-				builder.WriteString(fmt.Sprintf("  DNS: %s\n", dns))
-			}
-			for _, ip := range cert.Certificate.IPAddresses {
-				builder.WriteString(fmt.Sprintf("  IP: %s\n", ip.String()))
-			}
-			for _, email := range cert.Certificate.EmailAddresses {
-				builder.WriteString(fmt.Sprintf("  Email: %s\n", email))
-			}
-		} else {
-			builder.WriteString("  None\n")
-		}
-
-		// Fingerprint and Serial Number - compact format
-		fingerprint := certificate.FormatFingerprint(cert.Certificate)
-		// Format fingerprint with colons for better readability
-		formattedFingerprint := ""
-		for i, char := range fingerprint {
-			if i > 0 && i%2 == 0 {
-				formattedFingerprint += ":"
-			}
-			formattedFingerprint += string(char)
-		}
-		builder.WriteString("🔒 SHA256 Fingerprint:\n")
-		builder.WriteString(fmt.Sprintf("  %s\n", formattedFingerprint))
-		builder.WriteString(fmt.Sprintf("🔢 Serial Number: %s\n", cert.Certificate.SerialNumber.String()))
-
-		details = builder.String()
-	}
-
-	// Apply scrolling with improved scroll indicators
-	lines := strings.Split(details, "\n")
-	start := m.rightPaneScroll
-	end := start + height
-
-	// Ensure we don't scroll past the content
-	if start >= len(lines) && len(lines) > 0 {
-		start = max(0, len(lines)-height)
-		// Note: We can't modify m.rightPaneScroll here as this is a read-only method
-	}
-	if end > len(lines) {
-		end = len(lines)
-	}
-
-	// Get visible lines
-	var visibleLines []string
-	if start < len(lines) {
-		visibleLines = lines[start:end]
-	}
-
-	scrolledContent := strings.Join(visibleLines, "\n")
-
-	// Add enhanced scroll indicators
-	if len(lines) > height && width > 15 {
 		scrollInfo := ""
 		if start > 0 {
 			scrollInfo += "↑ "
@@ -1446,4 +1531,20 @@ func (m Model) renderStatusBar() string {
 		Width(m.width).
 		Padding(0, 1).
 		Render(statusText)
+}
+
+// 全フィールドをクリアする共通メソッド
+func (m Model) resetAllFields() Model {
+	logger.Log.Debug("resetting all fields")
+	m.viewMode = ViewNormal
+	m.focus = FocusLeft
+	m.commandInput = ""
+	m.commandError = ""
+	m.detailField = ""
+	m.detailValue = ""
+	m.searchQuery = ""
+	m.filterActive = false
+	m.filterType = ""
+	m.rightPaneScroll = 0
+	return m
 }

@@ -4,67 +4,88 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
-	"github.com/spf13/cobra"
+	"github.com/kanywst/y509/internal/logger"
 	"github.com/kanywst/y509/pkg/certificate"
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
-var (
-	format    string
-	certIndex int
-)
-
-// exportCmd represents the export command
 var exportCmd = &cobra.Command{
-	Use:   "export [input_file] [output_file]",
-	Short: "Export a certificate",
-	Long: `Export a certificate from a chain to a new file.
-You can specify the format (PEM or DER) and which certificate in the chain to export.`,
-	Example: `  y509 export cert.pem output.pem --format pem
-  y509 export cert.pem output.der --format der --index 1`,
-	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "Error: input and output file paths are required")
-			fmt.Fprintln(os.Stderr, "Usage: y509 export [input_file] [output_file]")
-			os.Exit(1)
+	Use:   "export [index] [format] [filename]",
+	Short: "Export a certificate to a file",
+	Long: `Export a certificate to a file in the specified format.
+Format can be either 'pem' or 'der'.
+If no index is provided, the currently selected certificate will be exported.
+If no format is provided, 'pem' will be used.
+If no filename is provided, a default name will be generated.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Get input file from flag or use stdin
+		inputFile := ""
+		if cmd.Flags().Changed("input") {
+			inputFile, _ = cmd.Flags().GetString("input")
 		}
-
-		inputFile := args[0]
-		outputFile := args[1]
 
 		// Load certificates
 		certs, err := certificate.LoadCertificates(inputFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading certificates: %v\n", err)
-			os.Exit(1)
+			logger.Log.Error("Failed to load certificates", zap.Error(err))
+			return err
 		}
 
 		if len(certs) == 0 {
-			fmt.Fprintln(os.Stderr, "Error: no certificates found in the input file")
-			os.Exit(1)
+			logger.Log.Error("No certificates available")
+			return fmt.Errorf("no certificates available")
 		}
 
-		if certIndex >= len(certs) {
-			fmt.Fprintf(os.Stderr, "Error: certificate index %d is out of range, only %d certificates available\n",
-				certIndex, len(certs))
-			os.Exit(1)
+		// Get certificate index
+		index := 0
+		if len(args) > 0 {
+			_, err := fmt.Sscanf(args[0], "%d", &index)
+			if err != nil {
+				logger.Log.Error("Invalid certificate index", zap.Error(err))
+				return fmt.Errorf("invalid certificate index: %v", err)
+			}
+			if index < 0 || index >= len(certs) {
+				logger.Log.Error("Certificate index out of range")
+				return fmt.Errorf("certificate index out of range")
+			}
 		}
 
-		// Export the certificate
-		err = certificate.ExportCertificate(certs[certIndex].Certificate, format, outputFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error exporting certificate: %v\n", err)
-			os.Exit(1)
+		// Get format
+		format := "pem"
+		if len(args) > 1 {
+			format = args[1]
 		}
 
-		fmt.Printf("Certificate exported successfully to %s in %s format\n", outputFile, format)
+		// Get filename
+		filename := fmt.Sprintf("certificate_%d.%s", index, format)
+		if len(args) > 2 {
+			filename = args[2]
+		}
+
+		// Create directory if it doesn't exist
+		dir := filepath.Dir(filename)
+		if dir != "." {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				logger.Log.Error("Failed to create directory", zap.Error(err))
+				return fmt.Errorf("failed to create directory: %v", err)
+			}
+		}
+
+		// Export certificate
+		if err := certificate.ExportCertificate(certs[index].Certificate, format, filename); err != nil {
+			logger.Log.Error("Failed to export certificate", zap.Error(err))
+			return fmt.Errorf("failed to export certificate: %v", err)
+		}
+
+		logger.Log.Info("Certificate exported successfully", zap.String("filename", filename))
+		return nil
 	},
 }
 
 func init() {
 	RootCmd.AddCommand(exportCmd)
-
-	// Add flags
-	exportCmd.Flags().StringVarP(&format, "format", "f", "pem", "Output format (pem or der)")
-	exportCmd.Flags().IntVarP(&certIndex, "index", "i", 0, "Certificate index in the chain (0-based)")
+	exportCmd.Flags().StringP("input", "i", "", "Input file containing certificates (default: stdin)")
 }

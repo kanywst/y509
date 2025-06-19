@@ -4,107 +4,93 @@ Set FontSize 14
 Set Width 1200
 Set Height 800
 
+# Launch and display certificate list
 Type "./y509 testdata/demo/certs.pem"
 Enter
 Sleep 2s
 
-# Navigate through certificates
+# Navigate certificate list
 Type "j"
-Sleep 1s
+Sleep 0.7s
 Type "j"
-Sleep 1s
-
-# Switch to right pane
-Type "l"
-Sleep 1s
-
-# Switch back to left pane
-Type "h"
-Sleep 1s
-
-# Navigate up
+Sleep 0.7s
 Type "k"
-Sleep 1s
+Sleep 0.7s
 
-# Enter command mode
+# Switch detail pane
+Type "l"
+Sleep 0.7s
+Type "h"
+Sleep 0.7s
+
+# Command mode: subject
 Type ":"
-Sleep 1s
-
-# Show subject command
+Sleep 0.5s
 Type "subject"
 Enter
-Sleep 3s
-
-# Exit detail view
+Sleep 2s
 Escape
-Sleep 1s
+Sleep 0.7s
 
-# Enter command mode again
+# issuer command
 Type ":"
-Sleep 1s
+Sleep 0.5s
+Type "issuer"
+Enter
+Sleep 2s
+Escape
+Sleep 0.7s
 
-# Show validity command
+# validity command
+Type ":"
+Sleep 0.5s
 Type "validity"
 Enter
-Sleep 3s
-
-# Exit detail view
+Sleep 2s
 Escape
-Sleep 1s
+Sleep 0.7s
 
-# Test chain validation
+# Chain validation
 Type ":"
-Sleep 1s
+Sleep 0.5s
 Type "validate"
 Enter
-Sleep 3s
-
-# Exit detail view
+Sleep 2s
 Escape
 Sleep 1s
 
-# Test search functionality
+# Search by organization name
 Type ":"
-Sleep 1s
-Type "search example"
+Sleep 0.5s
+Type "search Example"
 Enter
-Sleep 2s
+Sleep 1.5s
 
-# Reset search
+# subject command in search results
 Type ":"
-Sleep 1s
+Sleep 0.5s
+Type "subject"
+Enter
+Sleep 1.5s
+Escape
+Sleep 0.7s
+
+# Reset to show all entries
+Type ":"
+Sleep 0.5s
 Type "reset"
 Enter
 Sleep 1s
 
-# Test filter functionality
+# help command to show all features
 Type ":"
-Sleep 1s
-Type "filter expiring"
-Enter
-Sleep 2s
-
-# Reset filter
-Type ":"
-Sleep 1s
-Type "reset"
-Enter
-Sleep 1s
-
-# Show help
-Type ":"
-Sleep 1s
+Sleep 0.5s
 Type "help"
 Enter
-Sleep 4s
-
-# Exit detail view
+Sleep 2.5s
 Escape
-Sleep 1s
+Sleep 0.7s
 
-# Show final state
-Sleep 2s
-
-# Quit
+# Finally, quit
 Type "q"
-Sleep 1s
+Sleep 0.7s
