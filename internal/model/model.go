@@ -399,6 +399,10 @@ func (m Model) updateCommandMode(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.commandInput = m.commandInput[:len(m.commandInput)-1]
 			}
 			return m, nil
+		case tea.KeySpace:
+			// Add space to command input
+			m.commandInput += " "
+			return m, nil
 		case tea.KeyRunes:
 			// Add character to command input
 			m.commandInput += string(msg.Runes)
@@ -466,6 +470,7 @@ func (m Model) executeCommand() Model {
 	var handled bool
 	m, handled = m.handleGlobalCommands(cmd)
 	if handled {
+		m.commandInput = "" // Always clear commandInput after global command
 		return m
 	}
 

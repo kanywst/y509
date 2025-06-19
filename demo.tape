@@ -4,12 +4,12 @@ Set FontSize 14
 Set Width 1200
 Set Height 800
 
-# 起動・証明書リスト表示
+# Launch and display certificate list
 Type "./y509 testdata/demo/certs.pem"
 Enter
 Sleep 2s
 
-# 証明書リストのナビゲーション
+# Navigate certificate list
 Type "j"
 Sleep 0.7s
 Type "j"
@@ -17,13 +17,13 @@ Sleep 0.7s
 Type "k"
 Sleep 0.7s
 
-# 詳細ペイン切り替え
+# Switch detail pane
 Type "l"
 Sleep 0.7s
 Type "h"
 Sleep 0.7s
 
-# コマンドモードでsubject
+# Command mode: subject
 Type ":"
 Sleep 0.5s
 Type "subject"
@@ -32,7 +32,7 @@ Sleep 2s
 Escape
 Sleep 0.7s
 
-# issuerコマンド
+# issuer command
 Type ":"
 Sleep 0.5s
 Type "issuer"
@@ -41,7 +41,7 @@ Sleep 2s
 Escape
 Sleep 0.7s
 
-# validityコマンド
+# validity command
 Type ":"
 Sleep 0.5s
 Type "validity"
@@ -50,23 +50,23 @@ Sleep 2s
 Escape
 Sleep 0.7s
 
-# chain validate
+# Chain validation
 Type ":"
 Sleep 0.5s
 Type "validate"
 Enter
 Sleep 2s
 Escape
-Sleep 0.7s
+Sleep 1s
 
-# search: 組織名で検索
+# Search by organization name
 Type ":"
 Sleep 0.5s
 Type "search Example"
 Enter
 Sleep 1.5s
 
-# 検索結果でsubject
+# subject command in search results
 Type ":"
 Sleep 0.5s
 Type "subject"
@@ -75,65 +75,14 @@ Sleep 1.5s
 Escape
 Sleep 0.7s
 
-# 存在しない検索
-Type ":"
-Sleep 0.5s
-Type "search NotFound"
-Enter
-Sleep 1.2s
-
-# resetで全件に戻す
+# Reset to show all entries
 Type ":"
 Sleep 0.5s
 Type "reset"
 Enter
 Sleep 1s
 
-# filter: expiring
-Type ":"
-Sleep 0.5s
-Type "filter expiring"
-Enter
-Sleep 1.5s
-
-# filter: expired
-Type ":"
-Sleep 0.5s
-Type "filter expired"
-Enter
-Sleep 1.5s
-
-# filter: self-signed
-Type ":"
-Sleep 0.5s
-Type "filter self-signed"
-Enter
-Sleep 1.5s
-
-# 存在しないフィルタ
-Type ":"
-Sleep 0.5s
-Type "filter unknown"
-Enter
-Sleep 1.2s
-
-# resetで全件に戻す
-Type ":"
-Sleep 0.5s
-Type "reset"
-Enter
-Sleep 1s
-
-# exportコマンド（ダミー）
-Type ":"
-Sleep 0.5s
-Type "export pem demo.pem"
-Enter
-Sleep 1.5s
-Escape
-Sleep 0.7s
-
-# helpコマンドで全機能を一望
+# help command to show all features
 Type ":"
 Sleep 0.5s
 Type "help"
@@ -142,6 +91,6 @@ Sleep 2.5s
 Escape
 Sleep 0.7s
 
-# 最後にquit
+# Finally, quit
 Type "q"
 Sleep 0.7s
