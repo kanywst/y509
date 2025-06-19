@@ -232,7 +232,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Update handles messages and updates the model accordingly
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -248,22 +248,28 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		// Handle Ctrl+C globally
-		if msg.Type == tea.KeyCtrlC {
+		// Handle splash screen exit
+		if m.viewMode == ViewSplash {
+			m.viewMode = ViewNormal
+			return m, nil
+		}
+
+		// Handle quit command
+		if msg.Type == tea.KeyCtrlC || (msg.Type == tea.KeyRunes && msg.String() == "q") {
 			return m, tea.Quit
 		}
 
-		// Skip splash screen if ready
-		if m.viewMode == ViewSplash {
+		// If view mode is not set, default to normal mode
+		if m.viewMode == 0 {
 			m.viewMode = ViewNormal
 		}
 
-		logger.Log.Debug("processing key message",
-			zap.String("key", msg.String()),
-			zap.Int("viewMode", int(m.viewMode)))
-
+		// Handle key events based on current view mode
 		switch m.viewMode {
 		case ViewNormal:
+			logger.Log.Debug("processing key in Update",
+				zap.String("type", msg.Type.String()),
+				zap.String("runes", string(msg.Runes)))
 			return m.updateNormalMode(msg)
 		case ViewCommand:
 			return m.updateCommandMode(msg)
@@ -276,172 +282,173 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // updateNormalMode handles key events in normal mode
-func (m *Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	logger.Log.Debug("processing normal mode key",
-		zap.String("key", msg.String()))
-	switch msg.Type {
-	case tea.KeyUp, tea.KeyDown, tea.KeyLeft, tea.KeyRight, tea.KeyTab:
+func (m Model) updateNormalMode(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		logger.Log.Debug("processing key in normal mode",
+			zap.String("type", msg.Type.String()),
+			zap.String("runes", string(msg.Runes)))
+
+		// Handle special keys
 		switch msg.Type {
-		case tea.KeyUp:
-			if m.focus == FocusLeft && len(m.certificates) > 0 {
-				if m.cursor > 0 {
-					m.cursor--
-					// Reset right pane scroll when changing certificate
-					m.rightPaneScroll = 0
+		case tea.KeyRunes:
+			switch msg.String() {
+			case ":":
+				m.viewMode = ViewCommand
+				return m, nil
+			case "q":
+				return m, tea.Quit
+			case "?":
+				m.viewMode = ViewDetail
+				m.detailField = "Help"
+				m.detailValue = m.getQuickHelp()
+				return m, nil
+			case "h":
+				m.focus = FocusLeft
+				return m, nil
+			case "l":
+				m.focus = FocusRight
+				return m, nil
+			case "j":
+				if m.focus == FocusLeft && len(m.certificates) > 0 {
+					if m.cursor < len(m.certificates)-1 {
+						m.cursor++
+						m.rightPaneScroll = 0
+					}
+				} else if m.focus == FocusRight {
+					m.rightPaneScroll++
 				}
-			} else if m.focus == FocusRight {
-				// Scroll up in right pane
-				if m.rightPaneScroll > 0 {
-					m.rightPaneScroll--
+				return m, nil
+			case "k":
+				if m.focus == FocusLeft && len(m.certificates) > 0 {
+					if m.cursor > 0 {
+						m.cursor--
+						m.rightPaneScroll = 0
+					}
+				} else if m.focus == FocusRight {
+					if m.rightPaneScroll > 0 {
+						m.rightPaneScroll--
+					}
 				}
+				return m, nil
 			}
 		case tea.KeyDown:
 			if m.focus == FocusLeft && len(m.certificates) > 0 {
 				if m.cursor < len(m.certificates)-1 {
 					m.cursor++
-					// Reset right pane scroll when changing certificate
 					m.rightPaneScroll = 0
 				}
 			} else if m.focus == FocusRight {
-				// Scroll down in right pane
 				m.rightPaneScroll++
 			}
+			return m, nil
+		case tea.KeyUp:
+			if m.focus == FocusLeft && len(m.certificates) > 0 {
+				if m.cursor > 0 {
+					m.cursor--
+					m.rightPaneScroll = 0
+				}
+			} else if m.focus == FocusRight {
+				if m.rightPaneScroll > 0 {
+					m.rightPaneScroll--
+				}
+			}
+			return m, nil
 		case tea.KeyLeft:
-			if m.shouldUseSinglePane() {
-				// In single pane mode, left arrow goes back to list
-				m.focus = FocusLeft
-			} else {
-				// In dual pane mode, left arrow switches to left pane
-				m.focus = FocusLeft
-			}
+			m.focus = FocusLeft
+			return m, nil
 		case tea.KeyRight:
-			if m.shouldUseSinglePane() {
-				// In single pane mode, right arrow goes to details
-				m.focus = FocusRight
-			} else {
-				// In dual pane mode, right arrow switches to right pane
-				m.focus = FocusRight
-			}
+			m.focus = FocusRight
+			return m, nil
 		case tea.KeyTab:
-			// Tab always switches focus between panes
 			if m.focus == FocusLeft {
 				m.focus = FocusRight
 			} else {
 				m.focus = FocusLeft
 			}
-		}
-		return m, nil
-
-	case tea.KeyRunes:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "up", "k":
-			if m.focus == FocusLeft && len(m.certificates) > 0 {
-				if m.cursor > 0 {
-					m.cursor--
-					// Reset right pane scroll when changing certificate
-					m.rightPaneScroll = 0
-				}
-			} else if m.focus == FocusRight {
-				// Scroll up in right pane
-				if m.rightPaneScroll > 0 {
-					m.rightPaneScroll--
-				}
-			}
-		case "down", "j":
-			if m.focus == FocusLeft && len(m.certificates) > 0 {
-				if m.cursor < len(m.certificates)-1 {
-					m.cursor++
-					// Reset right pane scroll when changing certificate
-					m.rightPaneScroll = 0
-				}
-			} else if m.focus == FocusRight {
-				// Scroll down in right pane
-				m.rightPaneScroll++
-			}
-		case "left", "h":
-			if m.shouldUseSinglePane() {
-				// In single pane mode, left arrow goes back to list
-				m.focus = FocusLeft
-			} else {
-				// In dual pane mode, left arrow switches to left pane
-				m.focus = FocusLeft
-			}
-		case "right", "l":
-			if m.shouldUseSinglePane() {
-				// In single pane mode, right arrow goes to details
-				m.focus = FocusRight
-			} else {
-				// In dual pane mode, right arrow switches to right pane
-				m.focus = FocusRight
-			}
-		case ":":
-			// Enter command mode
-			m.viewMode = ViewCommand
-			m.focus = FocusCommand
-			m.commandInput = ""
-			m.commandError = ""
-		case "enter":
-			// Could be used for additional actions like exporting certificate
 			return m, nil
-		case "escape", "esc":
-			m.resetAllFields()
-			return m, nil
-		case "?":
-			// Show quick help in normal mode
-			helpText := m.getQuickHelp()
-			m.showDetail("Quick Help", helpText)
 		}
 	}
 	return m, nil
 }
 
 // updateCommandMode handles key events in command mode
-func (m *Model) updateCommandMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	logger.Log.Debug("processing command mode key",
-		zap.String("key", msg.String()))
-	switch msg.String() {
-	case "ctrl+c", "esc", "escape":
-		m.resetAllFields()
-		return m, nil
-
-	case "enter":
-		// Execute command
-		m.executeCommand()
-		m.viewMode = ViewNormal
-
-	case "backspace":
-		if len(m.commandInput) > 0 {
-			m.commandInput = m.commandInput[:len(m.commandInput)-1]
-		}
-
-	default:
-		// Add character to command input
-		if len(msg.String()) == 1 {
-			m.commandInput += msg.String()
+func (m Model) updateCommandMode(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyEnter:
+			// Execute command
+			m = m.executeCommand()
+			// サブコマンド（issuer等）ならViewDetailに遷移済みなのでそのまま、それ以外はViewNormalに戻す
+			if m.viewMode != ViewDetail {
+				m.viewMode = ViewNormal
+				m.focus = FocusLeft
+			}
+			return m, nil
+		case tea.KeyEscape:
+			// Cancel command and return to normal mode
+			m.viewMode = ViewNormal
+			m.focus = FocusLeft
+			m.commandInput = ""
+			m.commandError = ""
+			return m, nil
+		case tea.KeyBackspace:
+			// Handle backspace
+			if len(m.commandInput) > 0 {
+				m.commandInput = m.commandInput[:len(m.commandInput)-1]
+			}
+			return m, nil
+		case tea.KeyRunes:
+			// Add character to command input
+			m.commandInput += string(msg.Runes)
+			return m, nil
 		}
 	}
-
 	return m, nil
 }
 
 // updateDetailMode handles key events in detail mode
-func (m *Model) updateDetailMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) updateDetailMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	logger.Log.Debug("processing detail mode key",
 		zap.String("key", msg.String()))
-	switch msg.String() {
-	case "ctrl+c", "esc", "escape", "q":
-		m.resetAllFields()
-		return m, nil
-	}
 
+	switch msg.Type {
+	case tea.KeyEscape:
+		// Return to normal mode
+		m.viewMode = ViewNormal
+		m.focus = FocusLeft
+		m.detailField = ""
+		m.detailValue = ""
+		return m, nil
+	case tea.KeyUp:
+		// Scroll up in detail view
+		if m.rightPaneScroll > 0 {
+			m.rightPaneScroll--
+		}
+		return m, nil
+	case tea.KeyDown:
+		// Scroll down in detail view
+		m.rightPaneScroll++
+		return m, nil
+	case tea.KeyRunes:
+		if msg.String() == ":" {
+			m.viewMode = ViewCommand
+			m.commandInput = ""
+			m.commandError = ""
+			return m, nil
+		}
+	}
 	return m, nil
 }
 
 // executeCommand processes the entered command
-func (m *Model) executeCommand() *Model {
+func (m Model) executeCommand() Model {
 	cmd := strings.TrimSpace(m.commandInput)
+	if cmd == "" {
+		return m
+	}
+
 	m.commandError = ""
 
 	logger.Log.Debug("executing command",
@@ -463,19 +470,23 @@ func (m *Model) executeCommand() *Model {
 	}
 
 	// Handle certificate-specific commands
-	if len(m.certificates) == 0 {
+	if len(m.certificates) == 0 || m.cursor >= len(m.certificates) {
 		m.commandError = "No certificates available"
 		logger.Log.Warn("no certificates available for certificate-specific command",
 			zap.String("command", cmd))
 		return m
 	}
 
+	// Execute certificate command
 	m = m.handleCertificateCommands(cmd)
+
+	// Clear command input after execution
+	m.commandInput = ""
 	return m
 }
 
 // hasValidCertificatesForCommand checks if we have certificates for the given command
-func (m *Model) hasValidCertificatesForCommand(cmd string) bool {
+func (m Model) hasValidCertificatesForCommand(cmd string) bool {
 	globalCommands := []string{"search", "filter", "reset", "validate", "val", "export", "help", "h", "quit", "q"}
 
 	for _, globalCmd := range globalCommands {
@@ -488,29 +499,41 @@ func (m *Model) hasValidCertificatesForCommand(cmd string) bool {
 }
 
 // handleGlobalCommands processes commands that don't require a selected certificate
-func (m *Model) handleGlobalCommands(cmd string) (*Model, bool) {
+func (m Model) handleGlobalCommands(cmd string) (Model, bool) {
 	logger.Log.Debug("handling global command",
 		zap.String("command", cmd))
 	switch {
 	case strings.HasPrefix(cmd, "search "):
 		query := strings.TrimSpace(cmd[7:])
-		m.searchCertificates(query)
+		m = m.searchCertificates(query)
+		m.viewMode = ViewNormal
+		m.focus = FocusLeft
 		return m, true
 	case cmd == "reset":
-		m.resetView()
+		m = m.resetView()
+		m.viewMode = ViewNormal
+		m.focus = FocusLeft
 		return m, true
 	case strings.HasPrefix(cmd, "filter "):
 		filterType := strings.TrimSpace(cmd[7:])
-		m.filterCertificates(filterType)
+		m = m.filterCertificates(filterType)
+		m.viewMode = ViewNormal
+		m.focus = FocusLeft
 		return m, true
 	case cmd == "validate" || cmd == "val":
-		m.handleValidateCommand()
+		m = m.handleValidateCommand()
+		m.viewMode = ViewDetail
+		m.focus = FocusRight
 		return m, true
 	case strings.HasPrefix(cmd, "export "):
-		m.exportCertificate(cmd)
+		m = m.exportCertificate(cmd)
+		m.viewMode = ViewDetail
+		m.focus = FocusRight
 		return m, true
 	case cmd == "help" || cmd == "h":
-		m.showHelpCommand()
+		m = m.showHelpCommand()
+		m.viewMode = ViewDetail
+		m.focus = FocusRight
 		return m, true
 	case cmd == "quit" || cmd == "q":
 		m.viewMode = ViewNormal
@@ -521,7 +544,14 @@ func (m *Model) handleGlobalCommands(cmd string) (*Model, bool) {
 }
 
 // handleCertificateCommands processes commands that require a selected certificate
-func (m *Model) handleCertificateCommands(cmd string) *Model {
+func (m Model) handleCertificateCommands(cmd string) Model {
+	if len(m.certificates) == 0 || m.cursor >= len(m.certificates) {
+		m.commandError = "No certificates available"
+		logger.Log.Warn("no certificates available for certificate-specific command",
+			zap.String("command", cmd))
+		return m
+	}
+
 	cert := m.certificates[m.cursor].Certificate
 	logger.Log.Debug("handling certificate command",
 		zap.String("command", cmd),
@@ -529,19 +559,19 @@ func (m *Model) handleCertificateCommands(cmd string) *Model {
 
 	switch {
 	case cmd == "subject" || cmd == "s":
-		m.showDetail("Subject", certificate.FormatSubject(cert))
+		m = m.showDetail("Subject", certificate.FormatSubject(cert))
 	case cmd == "issuer" || cmd == "i":
-		m.showDetail("Issuer", certificate.FormatIssuer(cert))
+		m = m.showDetail("Issuer", certificate.FormatIssuer(cert))
 	case cmd == "validity" || cmd == "v":
-		m.showDetail("Validity", certificate.FormatValidity(cert))
+		m = m.showDetail("Validity", certificate.FormatValidity(cert))
 	case cmd == "san":
-		m.showDetail("Subject Alternative Names", certificate.FormatSAN(cert))
+		m = m.showDetail("Subject Alternative Names", certificate.FormatSAN(cert))
 	case cmd == "fingerprint" || cmd == "fp":
-		m.showDetail("SHA256 Fingerprint", certificate.FormatFingerprint(cert))
+		m = m.showDetail("SHA256 Fingerprint", certificate.FormatFingerprint(cert))
 	case cmd == "serial":
-		m.showDetail("Serial Number", cert.SerialNumber.String())
+		m = m.showDetail("Serial Number", cert.SerialNumber.String())
 	case cmd == "pubkey" || cmd == "pk":
-		m.showDetail("Public Key", certificate.FormatPublicKey(cert))
+		m = m.showDetail("Public Key", certificate.FormatPublicKey(cert))
 	case strings.HasPrefix(cmd, "goto ") || strings.HasPrefix(cmd, "g "):
 		m.handleGotoCommand(cmd)
 	default:
@@ -553,26 +583,28 @@ func (m *Model) handleCertificateCommands(cmd string) *Model {
 }
 
 // handleValidateCommand processes the validate command
-func (m *Model) handleValidateCommand() *Model {
+func (m Model) handleValidateCommand() Model {
 	logger.Log.Debug("validating certificate chain")
 
 	// Convert CertificateInfo to x509.Certificate
 	certs := make([]*x509.Certificate, len(m.allCertificates))
 	for i, cert := range m.allCertificates {
-		certs[i] = cert.Certificate
+		certs[len(m.allCertificates)-1-i] = cert.Certificate // reverse: leaf→root
 	}
 
 	isValid, err := certificate.ValidateChain(certs)
 	if err != nil {
-		m.showDetail("Chain Validation", fmt.Sprintf("Validation failed: %v", err))
+		m = m.showDetail("Chain Validation", fmt.Sprintf("Validation failed: %v", err))
 	} else {
-		m.showDetail("Chain Validation", fmt.Sprintf("Certificate chain is %s", map[bool]string{true: "valid", false: "invalid"}[isValid]))
+		m = m.showDetail("Chain Validation", fmt.Sprintf("Certificate chain is %s", map[bool]string{true: "valid", false: "invalid"}[isValid]))
 	}
+	m.viewMode = ViewDetail
+	m.focus = FocusRight
 	return m
 }
 
 // handleGotoCommand processes the goto command
-func (m *Model) handleGotoCommand(cmd string) *Model {
+func (m Model) handleGotoCommand(cmd string) Model {
 	parts := strings.Fields(cmd)
 	if len(parts) != 2 {
 		m.commandError = "Usage: goto <number> or g <number>"
@@ -609,7 +641,7 @@ func (m *Model) handleGotoCommand(cmd string) *Model {
 }
 
 // showHelpCommand displays the help information
-func (m *Model) showHelpCommand() *Model {
+func (m Model) showHelpCommand() Model {
 	helpText := `Available commands:
 
 Certificate Information:
@@ -645,12 +677,14 @@ quit, q         - Quit application
 
 Press ESC to return to normal mode`
 
-	m.showDetail("Commands", helpText)
+	m = m.showDetail("Commands", helpText)
+	m.viewMode = ViewDetail
+	m.focus = FocusRight
 	return m
 }
 
 // searchCertificates searches certificates based on query
-func (m *Model) searchCertificates(query string) *Model {
+func (m Model) searchCertificates(query string) Model {
 	if query == "" {
 		m.commandError = "Search query cannot be empty"
 		logger.Log.Warn("empty search query")
@@ -667,10 +701,16 @@ func (m *Model) searchCertificates(query string) *Model {
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
 
-	// Filter certificates based on search query
+	// Filter certificates based on search query (Label, CommonName, Org, OU, DNS, Issuer)
 	var filtered []*certificate.CertificateInfo
+	queryLower := strings.ToLower(query)
 	for _, cert := range m.allCertificates {
-		if strings.Contains(strings.ToLower(cert.Label), strings.ToLower(query)) {
+		if strings.Contains(strings.ToLower(cert.Label), queryLower) ||
+			strings.Contains(strings.ToLower(cert.Certificate.Subject.CommonName), queryLower) ||
+			strings.Contains(strings.ToLower(strings.Join(cert.Certificate.Subject.Organization, " ")), queryLower) ||
+			strings.Contains(strings.ToLower(strings.Join(cert.Certificate.Subject.OrganizationalUnit, " ")), queryLower) ||
+			strings.Contains(strings.ToLower(strings.Join(cert.Certificate.DNSNames, " ")), queryLower) ||
+			strings.Contains(strings.ToLower(cert.Certificate.Issuer.CommonName), queryLower) {
 			filtered = append(filtered, cert)
 		}
 	}
@@ -686,7 +726,7 @@ func (m *Model) searchCertificates(query string) *Model {
 }
 
 // filterCertificates filters certificates based on criteria
-func (m *Model) filterCertificates(filterType string) *Model {
+func (m Model) filterCertificates(filterType string) Model {
 	validFilters := []string{"expired", "expiring", "valid", "self-signed"}
 	found := false
 	for _, f := range validFilters {
@@ -749,20 +789,16 @@ func (m *Model) filterCertificates(filterType string) *Model {
 }
 
 // resetView resets search and filter
-func (m *Model) resetView() *Model {
+func (m Model) resetView() Model {
 	logger.Log.Debug("resetting view")
+	m = m.resetAllFields()
 	m.certificates = m.allCertificates
-	m.searchQuery = ""
-	m.filterActive = false
-	m.filterType = ""
 	m.cursor = 0
-	m.viewMode = ViewNormal
-	m.focus = FocusLeft
 	return m
 }
 
 // exportCertificate exports the current certificate
-func (m *Model) exportCertificate(cmd string) *Model {
+func (m Model) exportCertificate(cmd string) Model {
 	if len(m.certificates) == 0 {
 		m.commandError = "No certificate selected"
 		logger.Log.Warn("no certificate selected for export")
@@ -796,18 +832,21 @@ func (m *Model) exportCertificate(cmd string) *Model {
 		return m
 	}
 
-	m.showDetail("Export Success", fmt.Sprintf("Certificate exported successfully!\n\nFormat: %s\nFile: %s\nCertificate: %s",
+	m = m.showDetail("Export Success", fmt.Sprintf("Certificate exported successfully!\n\nFormat: %s\nFile: %s\nCertificate: %s",
 		strings.ToUpper(format), filename, cert.Subject.CommonName))
+	m.viewMode = ViewDetail
+	m.focus = FocusRight
 	return m
 }
 
 // showDetail switches to detail view mode
-func (m *Model) showDetail(field, value string) *Model {
+func (m Model) showDetail(field, value string) Model {
 	logger.Log.Debug("showing detail view",
 		zap.String("field", field))
 	m.viewMode = ViewDetail
 	m.detailField = field
 	m.detailValue = value
+	m.focus = FocusRight
 	return m
 }
 
@@ -1114,7 +1153,7 @@ func (m Model) renderCertificateList(height int) string {
 			}
 		} else if certificate.IsExpiringSoon(cert.Certificate) {
 			if availableWidth >= 15 {
-				line = "🟡 " + line
+				line = "⚠️ " + line
 			} else {
 				line = "! " + line
 			}
@@ -1484,7 +1523,7 @@ func (m Model) renderStatusBar() string {
 }
 
 // 全フィールドをクリアする共通メソッド
-func (m *Model) resetAllFields() *Model {
+func (m Model) resetAllFields() Model {
 	logger.Log.Debug("resetting all fields")
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
