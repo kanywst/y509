@@ -360,23 +360,23 @@ func ValidateChain(certs []*x509.Certificate) (bool, error) {
 // FormatChainValidation formats the validation results
 func FormatChainValidation(result *ValidationResult) string {
 	if result.IsValid {
-		return "Certificate chain is valid."
+		return "✅️ Certificate chain is valid"
 	}
 
 	var sb strings.Builder
-	sb.WriteString("Certificate chain validation failed:\n")
+	sb.WriteString("❌️ Certificate chain validation failed:\n")
 
 	if len(result.Errors) > 0 {
 		sb.WriteString("Errors:\n")
 		for _, err := range result.Errors {
-			sb.WriteString(fmt.Sprintf("- %s\n", err))
+			sb.WriteString(fmt.Sprintf("  • %s\n", err))
 		}
 	}
 
 	if len(result.Warnings) > 0 {
 		sb.WriteString("Warnings:\n")
 		for _, warning := range result.Warnings {
-			sb.WriteString(fmt.Sprintf("- %s\n", warning))
+			sb.WriteString(fmt.Sprintf("  • %s\n", warning))
 		}
 	}
 

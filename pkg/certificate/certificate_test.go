@@ -678,7 +678,7 @@ func TestFormatChainValidation(t *testing.T) {
 			result: &ValidationResult{
 				IsValid: true,
 			},
-			expected: "Certificate chain is valid.",
+			expected: "✅ Certificate chain is valid.",
 		},
 		{
 			name: "Invalid chain with errors",

@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"crypto/x509"
+	"fmt"
 
 	"github.com/kanywst/y509/internal/logger"
 	"github.com/kanywst/y509/pkg/certificate"
@@ -30,11 +31,24 @@ var validateCmd = &cobra.Command{
 		}
 
 		isValid, err := certificate.ValidateChain(chain)
+		result := &certificate.ValidationResult{
+			IsValid: isValid,
+		}
+
 		if err != nil {
 			logger.Log.Error("Certificate chain validation failed", zap.Error(err))
-			return err
+			result.Errors = append(result.Errors, err.Error())
 		}
+
+		// 検証結果を表示
+		fmt.Println(certificate.FormatChainValidation(result))
+
 		logger.Log.Info("Certificate chain validation result", zap.Bool("isValid", isValid))
+
+		if !isValid || err != nil {
+			return fmt.Errorf("certificate chain validation failed")
+		}
+		return nil
 		return nil
 	},
 }

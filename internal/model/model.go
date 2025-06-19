@@ -598,11 +598,17 @@ func (m Model) handleValidateCommand() Model {
 	}
 
 	isValid, err := certificate.ValidateChain(certs)
-	if err != nil {
-		m = m.showDetail("Chain Validation", fmt.Sprintf("Validation failed: %v", err))
-	} else {
-		m = m.showDetail("Chain Validation", fmt.Sprintf("Certificate chain is %s", map[bool]string{true: "valid", false: "invalid"}[isValid]))
+	// Create ValidationResult
+	result := &certificate.ValidationResult{
+		IsValid: isValid,
 	}
+
+	if err != nil {
+		result.Errors = append(result.Errors, err.Error())
+	}
+
+	// 検証結果を表示
+	m = m.showDetail("Certificate Chain Validation", certificate.FormatChainValidation(result))
 	m.viewMode = ViewDetail
 	m.focus = FocusRight
 	return m
