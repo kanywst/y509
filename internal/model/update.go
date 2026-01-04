@@ -18,6 +18,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			zap.Int("height", m.height))
 		return m, nil
 
+	case tea.MouseMsg:
+		if m.viewMode != ViewNormal && m.viewMode != ViewDetail {
+			return m, nil
+		}
+
+		switch msg.Button {
+		case tea.MouseButtonWheelUp:
+			if m.focus == FocusLeft && m.viewMode == ViewNormal {
+				if m.cursor > 0 {
+					m.cursor--
+					m.rightPaneScroll = 0
+				}
+			} else {
+				if m.rightPaneScroll > 0 {
+					m.rightPaneScroll--
+				}
+			}
+		case tea.MouseButtonWheelDown:
+			if m.focus == FocusLeft && m.viewMode == ViewNormal {
+				if m.cursor < len(m.certificates)-1 {
+					m.cursor++
+					m.rightPaneScroll = 0
+				}
+			} else {
+				m.rightPaneScroll++
+			}
+		}
+		return m, nil
+
 	case SplashDoneMsg:
 		m.viewMode = ViewNormal
 		return m, nil
@@ -211,7 +240,16 @@ func (m Model) updateDetailMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.rightPaneScroll++
 		return m, nil
 	case tea.KeyRunes:
-		if msg.String() == ":" {
+		switch msg.String() {
+		case "j":
+			m.rightPaneScroll++
+			return m, nil
+		case "k":
+			if m.rightPaneScroll > 0 {
+				m.rightPaneScroll--
+			}
+			return m, nil
+		case ":":
 			m.viewMode = ViewCommand
 			m.commandInput = ""
 			m.commandError = ""

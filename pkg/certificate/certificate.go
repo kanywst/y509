@@ -372,9 +372,18 @@ func ExportCertificate(cert *x509.Certificate, format string, filename string) e
 	}
 	defer file.Close()
 
+	// Determine format from argument or extension
+	f := strings.ToLower(format)
+	if f == "" {
+		ext := filepath.Ext(filename)
+		if ext != "" {
+			f = ext[1:] // remove dot
+		}
+	}
+
 	// Export based on format
-	switch filepath.Ext(filename) {
-	case ".pem":
+	switch f {
+	case "pem":
 		block := &pem.Block{
 			Type:  "CERTIFICATE",
 			Bytes: cert.Raw,
@@ -382,12 +391,12 @@ func ExportCertificate(cert *x509.Certificate, format string, filename string) e
 		if err := pem.Encode(file, block); err != nil {
 			return fmt.Errorf("failed to encode PEM: %v", err)
 		}
-	case ".der":
+	case "der":
 		if _, err := file.Write(cert.Raw); err != nil {
 			return fmt.Errorf("failed to write DER: %v", err)
 		}
 	default:
-		return fmt.Errorf("unsupported format: %s (supported: pem, der)", filepath.Ext(filename))
+		return fmt.Errorf("unsupported format: %s (supported: pem, der)", f)
 	}
 
 	return nil
