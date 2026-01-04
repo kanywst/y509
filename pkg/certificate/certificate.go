@@ -78,35 +78,7 @@ func LoadCertificates(filename string) ([]*CertificateInfo, error) {
 		return nil, fmt.Errorf("empty input")
 	}
 
-	// Try to parse as PEM first
-	block, rest := pem.Decode(data)
-	if block == nil {
-		logger.Error("Failed to decode PEM data")
-		return nil, fmt.Errorf("failed to parse certificate %d: %w", 0, err)
-	}
-
-	var certs []*CertificateInfo
-	index := 0
-	for block != nil {
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			logger.Error("Failed to parse certificate", zap.Error(err))
-			return nil, fmt.Errorf("failed to parse certificate %d: %w", index, err)
-		}
-		certs = append(certs, &CertificateInfo{
-			Certificate: cert,
-			Label:       cert.Subject.CommonName,
-		})
-		block, rest = pem.Decode(rest)
-		index++
-	}
-
-	if len(certs) == 0 {
-		logger.Error("No certificates found in input")
-		return nil, fmt.Errorf("no certificates found in input")
-	}
-
-	return certs, nil
+	return ParseCertificates(data)
 }
 
 // FormatCertificateList formats a list of certificates for display

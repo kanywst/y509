@@ -16,9 +16,16 @@ var validateCmd = &cobra.Command{
 	Use:   "validate [file]",
 	Short: "Validate certificate chain",
 	Long:  `Validate the certificate chain in the specified file.`,
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		certs, err := certificate.LoadCertificates(args[0])
+		var inputFile string
+		if len(args) > 0 {
+			inputFile = args[0]
+		} else {
+			inputFile, _ = cmd.Flags().GetString("input")
+		}
+
+		certs, err := certificate.LoadCertificates(inputFile)
 		if err != nil {
 			logger.Log.Error("Error loading certificates", zap.Error(err))
 			return err
@@ -48,7 +55,6 @@ var validateCmd = &cobra.Command{
 		if !isValid || err != nil {
 			return fmt.Errorf("certificate chain validation failed")
 		}
-		return nil
 		return nil
 	},
 }
