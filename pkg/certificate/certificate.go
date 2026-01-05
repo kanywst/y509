@@ -2,6 +2,7 @@ package certificate
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
@@ -149,6 +150,34 @@ func FormatCertificateDetails(cert *CertificateInfo) string {
 		}
 	}
 
+	// Basic Constraints
+	if cert.Certificate.BasicConstraintsValid {
+		details.WriteString("\nBasic Constraints:\n")
+		details.WriteString(fmt.Sprintf("  CA: %v\n", cert.Certificate.IsCA))
+		if cert.Certificate.MaxPathLen > 0 || (cert.Certificate.MaxPathLen == 0 && cert.Certificate.MaxPathLenZero) {
+			details.WriteString(fmt.Sprintf("  Max Path Len: %d\n", cert.Certificate.MaxPathLen))
+		}
+	}
+
+	// Authority Information Access
+	if len(cert.Certificate.IssuingCertificateURL) > 0 || len(cert.Certificate.OCSPServer) > 0 {
+		details.WriteString("\nAuthority Information Access:\n")
+		for _, url := range cert.Certificate.IssuingCertificateURL {
+			details.WriteString(fmt.Sprintf("  Issuer: %s\n", url))
+		}
+		for _, url := range cert.Certificate.OCSPServer {
+			details.WriteString(fmt.Sprintf("  OCSP:   %s\n", url))
+		}
+	}
+
+	// CRL Distribution Points
+	if len(cert.Certificate.CRLDistributionPoints) > 0 {
+		details.WriteString("\nCRL Distribution Points:\n")
+		for _, url := range cert.Certificate.CRLDistributionPoints {
+			details.WriteString(fmt.Sprintf("  %s\n", url))
+		}
+	}
+
 	// Fingerprint
 	details.WriteString("\nFingerprint:\n")
 	fingerprint := make([]byte, len(cert.Certificate.Raw))
@@ -281,17 +310,20 @@ func FormatCertificateKeyInfo(cert *CertificateInfo) string {
 	// Key details
 	switch pub := cert.Certificate.PublicKey.(type) {
 	case *rsa.PublicKey:
-		keySize := pub.Size() * 8
-		details.WriteString(fmt.Sprintf("Type: RSA%d\n", keySize))
+		keySize := pub.N.BitLen()
+		details.WriteString("Type: RSA\n")
 		details.WriteString(fmt.Sprintf("Key Size: %d bits\n", keySize))
 		details.WriteString(fmt.Sprintf("Modulus Size: %d bytes\n", pub.Size()))
 		details.WriteString(fmt.Sprintf("Public Exponent: %d\n", pub.E))
 	case *ecdsa.PublicKey:
 		keySize := pub.Curve.Params().BitSize
 		curveName := pub.Curve.Params().Name
-		details.WriteString(fmt.Sprintf("Type: ECDSA\n"))
+		details.WriteString("Type: ECDSA\n")
 		details.WriteString(fmt.Sprintf("Curve: %s\n", curveName))
 		details.WriteString(fmt.Sprintf("Key Size: %d bits\n", keySize))
+	case ed25519.PublicKey:
+		details.WriteString("Type: Ed25519\n")
+		details.WriteString("Key Size: 256 bits\n")
 	default:
 		details.WriteString(fmt.Sprintf("Type: %T\n", pub))
 	}
@@ -379,31 +411,32 @@ func SortChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {
 	return reversed, nil
 }
 
-// ValidateChain validates a certificate chain
+// ValidateChain validates a certificate chain using x509.Verify
 func ValidateChain(certs []*x509.Certificate) (bool, error) {
 	if len(certs) == 0 {
 		return false, fmt.Errorf("empty certificate chain")
 	}
 
-	now := time.Now()
-	for i, cert := range certs {
-		// Check expiration
-		if cert.NotAfter.Before(now) {
-			return false, fmt.Errorf("certificate %d expired on %s", i, cert.NotAfter.Format(time.RFC3339))
-		}
+	// certs is expected to be [Root, Intermediate, ..., Leaf]
+	root := certs[0]
+	leaf := certs[len(certs)-1]
 
-		// Check if not yet valid
-		if cert.NotBefore.After(now) {
-			return false, fmt.Errorf("certificate %d is not yet valid (valid from %s)", i, cert.NotBefore.Format(time.RFC3339))
-		}
+	intermediates := x509.NewCertPool()
+	for i := 1; i < len(certs)-1; i++ {
+		intermediates.AddCert(certs[i])
+	}
 
-		// Check chain validity
-		if i > 0 {
-			parent := certs[i-1]
-			if err := cert.CheckSignatureFrom(parent); err != nil {
-				return false, fmt.Errorf("invalid signature for certificate %d: %v", i, err)
-			}
-		}
+	roots := x509.NewCertPool()
+	roots.AddCert(root)
+
+	opts := x509.VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+	}
+
+	if _, err := leaf.Verify(opts); err != nil {
+		return false, fmt.Errorf("certificate verification failed: %w", err)
 	}
 
 	return true, nil
@@ -434,6 +467,7 @@ func FormatChainValidation(result *ValidationResult) string {
 
 	return strings.TrimSpace(sb.String())
 }
+
 
 // ExportCertificate exports a certificate to a file
 func ExportCertificate(cert *x509.Certificate, format string, filename string) error {
@@ -768,6 +802,9 @@ func FormatPublicKey(cert *x509.Certificate) string {
 		case "P-521":
 			details.WriteString("Standard: NIST P-521\n")
 		}
+	case ed25519.PublicKey:
+		details.WriteString("Type: Ed25519\n")
+		details.WriteString("Key Size: 256 bits\n")
 	default:
 		details.WriteString(fmt.Sprintf("Type: %T\n", pub))
 	}
