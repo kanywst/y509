@@ -31,15 +31,21 @@ var validateCmd = &cobra.Command{
 			return err
 		}
 
-		        chain := make([]*x509.Certificate, len(certs))
-		        for i, c := range certs {
-		            chain[len(certs)-1-i] = c.Certificate
-		        }
-		
-		        isValid, err := certificate.ValidateChain(chain)
-		        result := &certificate.ValidationResult{
-		            IsValid: isValid,
-		        }
+		        		inputCerts := make([]*x509.Certificate, len(certs))
+		        		for i, c := range certs {
+		        			inputCerts[i] = c.Certificate
+		        		}
+		        
+		        		chain, err := certificate.SortChain(inputCerts)
+		        		if err != nil {
+		        			logger.Log.Error("Failed to sort certificate chain", zap.Error(err))
+		        			return err
+		        		}
+		        
+		        		isValid, err := certificate.ValidateChain(chain)
+		result := &certificate.ValidationResult{
+			IsValid: isValid,
+		}
 		
 		        if err != nil {
 		            logger.Log.Error("Certificate chain validation failed", zap.Error(err))

@@ -160,12 +160,27 @@ func (m Model) handleValidateCommand() Model {
 	logger.Log.Debug("validating certificate chain")
 
 	// Convert CertificateInfo to x509.Certificate
-	certs := make([]*x509.Certificate, len(m.allCertificates))
+	inputCerts := make([]*x509.Certificate, len(m.allCertificates))
 	for i, cert := range m.allCertificates {
-		certs[len(m.allCertificates)-1-i] = cert.Certificate // reverse: leaf→root
+		inputCerts[i] = cert.Certificate
 	}
 
-	isValid, err := certificate.ValidateChain(certs)
+	// Sort chain using the same logic as CLI validate command
+	chain, err := certificate.SortChain(inputCerts)
+	if err != nil {
+		logger.Log.Error("Failed to sort certificate chain", zap.Error(err))
+		// Create error result
+		result := &certificate.ValidationResult{
+			IsValid: false,
+			Errors:  []string{fmt.Sprintf("Failed to sort chain: %v", err)},
+		}
+		m = m.showDetail("Certificate Chain Validation", certificate.FormatChainValidation(result))
+		m.viewMode = ViewDetail
+		m.focus = FocusRight
+		return m
+	}
+
+	isValid, err := certificate.ValidateChain(chain)
 	// Create ValidationResult
 	result := &certificate.ValidationResult{
 		IsValid: isValid,

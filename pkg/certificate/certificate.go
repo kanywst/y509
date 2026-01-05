@@ -299,6 +299,86 @@ func FormatCertificateKeyInfo(cert *CertificateInfo) string {
 	return details.String()
 }
 
+// SortChain sorts certificates into a valid chain [Root, Intermediate, Leaf]
+func SortChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {
+	if len(certs) == 0 {
+		return nil, nil
+	}
+
+	// 1. Build relationships
+	parentOf := make(map[int]int) // child index -> parent index
+	isParent := make(map[int]bool)
+
+	for childIdx, child := range certs {
+		for parentIdx, parent := range certs {
+			if childIdx == parentIdx {
+				continue
+			}
+
+			// Optimization: Check names first
+			// Note: This string comparison might be too strict or loose depending on encoding,
+			// but it avoids expensive crypto ops for obvious non-matches.
+			if child.Issuer.String() != parent.Subject.String() {
+				continue
+			}
+
+			// Verify signature
+			if err := child.CheckSignatureFrom(parent); err == nil {
+				parentOf[childIdx] = parentIdx
+				isParent[parentIdx] = true
+			}
+		}
+	}
+
+	// 2. Identify Leaf
+	// Prefer the first certificate if it is a valid leaf (not a parent of anyone else)
+	leafIdx := -1
+	if !isParent[0] {
+		leafIdx = 0
+	} else {
+		// Find any cert that is not a parent
+		for i := 0; i < len(certs); i++ {
+			if !isParent[i] {
+				leafIdx = i
+				break
+			}
+		}
+	}
+
+	// If all are parents (cycle?), fallback to 0
+	if leafIdx == -1 {
+		leafIdx = 0
+	}
+
+	// 3. Build chain upwards [Leaf, Int, Root]
+	chain := []*x509.Certificate{certs[leafIdx]}
+	currentIdx := leafIdx
+	seen := map[int]bool{leafIdx: true}
+
+	for {
+		pIdx, ok := parentOf[currentIdx]
+		if !ok {
+			break
+		}
+
+		if seen[pIdx] {
+			break // Cycle detected
+		}
+
+		chain = append(chain, certs[pIdx])
+		seen[pIdx] = true
+		currentIdx = pIdx
+	}
+
+	// 4. Reverse to [Root, Int, Leaf] for ValidateChain
+	reversed := make([]*x509.Certificate, len(chain))
+	for i, c := range chain {
+		reversed[len(chain)-1-i] = c
+	}
+
+	return reversed, nil
+}
+
 // ValidateChain validates a certificate chain
 func ValidateChain(certs []*x509.Certificate) (bool, error) {
 	if len(certs) == 0 {
