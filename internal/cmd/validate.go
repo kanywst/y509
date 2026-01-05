@@ -46,7 +46,7 @@ var validateCmd = &cobra.Command{
 		            result.Errors = append(result.Errors, err.Error())
 		        }
 		
-		        // 検証結果を表示
+		        // Print validation result
 		        fmt.Println(certificate.FormatChainValidation(result))
 		
 		        logger.Log.Info("Certificate chain validation result", zap.Bool("isValid", isValid))

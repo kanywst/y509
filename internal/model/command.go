@@ -175,7 +175,7 @@ func (m Model) handleValidateCommand() Model {
 		result.Errors = append(result.Errors, err.Error())
 	}
 
-	// 検証結果を表示
+	// Print validation result
 	m = m.showDetail("Certificate Chain Validation", certificate.FormatChainValidation(result))
 	m.viewMode = ViewDetail
 	m.focus = FocusRight
