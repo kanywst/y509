@@ -1,7 +1,7 @@
 class Y509 < Formula
   desc "Certificate Chain TUI Viewer"
   homepage "https://github.com/kanywst/y509"
-  url "https://github.com/kanywst/y509/archive/refs/tags/v0.2.0.tar.gz"
+  url "https://github.com/kanywst/y509/archive/refs/tags/v0.4.1.tar.gz"
   sha256 "6964c28c35bc1efd5a695caec6624614e188b49b8dba411915c1a3c360aaa4ad"
   license "MIT"
   head "https://github.com/kanywst/y509.git", branch: "main"

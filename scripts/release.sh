@@ -2,13 +2,13 @@
 set -e
 
 # This script prepares a new release for y509
-# Usage: ./release.sh v0.2.0
+# Usage: ./release.sh v0.4.1
 
 VERSION=$1
 
 if [ -z "$VERSION" ]; then
     echo "Error: Version number is required"
-    echo "Usage: ./release.sh v0.2.0"
+    echo "Usage: ./release.sh v0.4.1"
     exit 1
 fi
 
