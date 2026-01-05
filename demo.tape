@@ -1,96 +1,64 @@
 Output demo.gif
 
-Set FontSize 14
+Set FontSize 16
 Set Width 1200
 Set Height 800
+Set Padding 20
+Set TypingSpeed 100ms
 
-# Launch and display certificate list
+# Launch
 Type "./y509 testdata/demo/certs.pem"
+Sleep 500ms
 Enter
 Sleep 2s
 
-# Navigate certificate list
+# 1. Navigation (Basic)
 Type "j"
-Sleep 0.7s
+Sleep 500ms
 Type "j"
-Sleep 0.7s
+Sleep 500ms
 Type "k"
-Sleep 0.7s
+Sleep 500ms
 
-# Switch detail pane
-Type "l"
-Sleep 0.7s
-Type "h"
-Sleep 0.7s
+# 2. Detail Pane Switching
+Type "k"
+Sleep 500ms
 
-# Command mode: subject
+# 3. Technical Detail
 Type ":"
-Sleep 0.5s
-Type "subject"
+Sleep 200ms
+Type "san"
+Sleep 500ms
 Enter
-Sleep 2s
+Sleep 2.5s
 Escape
-Sleep 0.7s
+Sleep 500ms
 
-# issuer command
+# 4. Chain Validation (Killer Feature)
 Type ":"
-Sleep 0.5s
-Type "issuer"
-Enter
-Sleep 2s
-Escape
-Sleep 0.7s
-
-# validity command
-Type ":"
-Sleep 0.5s
-Type "validity"
-Enter
-Sleep 2s
-Escape
-Sleep 0.7s
-
-# Chain validation
-Type ":"
-Sleep 0.5s
 Type "validate"
 Enter
-Sleep 2s
+Sleep 3s
 Escape
-Sleep 1s
+Sleep 500ms
 
-# Search by organization name
+# 5. Search (Practical Use case)
 Type ":"
-Sleep 0.5s
 Type "search Example"
 Enter
 Sleep 1.5s
-
-# subject command in search results
+# Reset
 Type ":"
-Sleep 0.5s
-Type "subject"
-Enter
-Sleep 1.5s
-Escape
-Sleep 0.7s
-
-# Reset to show all entries
-Type ":"
-Sleep 0.5s
 Type "reset"
 Enter
 Sleep 1s
 
-# help command to show all features
+# 6. Export (Show utility)
 Type ":"
-Sleep 0.5s
-Type "help"
+Type "export pem exported.pem"
 Enter
-Sleep 2.5s
+Sleep 2s
 Escape
-Sleep 0.7s
 
-# Finally, quit
+# Quit
 Type "q"
-Sleep 0.7s

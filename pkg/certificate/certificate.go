@@ -2,6 +2,7 @@ package certificate
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
@@ -78,35 +79,7 @@ func LoadCertificates(filename string) ([]*CertificateInfo, error) {
 		return nil, fmt.Errorf("empty input")
 	}
 
-	// Try to parse as PEM first
-	block, rest := pem.Decode(data)
-	if block == nil {
-		logger.Error("Failed to decode PEM data")
-		return nil, fmt.Errorf("failed to parse certificate %d: %w", 0, err)
-	}
-
-	var certs []*CertificateInfo
-	index := 0
-	for block != nil {
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			logger.Error("Failed to parse certificate", zap.Error(err))
-			return nil, fmt.Errorf("failed to parse certificate %d: %w", index, err)
-		}
-		certs = append(certs, &CertificateInfo{
-			Certificate: cert,
-			Label:       cert.Subject.CommonName,
-		})
-		block, rest = pem.Decode(rest)
-		index++
-	}
-
-	if len(certs) == 0 {
-		logger.Error("No certificates found in input")
-		return nil, fmt.Errorf("no certificates found in input")
-	}
-
-	return certs, nil
+	return ParseCertificates(data)
 }
 
 // FormatCertificateList formats a list of certificates for display
@@ -174,6 +147,34 @@ func FormatCertificateDetails(cert *CertificateInfo) string {
 		details.WriteString("\nKey Usage:\n")
 		for _, usage := range cert.Certificate.ExtKeyUsage {
 			details.WriteString(fmt.Sprintf("  %s\n", formatExtKeyUsage(usage)))
+		}
+	}
+
+	// Basic Constraints
+	if cert.Certificate.BasicConstraintsValid {
+		details.WriteString("\nBasic Constraints:\n")
+		details.WriteString(fmt.Sprintf("  CA: %v\n", cert.Certificate.IsCA))
+		if cert.Certificate.MaxPathLen > 0 || (cert.Certificate.MaxPathLen == 0 && cert.Certificate.MaxPathLenZero) {
+			details.WriteString(fmt.Sprintf("  Max Path Len: %d\n", cert.Certificate.MaxPathLen))
+		}
+	}
+
+	// Authority Information Access
+	if len(cert.Certificate.IssuingCertificateURL) > 0 || len(cert.Certificate.OCSPServer) > 0 {
+		details.WriteString("\nAuthority Information Access:\n")
+		for _, url := range cert.Certificate.IssuingCertificateURL {
+			details.WriteString(fmt.Sprintf("  Issuer: %s\n", url))
+		}
+		for _, url := range cert.Certificate.OCSPServer {
+			details.WriteString(fmt.Sprintf("  OCSP:   %s\n", url))
+		}
+	}
+
+	// CRL Distribution Points
+	if len(cert.Certificate.CRLDistributionPoints) > 0 {
+		details.WriteString("\nCRL Distribution Points:\n")
+		for _, url := range cert.Certificate.CRLDistributionPoints {
+			details.WriteString(fmt.Sprintf("  %s\n", url))
 		}
 	}
 
@@ -309,17 +310,20 @@ func FormatCertificateKeyInfo(cert *CertificateInfo) string {
 	// Key details
 	switch pub := cert.Certificate.PublicKey.(type) {
 	case *rsa.PublicKey:
-		keySize := pub.Size() * 8
-		details.WriteString(fmt.Sprintf("Type: RSA%d\n", keySize))
+		keySize := pub.N.BitLen()
+		details.WriteString("Type: RSA\n")
 		details.WriteString(fmt.Sprintf("Key Size: %d bits\n", keySize))
 		details.WriteString(fmt.Sprintf("Modulus Size: %d bytes\n", pub.Size()))
 		details.WriteString(fmt.Sprintf("Public Exponent: %d\n", pub.E))
 	case *ecdsa.PublicKey:
 		keySize := pub.Curve.Params().BitSize
 		curveName := pub.Curve.Params().Name
-		details.WriteString(fmt.Sprintf("Type: ECDSA\n"))
+		details.WriteString("Type: ECDSA\n")
 		details.WriteString(fmt.Sprintf("Curve: %s\n", curveName))
 		details.WriteString(fmt.Sprintf("Key Size: %d bits\n", keySize))
+	case ed25519.PublicKey:
+		details.WriteString("Type: Ed25519\n")
+		details.WriteString("Key Size: 256 bits\n")
 	default:
 		details.WriteString(fmt.Sprintf("Type: %T\n", pub))
 	}
@@ -327,31 +331,112 @@ func FormatCertificateKeyInfo(cert *CertificateInfo) string {
 	return details.String()
 }
 
-// ValidateChain validates a certificate chain
+// SortChain sorts certificates into a valid chain [Root, Intermediate, Leaf]
+func SortChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {
+	if len(certs) == 0 {
+		return nil, nil
+	}
+
+	// 1. Build relationships
+	parentOf := make(map[int]int) // child index -> parent index
+	isParent := make(map[int]bool)
+
+	for childIdx, child := range certs {
+		for parentIdx, parent := range certs {
+			if childIdx == parentIdx {
+				continue
+			}
+
+			// Optimization: Check names first
+			// Note: This string comparison might be too strict or loose depending on encoding,
+			// but it avoids expensive crypto ops for obvious non-matches.
+			if child.Issuer.String() != parent.Subject.String() {
+				continue
+			}
+
+			// Verify signature
+			if err := child.CheckSignatureFrom(parent); err == nil {
+				parentOf[childIdx] = parentIdx
+				isParent[parentIdx] = true
+			}
+		}
+	}
+
+	// 2. Identify Leaf
+	// Prefer the first certificate if it is a valid leaf (not a parent of anyone else)
+	leafIdx := -1
+	if !isParent[0] {
+		leafIdx = 0
+	} else {
+		// Find any cert that is not a parent
+		for i := 0; i < len(certs); i++ {
+			if !isParent[i] {
+				leafIdx = i
+				break
+			}
+		}
+	}
+
+	// If all are parents (cycle?), fallback to 0
+	if leafIdx == -1 {
+		leafIdx = 0
+	}
+
+	// 3. Build chain upwards [Leaf, Int, Root]
+	chain := []*x509.Certificate{certs[leafIdx]}
+	currentIdx := leafIdx
+	seen := map[int]bool{leafIdx: true}
+
+	for {
+		pIdx, ok := parentOf[currentIdx]
+		if !ok {
+			break
+		}
+
+		if seen[pIdx] {
+			break // Cycle detected
+		}
+
+		chain = append(chain, certs[pIdx])
+		seen[pIdx] = true
+		currentIdx = pIdx
+	}
+
+	// 4. Reverse to [Root, Int, Leaf] for ValidateChain
+	reversed := make([]*x509.Certificate, len(chain))
+	for i, c := range chain {
+		reversed[len(chain)-1-i] = c
+	}
+
+	return reversed, nil
+}
+
+// ValidateChain validates a certificate chain using x509.Verify
 func ValidateChain(certs []*x509.Certificate) (bool, error) {
 	if len(certs) == 0 {
 		return false, fmt.Errorf("empty certificate chain")
 	}
 
-	now := time.Now()
-	for i, cert := range certs {
-		// Check expiration
-		if cert.NotAfter.Before(now) {
-			return false, fmt.Errorf("certificate %d expired on %s", i, cert.NotAfter.Format(time.RFC3339))
-		}
+	// certs is expected to be [Root, Intermediate, ..., Leaf]
+	root := certs[0]
+	leaf := certs[len(certs)-1]
 
-		// Check if not yet valid
-		if cert.NotBefore.After(now) {
-			return false, fmt.Errorf("certificate %d is not yet valid (valid from %s)", i, cert.NotBefore.Format(time.RFC3339))
-		}
+	intermediates := x509.NewCertPool()
+	for i := 1; i < len(certs)-1; i++ {
+		intermediates.AddCert(certs[i])
+	}
 
-		// Check chain validity
-		if i > 0 {
-			parent := certs[i-1]
-			if err := cert.CheckSignatureFrom(parent); err != nil {
-				return false, fmt.Errorf("invalid signature for certificate %d: %v", i, err)
-			}
-		}
+	roots := x509.NewCertPool()
+	roots.AddCert(root)
+
+	opts := x509.VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+	}
+
+	if _, err := leaf.Verify(opts); err != nil {
+		return false, fmt.Errorf("certificate verification failed: %w", err)
 	}
 
 	return true, nil
@@ -383,6 +468,7 @@ func FormatChainValidation(result *ValidationResult) string {
 	return strings.TrimSpace(sb.String())
 }
 
+
 // ExportCertificate exports a certificate to a file
 func ExportCertificate(cert *x509.Certificate, format string, filename string) error {
 	// Create directory if it doesn't exist
@@ -400,9 +486,18 @@ func ExportCertificate(cert *x509.Certificate, format string, filename string) e
 	}
 	defer file.Close()
 
+	// Determine format from argument or extension
+	f := strings.ToLower(format)
+	if f == "" {
+		ext := filepath.Ext(filename)
+		if ext != "" {
+			f = ext[1:] // remove dot
+		}
+	}
+
 	// Export based on format
-	switch filepath.Ext(filename) {
-	case ".pem":
+	switch f {
+	case "pem":
 		block := &pem.Block{
 			Type:  "CERTIFICATE",
 			Bytes: cert.Raw,
@@ -410,12 +505,12 @@ func ExportCertificate(cert *x509.Certificate, format string, filename string) e
 		if err := pem.Encode(file, block); err != nil {
 			return fmt.Errorf("failed to encode PEM: %v", err)
 		}
-	case ".der":
+	case "der":
 		if _, err := file.Write(cert.Raw); err != nil {
 			return fmt.Errorf("failed to write DER: %v", err)
 		}
 	default:
-		return fmt.Errorf("unsupported format: %s (supported: pem, der)", filepath.Ext(filename))
+		return fmt.Errorf("unsupported format: %s (supported: pem, der)", f)
 	}
 
 	return nil
@@ -707,6 +802,9 @@ func FormatPublicKey(cert *x509.Certificate) string {
 		case "P-521":
 			details.WriteString("Standard: NIST P-521\n")
 		}
+	case ed25519.PublicKey:
+		details.WriteString("Type: Ed25519\n")
+		details.WriteString("Key Size: 256 bits\n")
 	default:
 		details.WriteString(fmt.Sprintf("Type: %T\n", pub))
 	}

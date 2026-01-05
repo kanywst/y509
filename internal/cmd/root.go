@@ -47,7 +47,7 @@ func Execute() {
 
 func init() {
 	// Add flags
-	RootCmd.Flags().StringP("input", "i", "", "Input file containing certificates (default: stdin)")
+	RootCmd.PersistentFlags().StringP("input", "i", "", "Input file containing certificates (default: stdin)")
 
 	// Add subcommands
 	RootCmd.AddCommand(validateCmd)
@@ -68,6 +68,8 @@ func init() {
 		var inputFile string
 		if len(args) > 0 {
 			inputFile = args[0]
+		} else {
+			inputFile, _ = cmd.Flags().GetString("input")
 		}
 
 		// Load certificates

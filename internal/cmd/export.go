@@ -87,5 +87,4 @@ If no filename is provided, a default name will be generated.`,
 
 func init() {
 	RootCmd.AddCommand(exportCmd)
-	exportCmd.Flags().StringP("input", "i", "", "Input file containing certificates (default: stdin)")
 }
