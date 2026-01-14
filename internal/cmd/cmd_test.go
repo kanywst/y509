@@ -17,7 +17,7 @@ func TestRootCommandHelp(t *testing.T) {
 	RootCmd.SetOut(b)
 	RootCmd.SetErr(b)
 
-	RootCmd.Help()
+	_ = RootCmd.Help()
 
 	out := b.String()
 	if len(out) == 0 {

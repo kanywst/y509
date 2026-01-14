@@ -6,6 +6,7 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/kanywst/y509/internal/config"
 	"github.com/kanywst/y509/internal/logger"
 	"github.com/kanywst/y509/internal/model"
 	"github.com/kanywst/y509/internal/version"
@@ -24,9 +25,19 @@ var (
 - Validating certificate chains
 - Exporting certificates in various formats
 - Managing certificate stores`,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			// Initialize logger
-			if err := logger.Init(); err != nil {
+			logFile, err := cmd.Flags().GetString("log-file")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error getting log-file flag: %v\n", err)
+				os.Exit(1)
+			}
+			debug, err := cmd.Flags().GetBool("debug")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error getting debug flag: %v\n", err)
+				os.Exit(1)
+			}
+			if err := logger.Init(logFile, debug); err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 				os.Exit(1)
 			}
@@ -48,6 +59,8 @@ func Execute() {
 func init() {
 	// Add flags
 	RootCmd.PersistentFlags().StringP("input", "i", "", "Input file containing certificates (default: stdin)")
+	RootCmd.PersistentFlags().String("log-file", "", "Path to the log file")
+	RootCmd.PersistentFlags().Bool("debug", false, "Enable debug logging")
 
 	// Add subcommands
 	RootCmd.AddCommand(validateCmd)
@@ -56,20 +69,30 @@ func init() {
 	RootCmd.AddCommand(completionCmd)
 
 	// Handle arguments
-	RootCmd.Args = func(cmd *cobra.Command, args []string) error {
+	RootCmd.Args = func(_ *cobra.Command, args []string) error {
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
 		return nil
 	}
-
 	// Set default behavior for no arguments
 	RootCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		// Load configuration
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			logger.Log.Error("Failed to load configuration", zap.Error(err))
+			// We don't exit here, as we can run with default settings
+		}
 		var inputFile string
 		if len(args) > 0 {
 			inputFile = args[0]
 		} else {
-			inputFile, _ = cmd.Flags().GetString("input")
+			var err error
+			inputFile, err = cmd.Flags().GetString("input")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error getting input flag: %v\n", err)
+				os.Exit(1)
+			}
 		}
 
 		// Load certificates
@@ -80,7 +103,7 @@ func init() {
 		}
 
 		// Create and run the TUI
-		model := model.NewModel(certs)
+		model := model.NewModel(certs, cfg)
 		p := tea.NewProgram(
 			model,
 			tea.WithAltScreen(),

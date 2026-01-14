@@ -2,93 +2,110 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/kanywst/y509)](https://goreportcard.com/report/github.com/kanywst/y509)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Built with Bubble Tea](https://img.shields.io/badge/Built%20with-Bubble%20Tea-B7A0E8.svg)](https://github.com/charmbracelet/bubbletea)
 
-A terminal user interface (TUI) tool for viewing and analyzing X.509 certificate chains, built with Go using [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Gloss](https://github.com/charmbracelet/lipgloss).
+`y509` is a TUI tool designed to make analyzing and validating X.509 certificate chains painless. Built with Go, [Bubble Tea](https://github.com/charmbracelet/bubbletea), and [Lip Gloss](https://github.com/charmbracelet/lipgloss).
 
 ![y509 Demo](demo.gif)
 
 ## Features
 
-- **Intuitive TUI**: Two-pane interface with certificate list and detailed information
-- **Certificate Chain Validation**: Comprehensive chain validation with detailed error reporting
-- **Search & Filter**: Search certificates by CN, organization, DNS names, or filter by status
-- **Export Functionality**: Export certificates in PEM or DER format
-- **Certificate Status**: Color-coded indicators for expired and expiring certificates
-- **Detailed Certificate Information**: Subject, Issuer, validity, SAN, SHA256 fingerprint, serial number
-- **Multiple Input Sources**: Read from files or stdin
+- **Performance First**: Powered by a custom viewport rendering engine. Handles thousands of certificates smoothly with O(n) complexity.
+- **Popup UI**: Intuitive modal-driven search and filtering. No more complex command-line flags for basic tasks.
+- **Smart Validation**: Validates individual certificates against the entire loaded pool. Automatically detects trust anchors.
+- **Deep Search**: Instant search across Subject, Issuer, and SANs (DNS names).
+- **Themeable**: Fully customizable colors via YAML. Ships with a beautiful "Catppuccin" inspired default.
+- **🏁 Zebra Striping**: Clean, alternating row colors for perfect readability in long lists.
+- **Multi-Source**: Read from files, directories, or pipe directly from `stdin`.
 
 ## Installation
 
-### Using Homebrew (macOS)
+### macOS / Linux (Homebrew)
 
 ```bash
 brew tap kanywst/y509 https://github.com/kanywst/y509
 brew install y509
 ```
 
-### Using go install
+### Go (Version 1.25+)
 
 ```bash
 go install github.com/kanywst/y509@latest
 ```
 
-### Building from source
-
-```bash
-git clone https://github.com/kanywst/y509.git
-cd y509
-go build -o y509 ./cmd/y509
-```
-
 ## Usage
 
-### Basic Usage
+### Quick Start
 
 ```bash
-# Read from file
-y509 path/to/certificate-chain.pem
+# Open a certificate file
+y509 cert-chain.pem
 
-# Read from stdin
-cat certificate-chain.pem | y509
+# Pipe from OpenSSL or other tools
 openssl s_client -connect example.com:443 -showcerts | y509
+
+# Run with debug logging
+y509 --debug certs.pem
 ```
 
 ### Keyboard Controls
 
-| Key | Action |
-|-----|--------|
-| `↑` / `k` | Navigate up in certificate list |
-| `↓` / `j` | Navigate down in certificate list |
-| `←` / `h` | Switch to left pane (certificate list) |
-| `→` / `l` | Switch to right pane (certificate details) |
-| `:` | Enter command mode |
-| `q` / `Ctrl+C` | Quit application |
+|    Key    |                          Action                          |
+| :-------: | :------------------------------------------------------: |
+| `↑` / `k` |                Navigate up / Scroll list                 |
+| `↓` / `j` |               Navigate down / Scroll list                |
+| `←` / `h` |                Switch to Certificate List                |
+| `→` / `l` |                  Switch to Details Pane                  |
+|   `tab`   |    Cycle through Details Tabs (Subject, Issuer, etc.)    |
+|    `/`    |                     **Search** popup                     |
+|    `f`    | **Filter** popup (expired, expiring, valid, self-signed) |
+|    `v`    |            **Validate** selected certificate             |
+|    `e`    |         **Export** selected certificate to file          |
+|   `esc`   |            Clear search/filter or close popup            |
+|    `?`    |                     Toggle Help view                     |
+|    `q`    |                     Quit application                     |
 
-### Command Mode
+## Configuration
 
-Press `:` to enter command mode. Available commands:
+`y509` looks for a configuration file at `~/.y509.yaml`.
 
-| Command | Description |
-|---------|-------------|
-| `subject` | Show detailed certificate subject information |
-| `issuer` | Show detailed certificate issuer information |
-| `validity` | Show certificate validity period and status |
-| `san` | Show Subject Alternative Names |
-| `fingerprint` | Show SHA256 fingerprint |
-| `serial` | Show certificate serial number |
-| `pubkey` | Show public key information |
-| `validate` | Validate certificate chain |
-| `search <query>` | Search certificates by CN, organization, DNS names |
-| `filter expired` | Show only expired certificates |
-| `filter expiring` | Show only expiring certificates (within 30 days) |
-| `export pem <filename>` | Export current certificate as PEM format |
-| `export der <filename>` | Export current certificate as DER format |
-| `help` | Show command help |
-| `quit` | Exit command mode |
+```yaml
+theme:
+  text: "252"
+  border: "240"
+  border_focus: "62"
+  status_bar: "62"
+  status_bar_text: "230"
+  highlight: "62"
+  highlight_text: "230"
+  highlight_dim: "238"
+  list_row_alt: "235" # Zebra striping color
+  status_valid: "40"
+  status_warning: "220"
+  status_expired: "196"
+  title: "aqua"
+```
+
+## Development
+
+We use Go 1.25+ tools.
+
+```bash
+make build      # Build with version info
+make test       # Run test suite
+make lint       # Run golangci-lint (via go tool)
+make vulncheck  # Run govulncheck (via go tool)
+```
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## License
 

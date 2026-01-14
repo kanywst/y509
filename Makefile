@@ -40,7 +40,12 @@ release-homebrew:
 # Run tests
 .PHONY: test
 test:
-	go test -v ./...
+	go test -v $(GOTEST_ARGS) ./...
+
+# Run tests with JSON output (useful for CI)
+.PHONY: test-json
+test-json:
+	@go test -v -json $(GOTEST_ARGS) ./...
 
 # Run tests with coverage
 .PHONY: test-coverage
@@ -89,7 +94,12 @@ fmt:
 # Lint code
 .PHONY: lint
 lint:
-	golangci-lint run
+	go tool golangci-lint run ./...
+
+# Vulnerability check
+.PHONY: vulncheck
+vulncheck:
+	go tool govulncheck ./...
 
 # Tidy dependencies
 .PHONY: tidy

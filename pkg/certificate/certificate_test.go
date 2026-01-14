@@ -38,7 +38,7 @@ TKph8fRAQRg1MwlnCjbBWA==
 -----END CERTIFICATE-----`
 
 func createTestCert() *x509.Certificate {
-	// テスト用の固定値を使用
+	// Use fixed values for testing
 	return &x509.Certificate{
 		Subject: pkix.Name{
 			CommonName:         "test.example.com",
@@ -61,12 +61,12 @@ func createTestCert() *x509.Certificate {
 		EmailAddresses: []string{"admin@example.com"},
 		SerialNumber:   big.NewInt(12345),
 		Raw:            []byte("test-cert-data"),
-		PublicKey:      &rsa.PublicKey{N: big.NewInt(12345), E: 65537}, // 固定の公開鍵
+		PublicKey:      &rsa.PublicKey{N: big.NewInt(12345), E: 65537}, // Fixed public key
 	}
 }
 
 func createRSACert() *x509.Certificate {
-	// 2048ビットのRSA鍵を生成
+	// Generate 2048-bit RSA key
 	rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	cert := createTestCert()
 	cert.PublicKey = &rsaKey.PublicKey
@@ -74,7 +74,7 @@ func createRSACert() *x509.Certificate {
 }
 
 func createECDSACert() *x509.Certificate {
-	// P-256曲線のECDSA鍵を生成
+	// Generate P-256 curve ECDSA key
 	ecdsaKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	cert := createTestCert()
 	cert.PublicKey = &ecdsaKey.PublicKey
@@ -131,9 +131,11 @@ func certToPEM(cert *x509.Certificate) string {
 }
 
 // Utility: Generate a random key ID
-func randomKeyId() []byte {
+func randomKeyID() []byte {
 	b := make([]byte, 20)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
 	return b
 }
 
@@ -141,7 +143,7 @@ func randomKeyId() []byte {
 func generateTestChain() (leaf, root *x509.Certificate, leafPEM, rootPEM string) {
 	// Root CA
 	rootKey, _ := rsa.GenerateKey(rand.Reader, 2048)
-	rootSubjectKeyId := randomKeyId()
+	rootSubjectKeyID := randomKeyID()
 	rootTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
 		Subject:               pkix.Name{CommonName: "Test Root CA"},
@@ -151,7 +153,7 @@ func generateTestChain() (leaf, root *x509.Certificate, leafPEM, rootPEM string)
 		IsCA:                  true,
 		BasicConstraintsValid: true,
 		MaxPathLen:            0,
-		SubjectKeyId:          rootSubjectKeyId,
+		SubjectKeyId:          rootSubjectKeyID,
 	}
 	rootCert := generateCertificate(rootTemplate, rootTemplate, &rootKey.PublicKey, rootKey)
 	rootCertParsed, _ := x509.ParseCertificate(rootCert.Raw)
@@ -169,14 +171,14 @@ func generateTestChain() (leaf, root *x509.Certificate, leafPEM, rootPEM string)
 		IsCA:                  false,
 		BasicConstraintsValid: true,
 		DNSNames:              []string{"test.example.com"},
-		AuthorityKeyId:        rootSubjectKeyId,
+		AuthorityKeyId:        rootSubjectKeyID,
 	}
 	leafCert := generateCertificate(leafTemplate, rootCertParsed, &leafKey.PublicKey, rootKey)
 
 	return leafCert, rootCertParsed, certToPEM(leafCert), certToPEM(rootCertParsed)
 }
 
-// TestValidateChainを本物の証明書チェーンで修正
+// TestValidateChain with actual certificate chain
 func TestValidateChain(t *testing.T) {
 	leaf, root, _, _ := generateTestChain()
 	tests := []struct {
@@ -193,7 +195,7 @@ func TestValidateChain(t *testing.T) {
 		},
 		{
 			name:    "Valid chain",
-			certs:   []*x509.Certificate{root, leaf},
+			certs:   []*x509.Certificate{leaf, root},
 			want:    true,
 			wantErr: false,
 		},
@@ -215,7 +217,7 @@ func TestValidateChain(t *testing.T) {
 	}
 }
 
-// TestParseCertificatesのValid certificateケースを修正
+// Fix TestParseCertificates Valid certificate case
 func TestParseCertificates(t *testing.T) {
 	_, _, leafPEM, _ := generateTestChain()
 	tests := []struct {
@@ -321,7 +323,7 @@ func TestGenerateCertificateLabel(t *testing.T) {
 }
 
 // GetCertificateDetails returns detailed information about a certificate
-func GetCertificateDetails(cert *CertificateInfo) string {
+func GetCertificateDetails(cert *Info) string {
 	var details strings.Builder
 	details.WriteString(fmt.Sprintf("Subject: %s\n", FormatSubject(cert.Certificate)))
 	details.WriteString(fmt.Sprintf("Issuer: %s\n", FormatIssuer(cert.Certificate)))
@@ -421,13 +423,15 @@ func TestLoadCertificates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tempFile.Name())
+	defer func() { _ = os.Remove(tempFile.Name()) }()
 
 	_, err = tempFile.WriteString(testCertPEM)
 	if err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
-	tempFile.Close()
+	if err := tempFile.Close(); err != nil {
+		t.Fatalf("Failed to close temp file: %v", err)
+	}
 
 	certs, err := LoadCertificates(tempFile.Name())
 	if err != nil {
@@ -621,12 +625,12 @@ func TestFormatPublicKey(t *testing.T) {
 }
 
 // SearchCertificates searches for certificates matching the query
-func SearchCertificates(certs []*CertificateInfo, query string) []*CertificateInfo {
+func SearchCertificates(certs []*Info, query string) []*Info {
 	if query == "" {
 		return certs
 	}
 
-	var results []*CertificateInfo
+	var results []*Info
 	query = strings.ToLower(query)
 
 	for _, cert := range certs {
@@ -639,8 +643,8 @@ func SearchCertificates(certs []*CertificateInfo, query string) []*CertificateIn
 }
 
 // FilterCertificates filters certificates based on criteria
-func FilterCertificates(certs []*CertificateInfo, filterType string) []*CertificateInfo {
-	var results []*CertificateInfo
+func FilterCertificates(certs []*Info, filterType string) []*Info {
+	var results []*Info
 
 	for _, cert := range certs {
 		switch filterType {
@@ -742,8 +746,10 @@ func TestExportCertificate(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to create temp file: %v", err)
 			}
-			defer os.Remove(tempFile.Name())
-			tempFile.Close()
+			defer func() { _ = os.Remove(tempFile.Name()) }()
+			if err := tempFile.Close(); err != nil {
+				t.Fatalf("Failed to close temp file: %v", err)
+			}
 
 			err = ExportCertificate(cert, tt.format, tempFile.Name())
 
@@ -758,49 +764,4 @@ func TestExportCertificate(t *testing.T) {
 			}
 		})
 	}
-}
-
-func createTestCertificates(count int) []*CertificateInfo {
-	certs := make([]*CertificateInfo, count)
-	for i := 0; i < count; i++ {
-		cert := createTestCert()
-		certs[i] = &CertificateInfo{
-			Certificate: cert,
-			Index:       i,
-			Label:       fmt.Sprintf("Test Cert %d", i),
-		}
-	}
-	return certs
-}
-
-func createExpiredCertificates(count int) []*CertificateInfo {
-	certs := make([]*CertificateInfo, count)
-	now := time.Now()
-	for i := 0; i < count; i++ {
-		cert := createTestCert()
-		cert.NotBefore = now.Add(-365 * 24 * time.Hour)
-		cert.NotAfter = now.Add(-24 * time.Hour)
-		certs[i] = &CertificateInfo{
-			Certificate: cert,
-			Index:       i,
-			Label:       fmt.Sprintf("Expired Cert %d", i),
-		}
-	}
-	return certs
-}
-
-func createFutureCertificates(count int) []*CertificateInfo {
-	certs := make([]*CertificateInfo, count)
-	now := time.Now()
-	for i := 0; i < count; i++ {
-		cert := createTestCert()
-		cert.NotBefore = now.Add(24 * time.Hour)
-		cert.NotAfter = now.Add(365 * 24 * time.Hour)
-		certs[i] = &CertificateInfo{
-			Certificate: cert,
-			Index:       i,
-			Label:       fmt.Sprintf("Future Cert %d", i),
-		}
-	}
-	return certs
 }

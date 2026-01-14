@@ -1,3 +1,4 @@
+// Package certificate provides functionality for loading, parsing, and validating X.509 certificates and chains.
 package certificate
 
 import (
@@ -32,11 +33,35 @@ func init() {
 	}
 }
 
-// CertificateInfo holds certificate data and metadata
-type CertificateInfo struct {
-	Certificate *x509.Certificate
-	Index       int
-	Label       string
+// ValidationStatus represents the validation status of a single certificate in the chain.
+type ValidationStatus int
+
+const (
+	// StatusUnknown represents an uninitialized or unknown status
+	StatusUnknown ValidationStatus = iota
+	// StatusValid represents a verified valid certificate
+	StatusValid
+	// StatusGood represents a certificate that is syntactically correct and not expired
+	StatusGood
+	// StatusWarning represents a potential issue (e.g., expiring soon)
+	StatusWarning
+	// StatusExpired represents an expired certificate
+	StatusExpired
+	// StatusRevoked represents a revoked certificate
+	StatusRevoked
+	// StatusMismatchedIssuer represents a chain link error where issuer doesn't match
+	StatusMismatchedIssuer
+	// StatusInvalidSignature represents a failed signature verification
+	StatusInvalidSignature
+)
+
+// Info holds certificate data and metadata
+type Info struct {
+	Certificate      *x509.Certificate
+	Index            int
+	Label            string
+	ValidationStatus ValidationStatus
+	ValidationError  error
 }
 
 // ChainValidationResult holds the result of chain validation
@@ -54,7 +79,7 @@ type ValidationResult struct {
 }
 
 // LoadCertificates loads certificates from a file or stdin
-func LoadCertificates(filename string) ([]*CertificateInfo, error) {
+func LoadCertificates(filename string) ([]*Info, error) {
 	var input io.Reader
 	if filename == "" {
 		input = os.Stdin
@@ -64,7 +89,11 @@ func LoadCertificates(filename string) ([]*CertificateInfo, error) {
 			logger.Error("Failed to open file", zap.Error(err))
 			return nil, fmt.Errorf("failed to read input: %w", err)
 		}
-		defer file.Close()
+		defer func() {
+			if closeErr := file.Close(); closeErr != nil {
+				logger.Error("Failed to close input file", zap.String("filename", filename), zap.Error(closeErr))
+			}
+		}()
 		input = file
 	}
 
@@ -83,7 +112,7 @@ func LoadCertificates(filename string) ([]*CertificateInfo, error) {
 }
 
 // FormatCertificateList formats a list of certificates for display
-func FormatCertificateList(certs []*CertificateInfo) string {
+func FormatCertificateList(certs []*Info) string {
 	var result strings.Builder
 	for i, cert := range certs {
 		result.WriteString(formatCertificateListItem(i, cert))
@@ -91,7 +120,7 @@ func FormatCertificateList(certs []*CertificateInfo) string {
 	return result.String()
 }
 
-func formatCertificateListItem(index int, cert *CertificateInfo) string {
+func formatCertificateListItem(index int, cert *Info) string {
 	cn := cert.Certificate.Subject.CommonName
 	if cn == "" {
 		cn = "Unknown"
@@ -100,7 +129,7 @@ func formatCertificateListItem(index int, cert *CertificateInfo) string {
 }
 
 // FormatCertificateDetails formats detailed certificate information
-func FormatCertificateDetails(cert *CertificateInfo) string {
+func FormatCertificateDetails(cert *Info) string {
 	var details strings.Builder
 
 	// Subject
@@ -231,7 +260,7 @@ func formatExtKeyUsage(usage x509.ExtKeyUsage) string {
 }
 
 // FormatCertificateSummary formats a summary of certificate information
-func FormatCertificateSummary(cert *CertificateInfo) string {
+func FormatCertificateSummary(cert *Info) string {
 	var details strings.Builder
 
 	// Serial Number
@@ -301,12 +330,10 @@ func FormatCertificateSummary(cert *CertificateInfo) string {
 }
 
 // FormatCertificateKeyInfo formats information about the certificate's public key
-func FormatCertificateKeyInfo(cert *CertificateInfo) string {
+func FormatCertificateKeyInfo(cert *Info) string {
 	var details strings.Builder
 
 	// Algorithm
-	details.WriteString(fmt.Sprintf("Algorithm: %s\n", cert.Certificate.PublicKeyAlgorithm.String()))
-
 	// Key details
 	switch pub := cert.Certificate.PublicKey.(type) {
 	case *rsa.PublicKey:
@@ -331,13 +358,13 @@ func FormatCertificateKeyInfo(cert *CertificateInfo) string {
 	return details.String()
 }
 
-// SortChain sorts certificates into a valid chain [Root, Intermediate, Leaf]
+// SortChain sorts certificates into valid chains [Leaf, Intermediate, Root]
 func SortChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {
 	if len(certs) == 0 {
 		return nil, nil
 	}
 
-	// 1. Build relationships
+	// 1. Build parent-child relationships
 	parentOf := make(map[int]int) // child index -> parent index
 	isParent := make(map[int]bool)
 
@@ -347,14 +374,12 @@ func SortChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {
 				continue
 			}
 
-			// Optimization: Check names first
-			// Note: This string comparison might be too strict or loose depending on encoding,
-			// but it avoids expensive crypto ops for obvious non-matches.
+			// Name check first
 			if child.Issuer.String() != parent.Subject.String() {
 				continue
 			}
 
-			// Verify signature
+			// Signature check
 			if err := child.CheckSignatureFrom(parent); err == nil {
 				parentOf[childIdx] = parentIdx
 				isParent[parentIdx] = true
@@ -362,53 +387,122 @@ func SortChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {
 		}
 	}
 
-	// 2. Identify Leaf
-	// Prefer the first certificate if it is a valid leaf (not a parent of anyone else)
-	leafIdx := -1
-	if !isParent[0] {
-		leafIdx = 0
-	} else {
-		// Find any cert that is not a parent
-		for i := 0; i < len(certs); i++ {
-			if !isParent[i] {
-				leafIdx = i
+	// 2. Identify all possible Leaf nodes (certs that are not parents of anyone in this set)
+	var leafIndices []int
+	for i := range certs {
+		if !isParent[i] {
+			leafIndices = append(leafIndices, i)
+		}
+	}
+
+	// If everything is a parent (cycle?), just use all indices
+	if len(leafIndices) == 0 {
+		for i := range certs {
+			leafIndices = append(leafIndices, i)
+		}
+	}
+
+	// 3. Build all possible disjoint chains
+	var sortedCerts []*x509.Certificate
+	seenInChain := make(map[int]bool)
+	chainCount := 0
+
+	for _, lIdx := range leafIndices {
+		if seenInChain[lIdx] {
+			continue
+		}
+		chainCount++
+
+		// Build chain upwards from this leaf
+		var currentChain []*x509.Certificate
+		curr := lIdx
+		for {
+			if seenInChain[curr] {
 				break
 			}
+			currentChain = append(currentChain, certs[curr])
+			seenInChain[curr] = true
+
+			pIdx, ok := parentOf[curr]
+			if !ok {
+				break
+			}
+			curr = pIdx
+		}
+
+		// Add currentChain to result [Leaf, ..., Root]
+		sortedCerts = append(sortedCerts, currentChain...)
+	}
+
+	if chainCount > 1 {
+		logger.Warn(fmt.Sprintf("Detected %d disjoint certificate chains; they will be displayed sequentially.", chainCount))
+	}
+
+	// 4. Append any certificates that were not included in any chain
+	for i, cert := range certs {
+		if !seenInChain[i] {
+			sortedCerts = append(sortedCerts, cert)
 		}
 	}
 
-	// If all are parents (cycle?), fallback to 0
-	if leafIdx == -1 {
-		leafIdx = 0
+	return sortedCerts, nil
+}
+
+// ValidateChainLinks performs a detailed validation of each link in the certificate chain.
+// It no longer assumes the certs are sorted.
+func ValidateChainLinks(certs []*Info) {
+	// Create a map of subjects for quick parent lookup
+	subjectMap := make(map[string]*x509.Certificate)
+	for _, c := range certs {
+		subjectMap[c.Certificate.Subject.String()] = c.Certificate
 	}
 
-	// 3. Build chain upwards [Leaf, Int, Root]
-	chain := []*x509.Certificate{certs[leafIdx]}
-	currentIdx := leafIdx
-	seen := map[int]bool{leafIdx: true}
+	for _, certInfo := range certs {
+		cert := certInfo.Certificate
 
-	for {
-		pIdx, ok := parentOf[currentIdx]
-		if !ok {
-			break
+		// Reset status
+		certInfo.ValidationStatus = StatusGood
+		certInfo.ValidationError = nil
+
+		// 1. Check expiration
+		now := time.Now()
+		if now.After(cert.NotAfter) {
+			certInfo.ValidationStatus = StatusExpired
+			certInfo.ValidationError = fmt.Errorf("certificate is expired")
+			continue // Don't bother with other checks if expired
+		}
+		if now.Before(cert.NotBefore) {
+			certInfo.ValidationStatus = StatusWarning
+			certInfo.ValidationError = fmt.Errorf("certificate is not yet valid")
 		}
 
-		if seen[pIdx] {
-			break // Cycle detected
+		// 2. Check signature link
+		// Is it a self-signed root?
+		if cert.Issuer.String() == cert.Subject.String() {
+			if err := cert.CheckSignature(cert.SignatureAlgorithm, cert.RawTBSCertificate, cert.Signature); err != nil {
+				certInfo.ValidationStatus = StatusInvalidSignature
+				certInfo.ValidationError = fmt.Errorf("self-signed certificate has an invalid signature: %w", err)
+			}
+			// If self-signed and valid, its status remains StatusGood (or StatusWarning if not yet valid)
+			continue
 		}
 
-		chain = append(chain, certs[pIdx])
-		seen[pIdx] = true
-		currentIdx = pIdx
-	}
+		// It's not self-signed, so it must have a parent.
+		parentCert, found := subjectMap[cert.Issuer.String()]
 
-	// 4. Reverse to [Root, Int, Leaf] for ValidateChain
-	reversed := make([]*x509.Certificate, len(chain))
-	for i, c := range chain {
-		reversed[len(chain)-1-i] = c
-	}
+		if !found {
+			// Parent is not in the provided list, it's an orphan.
+			certInfo.ValidationStatus = StatusMismatchedIssuer
+			certInfo.ValidationError = fmt.Errorf("issuer ('%s') not found in provided certificates", cert.Issuer.CommonName)
+			continue
+		}
 
-	return reversed, nil
+		// Parent is found, check the signature.
+		if err := cert.CheckSignatureFrom(parentCert); err != nil {
+			certInfo.ValidationStatus = StatusInvalidSignature
+			certInfo.ValidationError = fmt.Errorf("invalid signature from parent '%s': %w", parentCert.Subject.CommonName, err)
+		}
+	}
 }
 
 // ValidateChain validates a certificate chain using x509.Verify
@@ -417,9 +511,9 @@ func ValidateChain(certs []*x509.Certificate) (bool, error) {
 		return false, fmt.Errorf("empty certificate chain")
 	}
 
-	// certs is expected to be [Root, Intermediate, ..., Leaf]
-	root := certs[0]
-	leaf := certs[len(certs)-1]
+	// certs is expected to be [Leaf, Intermediate, ..., Root]
+	leaf := certs[0]
+	root := certs[len(certs)-1]
 
 	intermediates := x509.NewCertPool()
 	for i := 1; i < len(certs)-1; i++ {
@@ -468,7 +562,6 @@ func FormatChainValidation(result *ValidationResult) string {
 	return strings.TrimSpace(sb.String())
 }
 
-
 // ExportCertificate exports a certificate to a file
 func ExportCertificate(cert *x509.Certificate, format string, filename string) error {
 	// Create directory if it doesn't exist
@@ -484,7 +577,11 @@ func ExportCertificate(cert *x509.Certificate, format string, filename string) e
 	if err != nil {
 		return fmt.Errorf("failed to create file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			logger.Error("Failed to close file after writing", zap.String("filename", filename), zap.Error(closeErr))
+		}
+	}()
 
 	// Determine format from argument or extension
 	f := strings.ToLower(format)
@@ -540,7 +637,7 @@ func GenerateSelfSignedCert(host string, certFile, keyFile string) error {
 			Organization: []string{"Y509"},
 		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour), // 1年間有効
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour), // Valid for 1 year
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -568,10 +665,13 @@ func GenerateSelfSignedCert(host string, certFile, keyFile string) error {
 	}
 	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
 		logger.Error("Failed to write cert data", zap.Error(err))
+		if closeErr := certOut.Close(); closeErr != nil {
+			logger.Error("Failed to close cert file after write error", zap.String("filename", certFile), zap.Error(closeErr))
+		}
 		return fmt.Errorf("failed to write cert data: %w", err)
 	}
 	if err := certOut.Close(); err != nil {
-		logger.Error("Failed to close cert file", zap.Error(err))
+		logger.Error("Failed to close cert file", zap.String("filename", certFile), zap.Error(err))
 		return fmt.Errorf("failed to close cert file: %w", err)
 	}
 
@@ -584,14 +684,20 @@ func GenerateSelfSignedCert(host string, certFile, keyFile string) error {
 	privBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {
 		logger.Error("Failed to marshal private key", zap.Error(err))
+		if closeErr := keyOut.Close(); closeErr != nil {
+			logger.Error("Failed to close key file after error", zap.String("filename", keyFile), zap.Error(closeErr))
+		}
 		return fmt.Errorf("failed to marshal private key: %w", err)
 	}
 	if err := pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes}); err != nil {
 		logger.Error("Failed to write key data", zap.Error(err))
+		if closeErr := keyOut.Close(); closeErr != nil {
+			logger.Error("Failed to close key file after write error", zap.String("filename", keyFile), zap.Error(closeErr))
+		}
 		return fmt.Errorf("failed to write key data: %w", err)
 	}
 	if err := keyOut.Close(); err != nil {
-		logger.Error("Failed to close key file", zap.Error(err))
+		logger.Error("Failed to close key file", zap.String("filename", keyFile), zap.Error(err))
 		return fmt.Errorf("failed to close key file: %w", err)
 	}
 
@@ -602,8 +708,8 @@ func GenerateSelfSignedCert(host string, certFile, keyFile string) error {
 }
 
 // ParseCertificates parses PEM blocks and extracts certificates
-func ParseCertificates(data []byte) ([]*CertificateInfo, error) {
-	var certs []*CertificateInfo
+func ParseCertificates(data []byte) ([]*Info, error) {
+	var certs []*Info
 	rest := data
 	index := 0
 
@@ -614,15 +720,15 @@ func ParseCertificates(data []byte) ([]*CertificateInfo, error) {
 		}
 
 		if block.Type == "CERTIFICATE" {
-			cert, err := x509.ParseCertificate(block.Bytes)
+			crt, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
 				logger.Error("Failed to parse certificate", zap.Error(err))
 				return nil, fmt.Errorf("failed to parse certificate %d: %w", index, err)
 			}
 
-			label := generateCertificateLabel(cert, index)
-			certs = append(certs, &CertificateInfo{
-				Certificate: cert,
+			label := generateCertificateLabel(crt, index)
+			certs = append(certs, &Info{
+				Certificate: crt,
 				Index:       index,
 				Label:       label,
 			})
@@ -789,7 +895,7 @@ func FormatPublicKey(cert *x509.Certificate) string {
 	case *ecdsa.PublicKey:
 		keySize := pub.Curve.Params().BitSize
 		curveName := pub.Curve.Params().Name
-		details.WriteString(fmt.Sprintf("Type: ECDSA\n"))
+		details.WriteString("Type: ECDSA\n")
 		details.WriteString(fmt.Sprintf("Curve: %s\n", curveName))
 		details.WriteString(fmt.Sprintf("Key Size: %d bits\n", keySize))
 
