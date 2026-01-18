@@ -9,13 +9,11 @@ import (
 	"github.com/kanywst/y509/pkg/certificate"
 )
 
-// View renders the model - WITH SPLASH SCREEN
+// View renders the model
 func (m Model) View() string {
 	if !m.ready {
 		return "Initializing..."
 	}
-
-	// Ensure minimum terminal size
 	minWidth, minHeight := getMinimumSize()
 	if m.width < minWidth || m.height < minHeight {
 		return m.renderMinimumSizeWarning(minWidth, minHeight)
@@ -24,620 +22,340 @@ func (m Model) View() string {
 	switch m.viewMode {
 	case ViewSplash:
 		return m.renderSplashScreen()
-	case ViewDetail:
-		return m.renderDetailView()
+	case ViewHelp:
+		return m.renderHelpView()
+	case ViewPopup:
+		return m.renderPopup()
 	default:
-		if len(m.allCertificates) == 0 {
-			return "No certificates found."
-		}
 		return m.renderNormalView()
 	}
 }
 
-// renderMinimumSizeWarning renders a warning when terminal is too small
-func (m Model) renderMinimumSizeWarning(minWidth, minHeight int) string {
-	warning := fmt.Sprintf("Terminal too small!\nMinimum: %dx%d\nCurrent: %dx%d\n\nResize terminal or press 'q' to quit",
-		minWidth, minHeight, m.width, m.height)
-
-	style := lipgloss.NewStyle().
-		Width(m.width).
-		Height(m.height).
-		Align(lipgloss.Center, lipgloss.Center).
-		Foreground(lipgloss.Color("196")).
-		Bold(true)
-
-	return style.Render(warning)
-}
-
-// renderNormalView renders the normal view - adaptive layout
+// renderNormalView renders the main view with header, panes, and status bar
 func (m Model) renderNormalView() string {
-	// Calculate available space for main content
-	mainHeight := m.height - statusBarHeight
-	if m.viewMode == ViewCommand {
-		mainHeight -= commandBarHeight
+	if len(m.certificates) == 0 {
+		return "No certificates found."
 	}
 
-	if mainHeight < 3 {
-		mainHeight = 3
-	}
+	header := m.renderHeader()
+	panes := m.renderTwoPanes()
+	statusBar := m.renderStatusBar()
 
-	// Use single pane mode for very narrow terminals
-	if m.shouldUseSinglePane() {
-		return m.renderSinglePaneView(mainHeight)
-	}
+	headerHeight := lipgloss.Height(header)
+	statusBarHeight := lipgloss.Height(statusBar)
+	panesHeight := m.height - headerHeight - statusBarHeight
 
-	// Use dual pane layout for wider terminals
-	return m.renderDualPaneView(mainHeight)
+	mainContent := lipgloss.NewStyle().Height(panesHeight).Render(panes)
+
+	return lipgloss.JoinVertical(lipgloss.Left, header, mainContent, statusBar)
 }
 
-// renderSinglePaneView renders a single pane view for very narrow terminals
-func (m Model) renderSinglePaneView(mainHeight int) string {
-	var content string
+// renderHeader renders the application header
+func (m Model) renderHeader() string {
+	title := m.Styles.Title.Render("y509 - Certificate Viewer")
+	line := lipgloss.NewStyle().
+		Width(m.width).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true).
+		BorderForeground(lipgloss.Color("236")).
+		Render("")
+	return lipgloss.JoinVertical(lipgloss.Left, title, line)
+}
 
-	// Calculate content height (subtract borders)
-	contentHeight := mainHeight - borderPadding
-	if contentHeight < 1 {
-		contentHeight = 1
-	}
+// renderTwoPanes renders the left and right panes
+func (m Model) renderTwoPanes() string {
+	paneHeight := m.height - lipgloss.Height(m.renderHeader()) - lipgloss.Height(m.renderStatusBar())
+	leftPaneWidth := m.width / 2
+	rightPaneWidth := m.width - leftPaneWidth
 
+	leftPane := m.renderLeftPane(leftPaneWidth, paneHeight)
+	rightPane := m.renderRightPane(rightPaneWidth, paneHeight)
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
+}
+
+// renderLeftPane renders the certificate list pane
+func (m Model) renderLeftPane(width, height int) string {
+	paneStyle := m.Styles.Pane
 	if m.focus == FocusLeft {
-		// Show certificate list
-		content = m.renderCertificateList(contentHeight)
-	} else {
-		// Show certificate details
-		content = m.renderCertificateDetails(m.width-contentPadding, contentHeight)
+		paneStyle = m.Styles.PaneFocus
+	}
+	paneStyle = paneStyle.BorderRight(false).Width(width).Height(height)
+
+	innerWidth := width - 1
+
+	var b strings.Builder
+
+	statusWidth := 8
+	expiresWidth := 12
+	subjectWidth := innerWidth - statusWidth - expiresWidth
+
+	header := lipgloss.JoinHorizontal(lipgloss.Left,
+		m.Styles.Title.Bold(true).Width(statusWidth).Render(" STATUS"),
+		m.Styles.Title.Bold(true).Width(subjectWidth).Render("SUBJECT"),
+		m.Styles.Title.Bold(true).Width(expiresWidth).Render("EXPIRES"),
+	)
+	b.WriteString(header)
+	b.WriteString("\n")
+
+	// Calculate visible range
+	availableHeight := height - ListHeaderHeight
+	if availableHeight <= 0 {
+		return paneStyle.Render(b.String())
 	}
 
-	// Create single pane
-	pane := m.createPane(content, m.width, mainHeight, true, "")
-
-	// Build final view
-	var parts []string
-	parts = append(parts, pane)
-
-	if m.viewMode == ViewCommand {
-		parts = append(parts, m.renderCommandBar())
+	start := m.listScroll
+	end := start + availableHeight
+	if end > len(m.certificates) {
+		end = len(m.certificates)
 	}
 
-	parts = append(parts, m.renderStatusBar())
+	for i := start; i < end; i++ {
+		certInfo := m.certificates[i]
+		statusIcon, statusStyle := getStatusIconAndStyle(certInfo, m.Styles)
+		expiresIn := humanizeDuration(time.Until(certInfo.Certificate.NotAfter))
 
-	return lipgloss.JoinVertical(lipgloss.Left, parts...)
-}
-
-// renderDualPaneView renders the dual pane view for wider terminals
-func (m Model) renderDualPaneView(mainHeight int) string {
-	// Calculate pane widths - more flexible allocation
-	var leftWidth, rightWidth int
-	if m.width < minMediumWidth {
-		// Narrow: give more space to details
-		leftWidth = max(12, m.width*2/5)
-		rightWidth = m.width - leftWidth
-	} else if m.width < 100 {
-		// Medium: balanced split
-		leftWidth = m.width / 3
-		rightWidth = m.width - leftWidth
-	} else {
-		// Wide: give more space to details
-		leftWidth = m.width / 4
-		rightWidth = m.width - leftWidth
-	}
-
-	// Ensure minimum widths
-	if leftWidth < 10 {
-		leftWidth = 10
-		rightWidth = m.width - leftWidth
-	}
-	if rightWidth < 15 {
-		rightWidth = 15
-		leftWidth = m.width - rightWidth
-	}
-
-	// Calculate content height for list (subtract borders only)
-	contentHeight := mainHeight - borderPadding
-	if contentHeight < 1 {
-		contentHeight = 1
-	}
-
-	leftContent := m.renderCertificateList(contentHeight)
-	leftPane := m.createPane(leftContent, leftWidth, mainHeight, m.focus == FocusLeft, "")
-
-	// Render right pane (certificate details) with scrolling
-	rightContent := m.renderCertificateDetails(rightWidth-contentPadding, contentHeight)
-	rightPane := m.createPane(rightContent, rightWidth, mainHeight, m.focus == FocusRight, "")
-
-	// Combine panes
-	mainView := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
-
-	// Build final view
-	var parts []string
-	parts = append(parts, mainView)
-
-	if m.viewMode == ViewCommand {
-		parts = append(parts, m.renderCommandBar())
-	}
-
-	parts = append(parts, m.renderStatusBar())
-
-	return lipgloss.JoinVertical(lipgloss.Left, parts...)
-}
-
-// renderDetailView renders the full-screen detail view
-func (m Model) renderDetailView() string {
-	title := m.detailField
-	if len(m.certificates) > 0 {
-		title = fmt.Sprintf("%s - Certificate %d/%d", m.detailField, m.cursor+1, len(m.certificates))
-	}
-
-	// Calculate main content height
-	mainHeight := m.height - 1 // Status bar
-
-	// Create full-screen pane
-	content := m.detailValue
-	pane := m.createPane(content, m.width, mainHeight, true, "")
-
-	// Status bar for detail view with title
-	statusText := fmt.Sprintf("[%s] ESC: back to normal view • q: quit", title)
-	statusBar := lipgloss.NewStyle().
-		Background(lipgloss.Color("62")).
-		Foreground(lipgloss.Color("230")).
-		Bold(true).
-		Width(m.width).
-		Padding(0, 1).
-		Render(statusText)
-
-	return lipgloss.JoinVertical(lipgloss.Left, pane, statusBar)
-}
-
-// renderCommandBar renders the command input bar
-func (m Model) renderCommandBar() string {
-	prompt := ":"
-	input := m.commandInput
-
-	if m.commandError != "" {
-		errorStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196")).
-			Bold(true).
-			Width(m.width).
-			Padding(0, 1)
-		return errorStyle.Render(fmt.Sprintf("Error: %s", m.commandError))
-	}
-
-	commandStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("240")).
-		Foreground(lipgloss.Color("255")).
-		Width(m.width).
-		Padding(0, 1)
-
-	return commandStyle.Render(prompt + input)
-}
-
-// renderCertificateList renders the list of certificates - optimized for all screen sizes
-func (m Model) renderCertificateList(height int) string {
-	if len(m.certificates) == 0 {
-		if m.filterActive {
-			return fmt.Sprintf("No certs match filter: %s\n\nUse ':reset' to clear", truncateText(m.filterType, 20))
-		}
-		return "No certificates"
-	}
-
-	// Ensure height is positive
-	if height <= 0 {
-		height = 1
-	}
-
-	var content strings.Builder
-	start := 0
-	end := len(m.certificates)
-
-	// Handle scrolling if there are too many certificates
-	if len(m.certificates) > height {
-		if m.cursor >= height {
-			start = m.cursor - height + 1
-			end = start + height
-		} else {
-			end = height
-		}
-	}
-
-	for i := start; i < end && i < len(m.certificates); i++ {
-		cert := m.certificates[i]
-
-		// Create adaptive label based on available width
-		var line string
-		availableWidth := m.calculateAvailableWidth()
-
-		// Build line based on available width
-		if availableWidth < 15 {
-			// Ultra compact: just number and emoji
-			line = fmt.Sprintf("%d", i+1)
-		} else if availableWidth < 25 {
-			// Very compact: number only
-			line = fmt.Sprintf("%d. %s", i+1, truncateText(cert.Label, availableWidth-5))
-		} else if availableWidth < 40 {
-			// Compact: number and short name
-			shortName := truncateText(cert.Label, availableWidth-8)
-			line = fmt.Sprintf("%d. %s", i+1, shortName)
-		} else {
-			// Normal: full label (truncated if necessary)
-			maxLabelWidth := availableWidth - 8 // account for number, dots, emoji, spaces
-			line = fmt.Sprintf("%d. %s", i+1, truncateText(cert.Label, maxLabelWidth))
-		}
-
-		// Add status indicators
-		if certificate.IsExpired(cert.Certificate) {
-			if availableWidth >= 15 {
-				line = "🔴 " + line
-			} else {
-				line = "X " + line
-			}
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			if availableWidth >= 15 {
-				line = "⚠️ " + line
-			} else {
-				line = "! " + line
-			}
-		} else {
-			if availableWidth >= 15 {
-				line = "🟢 " + line
-			} else {
-				line = "✓ " + line
-			}
-		}
-
-		// Highlight current selection
-		if i == m.cursor {
+		var baseStyle lipgloss.Style
+		isCursor := i == m.cursor
+		if isCursor {
 			if m.focus == FocusLeft {
-				line = lipgloss.NewStyle().
-					Background(lipgloss.Color("62")).
-					Foreground(lipgloss.Color("230")).
-					Bold(true).
-					Render(line)
+				baseStyle = m.Styles.Highlight
 			} else {
-				line = lipgloss.NewStyle().
-					Background(lipgloss.Color("240")).
-					Render(line)
+				baseStyle = m.Styles.HighlightDim
 			}
+		} else if i%2 != 0 {
+			baseStyle = m.Styles.ListRowAlt
+		} else {
+			baseStyle = lipgloss.NewStyle()
 		}
 
-		content.WriteString(line)
-		if i < end-1 || i < len(m.certificates)-1 {
-			content.WriteString("\n")
-		}
+		// Icon column
+		sStyle := statusStyle.Background(baseStyle.GetBackground())
+		sCol := sStyle.Width(statusWidth).Render(" " + statusIcon)
+
+		// Subject column
+		cCol := baseStyle.Width(subjectWidth).Render(truncateText(certInfo.Certificate.Subject.CommonName, subjectWidth-1))
+
+		// Expires column
+		eCol := baseStyle.Width(expiresWidth).Render(expiresIn)
+
+		row := lipgloss.JoinHorizontal(lipgloss.Left, sCol, cCol, eCol)
+
+		b.WriteString(row)
+		b.WriteString("\n")
 	}
 
-	return content.String()
+	return paneStyle.Render(b.String())
 }
 
-// getCertificateStatus returns the status icon and text for a certificate
-func (m Model) getCertificateStatus(cert *certificate.CertificateInfo) (string, string) {
-	if certificate.IsExpired(cert.Certificate) {
-		return "❌", "EXPIRED"
-	} else if certificate.IsExpiringSoon(cert.Certificate) {
-		return "⚠️", "EXPIRING SOON"
+// renderRightPane renders the tabbed certificate details pane
+func (m Model) renderRightPane(width, height int) string {
+	if m.cursor >= len(m.certificates) {
+		return "No certificate selected."
 	}
-	return "✅", "VALID"
+
+	tabs := m.renderTabs(width)
+	content := m.renderTabContent(width, height-lipgloss.Height(tabs)-1)
+
+	paddedContent := lipgloss.NewStyle().Padding(1, 2).Render(content)
+
+	paneContent := lipgloss.JoinVertical(lipgloss.Left, tabs, paddedContent)
+
+	paneStyle := m.Styles.Pane
+	if m.focus == FocusRight {
+		paneStyle = m.Styles.PaneFocus
+	}
+	return paneStyle.Width(width).Height(height).Render(paneContent)
 }
 
-// renderCertificateDetails renders the details of the selected certificate with improved text handling
-func (m Model) renderCertificateDetails(width, height int) string {
-	if len(m.certificates) == 0 {
-		return "No certificate selected"
+// renderTabs renders the UI for switching between detail tabs
+func (m Model) renderTabs(_ int) string {
+	var renderedTabs []string
+	for i, t := range m.tabs {
+		style := m.Styles.Tab
+		if i == m.activeTab {
+			style = m.Styles.TabActive
+		}
+		renderedTabs = append(renderedTabs, style.Render(t))
+		if i < len(m.tabs)-1 {
+			renderedTabs = append(renderedTabs, m.Styles.TabSeparator.String())
+		}
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
+}
+
+// renderTabContent renders the content for the currently active tab
+func (m Model) renderTabContent(width, height int) string {
+	cert := m.certificates[m.cursor]
+	var b strings.Builder
+
+	kv := func(key, value string) {
+		if value == "" {
+			return
+		}
+		keyStyle := m.Styles.DetailKey.Width(16)
+		valueStyle := lipgloss.NewStyle()
+		row := lipgloss.JoinHorizontal(lipgloss.Left,
+			keyStyle.Render(key),
+			valueStyle.Render(value),
+		)
+		b.WriteString(row + "\n")
 	}
 
-
-cert := m.certificates[m.cursor]
-
-	// Get appropriate details based on width
-	var details string
-	if width < minUltraCompactWidth {
-		// Ultra compact details - only essential info
-		statusIcon, _ := m.getCertificateStatus(cert)
-		details = fmt.Sprintf("%s Cert %d/%d\n%s\n\nCN: %s\nExp: %s",
-			statusIcon,
-			m.cursor+1, len(m.certificates),
-			truncateText(cert.Label, width-borderPadding),
-			truncateText(cert.Certificate.Subject.CommonName, width-cnPadding),
-			cert.Certificate.NotAfter.Format("2006-01-02"))
-	} else if width < minCompactWidth {
-		// Compact details with better organization
-		statusIcon, statusText := m.getCertificateStatus(cert)
-
-		details = fmt.Sprintf("%s %s\n%s\n\nSubject:\n%s\n\nIssuer:\n%s\n\nExpires:\n%s",
-			statusIcon, statusText,
-			truncateText(cert.Label, width-borderPadding),
-			truncateText(cert.Certificate.Subject.CommonName, width-cnPadding),
-			truncateText(cert.Certificate.Issuer.CommonName, width-cnPadding),
-			cert.Certificate.NotAfter.Format("2006-01-02 15:04"))
-	} else if width < minMediumWidth {
-		// Medium details with better structure
-		var builder strings.Builder
-
-		// Header with status
-		statusIcon, statusText := m.getCertificateStatus(cert)
-
-		builder.WriteString(fmt.Sprintf("%s %s - Cert %d/%d\n", statusIcon, statusText, m.cursor+1, len(m.certificates)))
-		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-borderPadding, 30))))
-
-		// Essential information
-		builder.WriteString(fmt.Sprintf("Subject: %s\n", truncateText(cert.Certificate.Subject.CommonName, width-subjectPadding)))
-		builder.WriteString(fmt.Sprintf("Issuer:  %s\n", truncateText(cert.Certificate.Issuer.CommonName, width-subjectPadding)))
-
-		// Validity
-		now := time.Now()
-		if cert.Certificate.NotAfter.Before(now) {
-			duration := now.Sub(cert.Certificate.NotAfter)
-			days := int(duration.Hours() / 24)
-			builder.WriteString(fmt.Sprintf("Expired: %d days ago\n", days))
-		} else {
-			duration := cert.Certificate.NotAfter.Sub(now)
-			days := int(duration.Hours() / 24)
-			builder.WriteString(fmt.Sprintf("Valid:   %d days left\n", days))
+	switch m.tabs[m.activeTab] {
+	case "Subject":
+		kv("CN:", cert.Certificate.Subject.CommonName)
+		kv("Organization:", strings.Join(cert.Certificate.Subject.Organization, ", "))
+		kv("OU:", strings.Join(cert.Certificate.Subject.OrganizationalUnit, ", "))
+		kv("Country:", strings.Join(cert.Certificate.Subject.Country, ", "))
+		kv("Province:", strings.Join(cert.Certificate.Subject.Province, ", "))
+		kv("Locality:", strings.Join(cert.Certificate.Subject.Locality, ", "))
+	case "Issuer":
+		kv("CN:", cert.Certificate.Issuer.CommonName)
+		kv("Organization:", strings.Join(cert.Certificate.Issuer.Organization, ", "))
+		kv("Country:", strings.Join(cert.Certificate.Issuer.Country, ", "))
+	case "Validity":
+		kv("Not Before:", cert.Certificate.NotBefore.Format("2006-01-02 15:04:05 MST"))
+		kv("Not After:", cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST"))
+	case "SANs":
+		for _, dns := range cert.Certificate.DNSNames {
+			kv("DNS Name:", dns)
 		}
-
-		// DNS names if available
-		if len(cert.Certificate.DNSNames) > 0 {
-			builder.WriteString("DNS: ")
-			if len(cert.Certificate.DNSNames) == 1 {
-				builder.WriteString(truncateText(cert.Certificate.DNSNames[0], width-scrollIndicatorPadding))
-			} else {
-				builder.WriteString(fmt.Sprintf("%d names", len(cert.Certificate.DNSNames)))
-			}
+		for _, ip := range cert.Certificate.IPAddresses {
+			kv("IP Address:", ip.String())
 		}
-
-		details = builder.String()
-	} else {
-		// Full details with proper formatting
-		var builder strings.Builder
-
-		// Header with certificate position and status
-		statusIcon, statusText := m.getCertificateStatus(cert)
-		now := time.Now()
-
-		builder.WriteString(fmt.Sprintf("Certificate %d/%d %s %s\n",
-			m.cursor+1, len(m.certificates), statusIcon, statusText))
-		builder.WriteString(fmt.Sprintf("%s\n", strings.Repeat("─", min(width-borderPadding, 40))))
-
-		// Subject information
-		builder.WriteString("📋 Subject:\n")
-		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Subject.CommonName))
-		if len(cert.Certificate.Subject.Organization) > 0 {
-			builder.WriteString(fmt.Sprintf("  Organization: %s\n", strings.Join(cert.Certificate.Subject.Organization, ", ")))
+		for _, email := range cert.Certificate.EmailAddresses {
+			kv("Email:", email)
 		}
-		if len(cert.Certificate.Subject.OrganizationalUnit) > 0 {
-			builder.WriteString(fmt.Sprintf("  Organizational Unit: %s\n", strings.Join(cert.Certificate.Subject.OrganizationalUnit, ", ")))
+		if len(cert.Certificate.DNSNames) == 0 && len(cert.Certificate.IPAddresses) == 0 && len(cert.Certificate.EmailAddresses) == 0 {
+			b.WriteString("None")
 		}
-
-		// Issuer information
-		builder.WriteString("\n🏢 Issuer:\n")
-		builder.WriteString(fmt.Sprintf("  Common Name: %s\n", cert.Certificate.Issuer.CommonName))
-		if len(cert.Certificate.Issuer.Organization) > 0 {
-			builder.WriteString(fmt.Sprintf("  Organization: %s\n", strings.Join(cert.Certificate.Issuer.Organization, ", ")))
-		}
-
-		// Validity information
-		builder.WriteString("\n📅 Validity:\n")
-		builder.WriteString(fmt.Sprintf("  Not Before: %s\n", cert.Certificate.NotBefore.Format("2006-01-02 15:04:05 MST")))
-		builder.WriteString(fmt.Sprintf("  Not After:  %s\n", cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST")))
-
-		// Add days remaining/expired info
-		if cert.Certificate.NotAfter.Before(now) {
-			duration := now.Sub(cert.Certificate.NotAfter)
-			days := int(duration.Hours() / 24)
-			builder.WriteString(fmt.Sprintf("  Status: %s %s (Expired %d days ago)\n", statusIcon, statusText, days))
-		} else {
-			duration := cert.Certificate.NotAfter.Sub(now)
-			days := int(duration.Hours() / 24)
-			builder.WriteString(fmt.Sprintf("  Status: %s %s (Valid for %d days)\n", statusIcon, statusText, days))
-		}
-
-		// Subject Alternative Names
-		builder.WriteString("\n🌐 Subject Alternative Names:\n")
-		if len(cert.Certificate.DNSNames) > 0 || len(cert.Certificate.IPAddresses) > 0 || len(cert.Certificate.EmailAddresses) > 0 {
-			for _, dns := range cert.Certificate.DNSNames {
-				builder.WriteString(fmt.Sprintf("  DNS: %s\n", dns))
-			}
-			for _, ip := range cert.Certificate.IPAddresses {
-				builder.WriteString(fmt.Sprintf("  IP: %s\n", ip.String()))
-			}
-			for _, email := range cert.Certificate.EmailAddresses {
-				builder.WriteString(fmt.Sprintf("  Email: %s\n", email))
-			}
-		} else {
-			builder.WriteString("  None\n")
-		}
-
-		// Fingerprint and Serial Number
-		builder.WriteString("\n🔒 SHA256 Fingerprint:\n")
-		builder.WriteString(fmt.Sprintf("  %s\n", certificate.FormatFingerprint(cert.Certificate)))
-		builder.WriteString(fmt.Sprintf("\n🔢 Serial Number: %s\n", cert.Certificate.SerialNumber.String()))
-
-		details = builder.String()
+	case "Misc":
+		kv("Serial:", cert.Certificate.SerialNumber.String())
+		kv("SHA256 Fgp:", certificate.FormatFingerprint(cert.Certificate))
+		b.WriteString(m.Styles.DetailKey.Render("Public Key:") + "\n")
+		b.WriteString(certificate.FormatPublicKey(cert.Certificate) + "\n")
 	}
 
-	// Split details into lines for scrolling
-	lines := strings.Split(details, "\n")
-
-	// Apply scrolling
+	content := b.String()
+	lines := strings.Split(content, "\n")
 	start := m.rightPaneScroll
 	end := start + height
-
-	// Ensure we don't scroll past the content
-	if start >= len(lines) {
-		start = max(0, len(lines)-height)
-		m.rightPaneScroll = start
+	if start > len(lines) {
+		start = len(lines)
 	}
 	if end > len(lines) {
 		end = len(lines)
 	}
 
-	// Get visible lines
-	var visibleLines []string
-	if start < len(lines) {
-		visibleLines = lines[start:end]
-	}
-
-	// Join visible lines
-	scrolledContent := strings.Join(visibleLines, "\n")
-
-	// Add scroll indicator if there's more content
-	if len(lines) > height && width > 10 {
-		scrollInfo := ""
-		if start > 0 {
-			scrollInfo += "↑ "
-		}
-		if end < len(lines) {
-			scrollInfo += "↓ "
-		}
-		if scrollInfo != "" {
-			percentage := int(float64(start+height) / float64(len(lines)) * 100)
-			if percentage > 100 {
-				percentage = 100
-			}
-			scrollInfo = fmt.Sprintf(" [%s%d%%]", scrollInfo, percentage)
-			if len(scrollInfo) <= width {
-				scrolledContent += "\n" + scrollInfo
-			}
-		}
-	}
-
-	return scrolledContent
+	return lipgloss.NewStyle().Width(width).Render(strings.Join(lines[start:end], "\n"))
 }
 
-// createPane creates a styled pane with border (no internal title)
-func (m Model) createPane(content string, width, height int, focused bool, title string) string {
-	// Create the bordered pane without internal title
-	borderStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		Width(width).
-		Padding(0, 1)
-
-	if focused {
-		borderStyle = borderStyle.BorderForeground(lipgloss.Color("62"))
-	} else {
-		borderStyle = borderStyle.BorderForeground(lipgloss.Color("240"))
+func getStatusIconAndStyle(certInfo *certificate.Info, styles Styles) (string, lipgloss.Style) {
+	switch certInfo.ValidationStatus {
+	case certificate.StatusWarning:
+		return "⚠️", styles.StatusWarning
+	case certificate.StatusExpired:
+		return "❌", styles.StatusExpired
+	case certificate.StatusMismatchedIssuer, certificate.StatusInvalidSignature:
+		return "🔗", styles.StatusExpired
+	default:
+		return "✅", styles.StatusValid
 	}
-
-	return borderStyle.Render(content)
 }
 
-// renderStatusBar renders the status bar with adaptive help text
 func (m Model) renderStatusBar() string {
-	// Build pane titles
-	leftTitle := "Certs"
-	if m.filterActive {
-		if m.width < 40 {
-			leftTitle = "Filtered"
-		} else {
-			filterTitle := fmt.Sprintf("Certs (%s)", m.filterType)
-			if len(filterTitle) > 20 {
-				leftTitle = "Filtered"
-			} else {
-				leftTitle = filterTitle
-			}
-		}
+	certInfo := fmt.Sprintf("Certs: %d", len(m.certificates))
+	helpText := "↑/↓: navigate • ←/→: panes • tab: tabs • /: search • f: filter • v: validate • q: quit"
+	statusText := fmt.Sprintf("%s • %s", certInfo, helpText)
+	return m.Styles.StatusBar.Width(m.width).Render(statusText)
+}
+
+func humanizeDuration(d time.Duration) string {
+	if d < 0 {
+		return "Expired"
 	}
-	rightTitle := "Details"
-
-	// Adaptive help text based on current mode and width
-	var helpText string
-	if m.shouldUseSinglePane() {
-		// Single pane mode - different help text
-		if m.focus == FocusLeft {
-			if m.width < 30 {
-				helpText = "↑↓:nav →:detail ::cmd q:quit"
-			} else {
-				helpText = "↑/↓:navigate • →:view details • ::command • q:quit"
-			}
-		} else {
-			if m.width < 30 {
-				helpText = "↑↓:scroll ←:list ::cmd q:quit"
-			} else {
-				helpText = "↑/↓:scroll • ←:back to list • ::command • q:quit"
-			}
-		}
-	} else {
-		// Dual pane mode
-		// Add focus indicators
-		if m.focus == FocusLeft {
-			leftTitle = "[" + leftTitle + "]"
-		} else {
-			rightTitle = "[" + rightTitle + "]"
-		}
-
-		if m.width < 50 {
-			if m.focus == FocusRight {
-				helpText = "↑↓:scroll ←→:pane ::cmd q:quit"
-			} else {
-				helpText = "↑↓:nav ←→:pane ::cmd q:quit"
-			}
-		} else if m.width < 80 {
-			if m.focus == FocusRight {
-				helpText = "↑/↓:scroll • ←/→:pane • ::cmd • q:quit"
-			} else {
-				helpText = "↑/↓:navigate • ←/→:pane • ::cmd • q:quit"
-			}
-		} else {
-			if m.focus == FocusRight {
-				helpText = "↑/↓: scroll details • ←/→: switch panes • :: command mode • q: quit"
-			} else {
-				helpText = "↑/↓: navigate • ←/→: switch panes • :: command mode • q: quit"
-			}
-		}
+	days := int(d.Hours() / 24)
+	if days > 0 {
+		return fmt.Sprintf("in %d days", days)
 	}
+	return "today"
+}
 
-	// Add certificate info if available
-	if len(m.certificates) > 0 {
-		cert := m.certificates[m.cursor]
-		var certInfo string
-		if m.width < 40 {
-			certInfo = fmt.Sprintf("%d/%d", m.cursor+1, len(m.certificates))
-		} else {
-			certInfo = fmt.Sprintf("Certificate %d/%d", m.cursor+1, len(m.certificates))
-		}
+func (m Model) renderHelpView() string {
+	var content strings.Builder
 
-		if certificate.IsExpired(cert.Certificate) {
-			if m.width < 50 {
-				certInfo += " (EXP!)"
-			} else {
-				certInfo += " (EXPIRED)"
-			}
-		} else if certificate.IsExpiringSoon(cert.Certificate) {
-			if m.width < 50 {
-				certInfo += " (EXP)"
-			} else {
-				certInfo += " (EXPIRING SOON)"
-			}
-		}
+	title := m.Styles.Title.Bold(true).Render("── Help ──")
+	content.WriteString(title + "\n\n")
 
-		helpText = certInfo + " • " + helpText
-	}
+	content.WriteString(m.Styles.Title.Render("Keybindings") + "\n")
+	content.WriteString("  ↑/k, ↓/j      Navigate list\n")
+	content.WriteString("  ←/h, →/l      Switch panes\n")
+	content.WriteString("  tab            Switch tabs\n")
+	content.WriteString("  /              Search (Popup)\n")
+	content.WriteString("  f              Filter (Popup: expired, expiring, valid, self-signed)\n")
+	content.WriteString("  v              Validate Chain (Popup)\n")
+	content.WriteString("  e              Export Certificate (Popup)\n")
+	content.WriteString("  q, ctrl+c      Quit\n")
 
-	// Combine titles and help text
-	var statusText string
-	if m.shouldUseSinglePane() {
-		if m.focus == FocusLeft {
-			statusText = fmt.Sprintf("%s • %s", leftTitle, helpText)
-		} else {
-			statusText = fmt.Sprintf("%s • %s", rightTitle, helpText)
-		}
-	} else {
-		if m.width < 50 {
-			statusText = fmt.Sprintf("%s|%s • %s", leftTitle, rightTitle, helpText)
-		} else {
-			statusText = fmt.Sprintf("%s | %s • %s", leftTitle, rightTitle, helpText)
-		}
-	}
-
-	// Truncate if too long
-	if len(statusText) > m.width-2 {
-		statusText = truncateText(statusText, m.width-2)
-	}
+	pane := m.Styles.PaneFocus.
+		Width(60).
+		Padding(1, 2).
+		Render(content.String())
 
 	return lipgloss.NewStyle().
-		Background(lipgloss.Color("62")).
-		Foreground(lipgloss.Color("230")).
-		Bold(true).
 		Width(m.width).
-		Padding(0, 1).
-		Render(statusText)
+		Height(m.height).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(pane)
+}
+
+// renderMinimumSizeWarning renders a warning message when the terminal is too small
+func (m Model) renderMinimumSizeWarning(minWidth, minHeight int) string {
+	warning := fmt.Sprintf("Terminal too small! Minimum: %dx%d", minWidth, minHeight)
+	return m.Styles.Warning.Width(m.width).Height(m.height).Align(lipgloss.Center, lipgloss.Center).Render(warning)
+}
+
+// renderPopup renders the modal popup box using lipgloss.Place (screen clear)
+func (m Model) renderPopup() string {
+	var content string
+	var title string
+
+	if m.popupType == PopupAlert {
+		title = "Validation Result"
+		content = m.popupMessage
+	} else {
+		// Input popup
+		switch m.popupType {
+		case PopupSearch:
+			title = "Search"
+		case PopupFilter:
+			title = "Filter"
+		case PopupExport:
+			title = "Export Certificate"
+		}
+		content = m.textInput.View()
+	}
+
+	popupWidth := 60
+	if m.width < 64 {
+		popupWidth = m.width - 4
+	}
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color(m.Config.Theme.BorderFocus)).
+		Padding(1, 2).
+		Width(popupWidth).
+		Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Width(popupWidth-4).Align(lipgloss.Center).Render(title),
+				"\n",
+				content,
+				"\n",
+				lipgloss.NewStyle().Width(popupWidth-4).Align(lipgloss.Center).Foreground(lipgloss.Color("240")).Render("Enter to confirm, Esc to cancel"),
+			),
+		)
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
 }

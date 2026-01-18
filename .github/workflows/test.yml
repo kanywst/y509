@@ -14,12 +14,24 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.21'
+        go-version: '1.25.6'
 
     - name: Download dependencies
       run: go mod download
 
+    - name: Lint
+      run: make lint
+
+    - name: Vulnerability check
+      run: make vulncheck
+
     - name: Run tests
-      run: go test -v ./...
+      run: make test-json > test-report.json
+
+    - name: Annotate tests
+      if: always()
+      uses: guyarb/golang-test-annotations@v0.8.0
+      with:
+        test-results: test-report.json

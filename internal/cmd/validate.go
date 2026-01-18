@@ -31,38 +31,39 @@ var validateCmd = &cobra.Command{
 			return err
 		}
 
-		        		inputCerts := make([]*x509.Certificate, len(certs))
-		        		for i, c := range certs {
-		        			inputCerts[i] = c.Certificate
-		        		}
-		        
-		        		chain, err := certificate.SortChain(inputCerts)
-		        		if err != nil {
-		        			logger.Log.Error("Failed to sort certificate chain", zap.Error(err))
-		        			return err
-		        		}
-		        
-		        		isValid, err := certificate.ValidateChain(chain)
+		inputCerts := make([]*x509.Certificate, len(certs))
+		for i, c := range certs {
+			inputCerts[i] = c.Certificate
+		}
+
+		chain, err := certificate.SortChain(inputCerts)
+		if err != nil {
+			logger.Log.Error("Failed to sort certificate chain", zap.Error(err))
+			return err
+		}
+
+		isValid, err := certificate.ValidateChain(chain)
 		result := &certificate.ValidationResult{
 			IsValid: isValid,
 		}
-		
-		        if err != nil {
-		            logger.Log.Error("Certificate chain validation failed", zap.Error(err))
-		            result.Errors = append(result.Errors, err.Error())
-		        }
-		
-		        // Print validation result
-		        fmt.Println(certificate.FormatChainValidation(result))
-		
-		        logger.Log.Info("Certificate chain validation result", zap.Bool("isValid", isValid))
-		
-		        if !isValid || err != nil {
-		            return fmt.Errorf("certificate chain validation failed")
-		        }
-		        return nil
-		    },
+
+		if err != nil {
+			logger.Log.Error("Certificate chain validation failed", zap.Error(err))
+			result.Errors = append(result.Errors, err.Error())
 		}
+
+		// Print validation result
+		fmt.Println(certificate.FormatChainValidation(result))
+
+		logger.Log.Info("Certificate chain validation result", zap.Bool("isValid", isValid))
+
+		if !isValid || err != nil {
+			return fmt.Errorf("certificate chain validation failed")
+		}
+		return nil
+	},
+}
+
 func init() {
 	RootCmd.AddCommand(validateCmd)
 }

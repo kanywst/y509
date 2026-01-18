@@ -12,7 +12,7 @@ import (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		logger.Log.Info("Version information",
 			zap.String("version", version.GetVersion()),
 			zap.String("build", version.GetFullVersion()))

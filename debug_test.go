@@ -5,16 +5,23 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kanywst/y509/internal/config"
 	"github.com/kanywst/y509/internal/model"
 	"github.com/kanywst/y509/pkg/certificate"
 )
 
 func TestDebugMinimumSizeWarning(t *testing.T) {
 	// Create test certificates
-	certs := []*certificate.CertificateInfo{}
+	certs := []*certificate.Info{}
+
+	// Load config
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
 
 	// Create model
-	m := model.NewModel(certs)
+	m := model.NewModel(certs, cfg)
 
 	// Simulate what the test is doing
 	m.SetDimensions(10, 3)
@@ -25,10 +32,10 @@ func TestDebugMinimumSizeWarning(t *testing.T) {
 	view := m.View()
 	fmt.Printf("View content: %q\n", view)
 
-	// テキストには改行が含まれるかもしれないので、正規表現を使用して確認します
+	// The text might contain newlines, so we check using substrings
 	if strings.Contains(view, "Terminal") && strings.Contains(view, "too small") {
 		fmt.Println("✓ Minimum size warning is working correctly")
-		// テストは成功
+		// Test passed
 	} else {
 		t.Errorf("Expected minimum size warning, got: %q\n", view)
 		fmt.Printf("✗ Expected minimum size warning, got: %q\n", view)

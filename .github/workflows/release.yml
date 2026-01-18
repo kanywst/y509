@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.20'
+          go-version: '1.25.6'
 
       - name: Get version
         id: get_version
@@ -44,7 +44,7 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             release/y509-${{ env.VERSION#v }}-darwin-amd64.tar.gz
@@ -56,17 +56,3 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update Homebrew formula
-        run: |
-          VERSION_NUM=${VERSION#v}
-          SHA256=$(shasum -a 256 "release/y509-${VERSION_NUM}-darwin-amd64.tar.gz" | cut -d ' ' -f 1)
-          sed -i "s/url \"https:\/\/github.com\/kanywst\/y509\/archive\/refs\/tags\/v.*\.tar\.gz\"/url \"https:\/\/github.com\/kanywst\/y509\/archive\/refs\/tags\/${VERSION}.tar.gz\"/" Formula/y509.rb
-          sed -i "s/sha256 \"[a-f0-9]*\"/sha256 \"${SHA256}\"/" Formula/y509.rb
-          sed -i "s/sha256 \"REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE\"/sha256 \"${SHA256}\"/" Formula/y509.rb
-
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add Formula/y509.rb
-          git commit -m "Update Homebrew formula for ${VERSION}"
-          git push

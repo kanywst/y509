@@ -2,13 +2,13 @@
 set -e
 
 # This script prepares a new release for y509
-# Usage: ./release.sh v0.4.1
+# Usage: ./release.sh v0.5.0
 
 VERSION=$1
 
 if [ -z "$VERSION" ]; then
     echo "Error: Version number is required"
-    echo "Usage: ./release.sh v0.4.1"
+    echo "Usage: ./release.sh v0.5.0"
     exit 1
 fi
 
@@ -47,17 +47,15 @@ echo "Updating homebrew formula..."
 # Update URL in Formula
 sed -i '' "s/url \"https:\/\/github.com\/kanywst\/y509\/archive\/refs\/tags\/v.*\.tar\.gz\"/url \"https:\/\/github.com\/kanywst\/y509\/archive\/refs\/tags\/$VERSION.tar.gz\"/" Formula/y509.rb
 
-echo "⚠️ WARNING: The SHA256 hash needs to be updated after creating the GitHub release."
-echo "⚠️ You need to update Formula/y509.rb with the correct SHA256 after uploading the release."
-echo "⚠️ Run the following command to get the correct SHA256 hash:"
-echo "curl -L https://github.com/kanywst/y509/archive/refs/tags/$VERSION.tar.gz | shasum -a 256"
+echo "⚠️ WARNING: The SHA256 hash must be updated manually after the GitHub release is created."
+echo "⚠️ GitHub's automatically generated source tarball may have a different checksum than a local archive."
+echo "⚠️ To get the correct SHA256 hash after tagging and pushing, run:"
+echo "   curl -L https://github.com/kanywst/y509/archive/refs/tags/$VERSION.tar.gz | shasum -a 256"
 
 echo "Release preparation complete!"
 echo "Files are available in the 'release' directory"
 echo "Next steps:"
 echo "1. Create a new GitHub release with tag $VERSION"
-echo "2. Upload the .tar.gz files and checksums"
-echo "3. Get the SHA256 hash of the GitHub source tarball with:"
-echo "   curl -L https://github.com/kanywst/y509/archive/refs/tags/$VERSION.tar.gz | shasum -a 256"
-echo "4. Update Formula/y509.rb with the correct SHA256 hash"
-echo "5. Push the updated homebrew formula"
+echo "2. Upload the binary archives from the 'release' directory"
+echo "3. Update Formula/y509.rb with the correct SHA256 hash from GitHub"
+echo "4. Commit and push the updated homebrew formula"

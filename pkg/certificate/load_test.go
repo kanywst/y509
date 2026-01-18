@@ -19,7 +19,7 @@ func TestLoadCertificates_WithPrivateKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() { _ = os.Remove(tmpfile.Name()) }()
 
 	// Generate a key and cert
 	priv, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -32,13 +32,19 @@ func TestLoadCertificates_WithPrivateKey(t *testing.T) {
 	certBytes, _ := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 
 	// Write Cert
-	pem.Encode(tmpfile, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+	if err := pem.Encode(tmpfile, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Write Key
 	privBytes, _ := x509.MarshalECPrivateKey(priv)
-	pem.Encode(tmpfile, &pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes})
+	if err := pem.Encode(tmpfile, &pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes}); err != nil {
+		t.Fatal(err)
+	}
 
-	tmpfile.Close()
+	if err := tmpfile.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	// Try to load
 	certs, err := LoadCertificates(tmpfile.Name())

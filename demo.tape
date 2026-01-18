@@ -4,7 +4,16 @@ Set FontSize 16
 Set Width 1200
 Set Height 800
 Set Padding 20
-Set TypingSpeed 100ms
+Set TypingSpeed 75ms
+Set Theme "Catppuccin Macchiato"
+
+# Generate fresh certificates
+Hide
+Type "go run scripts/gen_demo_certs.go"
+Enter
+Sleep 1s
+Ctrl+L
+Show
 
 # Launch
 Type "./y509 testdata/demo/certs.pem"
@@ -12,53 +21,36 @@ Sleep 500ms
 Enter
 Sleep 2s
 
-# 1. Navigation (Basic)
+# 1. Navigation
 Type "j"
-Sleep 500ms
-Type "j"
-Sleep 500ms
-Type "k"
-Sleep 500ms
-
-# 2. Detail Pane Switching
-Type "k"
-Sleep 500ms
-
-# 3. Technical Detail
-Type ":"
 Sleep 200ms
-Type "san"
+Type "j"
+Sleep 200ms
+Type "k"
+Sleep 200ms
+
+# 2. Search Popup
+Type "/"
+Sleep 500ms
+Type "y509"
 Sleep 500ms
 Enter
-Sleep 2.5s
+Sleep 1.5s
+# Reset via Esc
 Escape
 Sleep 500ms
 
-# 4. Chain Validation (Killer Feature)
-Type ":"
-Type "validate"
-Enter
+# 3. Validation Popup
+Type "v"
 Sleep 3s
 Escape
 Sleep 500ms
 
-# 5. Search (Practical Use case)
-Type ":"
-Type "search Example"
-Enter
-Sleep 1.5s
-# Reset
-Type ":"
-Type "reset"
-Enter
-Sleep 1s
-
-# 6. Export (Show utility)
-Type ":"
-Type "export pem exported.pem"
-Enter
+# 4. Help
+Type "?"
 Sleep 2s
 Escape
 
 # Quit
+Sleep 500ms
 Type "q"

@@ -1,28 +1,18 @@
+// Package version provides version information for the application.
 package version
 
 import (
 	"strings"
-
-	"go.uber.org/zap"
 )
 
 var (
-	// Version is set via ldflags during build
+	// Version is the current version of the application
 	Version = "dev"
-	// GitCommit is set via ldflags during build
+	// GitCommit is the git commit hash at build time
 	GitCommit = "unknown"
-	// BuildDate is set via ldflags during build
+	// BuildDate is the date the binary was built
 	BuildDate = "unknown"
-	logger    *zap.Logger
 )
-
-func init() {
-	var err error
-	logger, err = zap.NewProduction()
-	if err != nil {
-		panic("failed to initialize zap logger")
-	}
-}
 
 // GetVersion returns the version string
 func GetVersion() string {

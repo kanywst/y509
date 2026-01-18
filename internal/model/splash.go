@@ -7,7 +7,7 @@ import (
 	"github.com/kanywst/y509/internal/version"
 )
 
-// ASCIIアートの表示サイズ閾値の定数
+// Threshold constants for ASCII art display sizes
 const (
 	CompactArtWidthThreshold  = 45
 	CompactArtHeightThreshold = 10
@@ -61,11 +61,10 @@ func (m Model) renderSplashScreen() string {
 	}
 
 	// Center the ASCII art
-	style := lipgloss.NewStyle().
+	style := m.Styles.Title.
 		Width(m.width).
 		Height(m.height).
 		Align(lipgloss.Center, lipgloss.Center).
-		Foreground(lipgloss.Color("62")).
 		Bold(true)
 
 	return style.Render(asciiArt)
