@@ -47,11 +47,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release/y509-${{ env.VERSION#v }}-darwin-amd64.tar.gz
-            release/y509-${{ env.VERSION#v }}-darwin-arm64.tar.gz
-            release/y509-${{ env.VERSION#v }}-linux-amd64.tar.gz
-            release/y509-${{ env.VERSION#v }}-linux-arm64.tar.gz
-            release/y509-${{ env.VERSION#v }}-checksums.txt
+            release/*.tar.gz
+            release/*-checksums.txt
           draft: false
           prerelease: false
         env:
