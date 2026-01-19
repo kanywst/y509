@@ -29,10 +29,22 @@ Sleep 200ms
 Type "k"
 Sleep 200ms
 
-# 2. Search Popup
+# 2. Tab Navigation
+Right
+Sleep 500ms
+Tab
+Sleep 1s
+Tab
+Sleep 1s
+Tab
+Sleep 1s
+Left
+Sleep 500ms
+
+# 3. Search Popup
 Type "/"
 Sleep 500ms
-Type "y509"
+Type "expired"
 Sleep 500ms
 Enter
 Sleep 1.5s
@@ -40,13 +52,13 @@ Sleep 1.5s
 Escape
 Sleep 500ms
 
-# 3. Validation Popup
+# 4. Validation Popup
 Type "v"
 Sleep 3s
 Escape
 Sleep 500ms
 
-# 4. Help
+# 5. Help
 Type "?"
 Sleep 2s
 Escape
