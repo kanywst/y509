@@ -3,7 +3,7 @@ cask "y509" do
   name "y509"
   desc "Certificate Chain TUI Viewer"
   homepage "https://github.com/kanywst/y509"
-  version "0.6.0"
+  version "0.6.1"
 
   livecheck do
     skip "Auto-generated on release."
@@ -17,22 +17,22 @@ cask "y509" do
   on_macos do
     on_intel do
       url "https://github.com/kanywst/y509/releases/download/v#{version}/y509-#{version}-darwin-amd64.tar.gz"
-      sha256 "a53d924dc786b66f0f2f5a83489d19ed2cdc31fa2c0e14a52ef395ba43f46057"
+      sha256 "46b98e72442a96075e6a5ed764d1a0280d104bbb6183d21ec67dfd5d536f433d"
     end
     on_arm do
       url "https://github.com/kanywst/y509/releases/download/v#{version}/y509-#{version}-darwin-arm64.tar.gz"
-      sha256 "2ceff22b194ccecd11f4f5b83eccafcaecdb7451148950ad6c2452ed31445b13"
+      sha256 "092185de85f5b2a8c58de75b1cf4eba71b4ef8ff6666a1b4314d8c5a47c417e9"
     end
   end
 
   on_linux do
     on_intel do
       url "https://github.com/kanywst/y509/releases/download/v#{version}/y509-#{version}-linux-amd64.tar.gz"
-      sha256 "e2e28b79d68312a58a37203773e275ab3ca4111b40a32a8b1c60934c7e961cf2"
+      sha256 "6ae72597cf0abf8dfeb4c4498227586f775207caa5309a9adcf7307dfba183b8"
     end
     on_arm do
       url "https://github.com/kanywst/y509/releases/download/v#{version}/y509-#{version}-linux-arm64.tar.gz"
-      sha256 "3aa26613f018285ca0647ac4bee47d2661b67bd599a0676305ea8ec00a71d465"
+      sha256 "d90b2cc2593e038d110c4b07f231aee009117c457e113089584139a3bfcd5ac8"
     end
   end
 
