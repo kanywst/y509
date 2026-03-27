@@ -29,6 +29,7 @@ type Styles struct {
 	PaneFocus     lipgloss.Style
 	Warning       lipgloss.Style
 	StatusBar     lipgloss.Style
+	StatusBarKey  lipgloss.Style
 	CommandBar    lipgloss.Style
 	CommandError  lipgloss.Style
 	Highlight     lipgloss.Style
@@ -39,10 +40,25 @@ type Styles struct {
 	Title         lipgloss.Style
 	SectionTitle  lipgloss.Style
 	DetailKey     lipgloss.Style
+	DetailValue   lipgloss.Style
 	Tab           lipgloss.Style
 	TabActive     lipgloss.Style
-	TabSeparator  lipgloss.Style
 	ListRowAlt    lipgloss.Style
+	HeaderTitle   lipgloss.Style
+	Breadcrumb    lipgloss.Style
+	BreadcrumbSep lipgloss.Style
+	PopupBorder   lipgloss.Style
+	PopupTitle    lipgloss.Style
+	PopupHint     lipgloss.Style
+	Badge         lipgloss.Style
+	BadgeValid    lipgloss.Style
+	BadgeWarning  lipgloss.Style
+	BadgeExpired  lipgloss.Style
+	ChainLine     lipgloss.Style
+	ChainNode     lipgloss.Style
+	ProgressFull  lipgloss.Style
+	ProgressEmpty lipgloss.Style
+	Dimmed        lipgloss.Style
 }
 
 // NewStyles creates a new Styles struct from a theme.
@@ -51,21 +67,37 @@ func NewStyles(theme *config.Theme) Styles {
 		Pane:          lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).BorderForeground(lipgloss.Color(theme.Border)),
 		PaneFocus:     lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).BorderForeground(lipgloss.Color(theme.BorderFocus)),
 		Warning:       lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Error)).Bold(true),
-		StatusBar:     lipgloss.NewStyle().Background(lipgloss.Color(theme.StatusBar)).Foreground(lipgloss.Color(theme.StatusBarText)).Bold(true),
+		StatusBar:     lipgloss.NewStyle().Background(lipgloss.Color(theme.StatusBar)).Foreground(lipgloss.Color(theme.StatusBarText)).Padding(0, 1),
+		StatusBarKey:  lipgloss.NewStyle().Background(lipgloss.Color(theme.Highlight)).Foreground(lipgloss.Color(theme.HighlightText)).Bold(true).Padding(0, 1),
 		CommandBar:    lipgloss.NewStyle().Background(lipgloss.Color(theme.CommandBar)).Foreground(lipgloss.Color(theme.CommandBarText)),
 		CommandError:  lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Error)).Bold(true),
-		Highlight:     lipgloss.NewStyle().Background(lipgloss.Color(theme.Highlight)).Foreground(lipgloss.Color(theme.HighlightText)),
-		HighlightDim:  lipgloss.NewStyle().Background(lipgloss.Color(theme.HighlightDim)),
+		Highlight:     lipgloss.NewStyle().Background(lipgloss.Color(theme.Highlight)).Foreground(lipgloss.Color(theme.HighlightText)).Bold(true),
+		HighlightDim:  lipgloss.NewStyle().Background(lipgloss.Color(theme.HighlightDim)).Foreground(lipgloss.Color(theme.Text)),
 		StatusValid:   lipgloss.NewStyle().Foreground(lipgloss.Color(theme.StatusValid)),
 		StatusWarning: lipgloss.NewStyle().Foreground(lipgloss.Color(theme.StatusWarning)),
 		StatusExpired: lipgloss.NewStyle().Foreground(lipgloss.Color(theme.StatusExpired)),
 		Title:         lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Title)),
-		SectionTitle:  lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Title)).Bold(true),
-		DetailKey:     lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Text)).Bold(true),
-		Tab:           lipgloss.NewStyle().Padding(0, 1),
-		TabActive:     lipgloss.NewStyle().Padding(0, 1).Underline(true).Bold(true),
-		TabSeparator:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")).SetString(" | "),
+		SectionTitle:  lipgloss.NewStyle().Foreground(lipgloss.Color(theme.SectionTitle)).Bold(true),
+		DetailKey:     lipgloss.NewStyle().Foreground(lipgloss.Color(theme.DetailKey)),
+		DetailValue:   lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Text)),
+		Tab:           lipgloss.NewStyle().Padding(0, 2).Foreground(lipgloss.Color(theme.DetailKey)),
+		TabActive:     lipgloss.NewStyle().Padding(0, 2).Foreground(lipgloss.Color(theme.Title)).Bold(true),
 		ListRowAlt:    lipgloss.NewStyle().Background(lipgloss.Color(theme.ListRowAlt)),
+		HeaderTitle:   lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Title)).Bold(true).Padding(0, 1),
+		Breadcrumb:    lipgloss.NewStyle().Foreground(lipgloss.Color(theme.DetailKey)),
+		BreadcrumbSep: lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Border)).SetString(" › "),
+		PopupBorder:   lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color(theme.BorderFocus)).Padding(1, 2),
+		PopupTitle:    lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Title)).Bold(true),
+		PopupHint:     lipgloss.NewStyle().Foreground(lipgloss.Color(theme.DetailKey)).Italic(true),
+		Badge:         lipgloss.NewStyle().Padding(0, 1),
+		BadgeValid:    lipgloss.NewStyle().Foreground(lipgloss.Color(theme.StatusValid)).Bold(true),
+		BadgeWarning:  lipgloss.NewStyle().Foreground(lipgloss.Color(theme.StatusWarning)).Bold(true),
+		BadgeExpired:  lipgloss.NewStyle().Foreground(lipgloss.Color(theme.StatusExpired)).Bold(true),
+		ChainLine:     lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Border)),
+		ChainNode:     lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Title)),
+		ProgressFull:  lipgloss.NewStyle().Foreground(lipgloss.Color(theme.StatusValid)),
+		ProgressEmpty: lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Border)),
+		Dimmed:        lipgloss.NewStyle().Foreground(lipgloss.Color(theme.DetailKey)),
 	}
 }
 

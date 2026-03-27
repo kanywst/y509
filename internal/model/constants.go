@@ -36,8 +36,7 @@ type SplashDoneMsg struct{}
 // Formatting constants
 const (
 	// Status bar
-	statusBarHeight  = 1
-	commandBarHeight = 1
+	statusBarHeight = 1
 
 	// Layout heights
 	HeaderHeight     = 2 // Title + separator line
