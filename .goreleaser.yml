@@ -43,8 +43,8 @@ homebrew_casks:
     description: "Certificate Chain TUI Viewer"
     repository:
       owner: kanywst
-      name: homebrew-y509
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+      name: y509
+      token: "{{ .Env.GITHUB_TOKEN }}"
 
 nfpms:
   - maintainer: kanywst
