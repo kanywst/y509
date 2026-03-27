@@ -15,7 +15,8 @@ builds:
       - -s -w -X github.com/kanywst/y509/internal/version.Version={{.Version}} -X github.com/kanywst/y509/internal/version.GitCommit={{.Commit}} -X github.com/kanywst/y509/internal/version.BuildDate={{.Date}}
 
 archives:
-  - format: tar.gz
+  - formats:
+      - tar.gz
     name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
     files:
       - LICENSE
@@ -29,41 +30,21 @@ release:
 checksum:
   name_template: "{{ .ProjectName }}-{{ .Version }}-checksums.txt"
 
-# シェル補完スクリプトを生成
-# コマンド内の completion サブコマンドを利用
-snapcrafts:
-  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    summary: Certificate Chain TUI Viewer
-    description: |
-      y509 is a terminal-based (TUI) certificate chain viewer
-      that provides an interactive way to examine and validate 
-      X.509 certificate chains.
-    
-    # Generate shell completions
-    apps:
-      y509:
-        command: y509
-        completer: completions/y509.bash
-
-brews:
+homebrew_casks:
   - name: y509
+    binaries:
+      - y509
+    manpages:
+      - man/man1/y509.1
+    generate_completions_from_executable:
+      args:
+        - completion
+    homepage: "https://github.com/kanywst/y509"
+    description: "Certificate Chain TUI Viewer"
     repository:
       owner: kanywst
       name: homebrew-y509
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/kanywst/y509"
-    description: "Certificate Chain TUI Viewer"
-    license: "MIT"
-    dependencies:
-      - go
-    install: |
-      bin.install "y509"
-      man1.install "man/man1/y509.1"
-      # Generate shell completions directly using the binary
-      generate_completions_from_executable(bin/"y509", "completion")
-    test: |
-      system "#{bin}/y509", "--version"
-      system "#{bin}/y509", "--help"
 
 nfpms:
   - maintainer: kanywst
