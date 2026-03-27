@@ -47,7 +47,7 @@ snapcrafts:
 
 brews:
   - name: y509
-    tap:
+    repository:
       owner: kanywst
       name: homebrew-y509
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"

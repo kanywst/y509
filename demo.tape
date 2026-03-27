@@ -6,6 +6,9 @@ Set Height 800
 Set Padding 20
 Set TypingSpeed 75ms
 Set Theme "Catppuccin Mocha"
+Set WindowBar Colorful
+Set WindowBarSize 40
+Set BorderRadius 10
 
 # Generate fresh certificates
 Hide
