@@ -17,22 +17,22 @@ cask "y509" do
   on_macos do
     on_intel do
       url "https://github.com/kanywst/y509/releases/download/v#{version}/y509-#{version}-darwin-amd64.tar.gz"
-      sha256 "1175088de7eb1dec6b41d043f99b3ed93e85f8794744ca30c1baecfa6d0961b5"
+      sha256 "a53d924dc786b66f0f2f5a83489d19ed2cdc31fa2c0e14a52ef395ba43f46057"
     end
     on_arm do
       url "https://github.com/kanywst/y509/releases/download/v#{version}/y509-#{version}-darwin-arm64.tar.gz"
-      sha256 "1f9fb658a161050f4dd57cecedaeb6bf5d6631ec5743e10a7ef16f3b1affdd70"
+      sha256 "2ceff22b194ccecd11f4f5b83eccafcaecdb7451148950ad6c2452ed31445b13"
     end
   end
 
   on_linux do
     on_intel do
       url "https://github.com/kanywst/y509/releases/download/v#{version}/y509-#{version}-linux-amd64.tar.gz"
-      sha256 "2c1dd5966af74427f488f6a808c344eb2b2c49dce6e8af65867a567b73c7bd4c"
+      sha256 "e2e28b79d68312a58a37203773e275ab3ca4111b40a32a8b1c60934c7e961cf2"
     end
     on_arm do
       url "https://github.com/kanywst/y509/releases/download/v#{version}/y509-#{version}-linux-arm64.tar.gz"
-      sha256 "bc9e7f1596c8464f82a8f58a61fce89771ab61be31dc073ed44a6763244811eb"
+      sha256 "3aa26613f018285ca0647ac4bee47d2661b67bd599a0676305ea8ec00a71d465"
     end
   end
 
