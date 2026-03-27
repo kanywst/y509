@@ -182,8 +182,8 @@ func renderExpiryWithBar(certInfo *certificate.Info, styles Styles) string {
 	}
 
 	days := int(d.Hours() / 24)
-	totalLife := cert.NotAfter.Sub(cert.NotBefore).Hours() / 24
-	ratio := float64(days) / math.Max(totalLife, 1)
+	const maxDays = 3650 // 10 years as 100%
+	ratio := float64(days) / maxDays
 	if ratio > 1 {
 		ratio = 1
 	}
