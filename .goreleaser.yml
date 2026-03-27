@@ -22,6 +22,7 @@ archives:
       - LICENSE
       - README.md
       - man/man1/*
+      - completions/*
 
 # 自動的にシェル補完スクリプトを生成
 release:
