@@ -188,7 +188,7 @@ func renderExpiryWithBar(certInfo *certificate.Info, styles Styles) string {
 		ratio = 1
 	}
 
-	barWidth := 6
+	barWidth := 20
 	filled := min(int(ratio*float64(barWidth)), barWidth)
 
 	var barStyle lipgloss.Style
