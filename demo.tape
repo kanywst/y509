@@ -5,33 +5,40 @@ Set Width 1200
 Set Height 800
 Set Padding 20
 Set TypingSpeed 75ms
-Set Theme "Catppuccin Macchiato"
+Set Theme "Catppuccin Mocha"
 
 # Generate fresh certificates
 Hide
 Type "go run scripts/gen_demo_certs.go"
 Enter
 Sleep 1s
+Type "go build -o y509 ./cmd/y509 && export PATH=$PWD:$PATH"
+Enter
+Sleep 2s
 Ctrl+L
 Show
 
 # Launch
-Type "./y509 testdata/demo/certs.pem"
+Type "y509 testdata/demo/certs.pem"
 Sleep 500ms
 Enter
 Sleep 2s
 
-# 1. Navigation
+# 1. Navigate certificate list
 Type "j"
-Sleep 200ms
+Sleep 400ms
 Type "j"
-Sleep 200ms
+Sleep 400ms
+Type "j"
+Sleep 400ms
 Type "k"
-Sleep 200ms
+Sleep 400ms
 
-# 2. Tab Navigation
+# 2. Switch to details pane and browse tabs
 Right
 Sleep 500ms
+Tab
+Sleep 1s
 Tab
 Sleep 1s
 Tab
@@ -41,28 +48,37 @@ Sleep 1s
 Left
 Sleep 500ms
 
-# 3. Search Popup
+# 3. Search
 Type "/"
+Sleep 500ms
+Type "root"
+Sleep 500ms
+Enter
+Sleep 1.5s
+Escape
+Sleep 500ms
+
+# 4. Filter
+Type "f"
 Sleep 500ms
 Type "expired"
 Sleep 500ms
 Enter
 Sleep 1.5s
-# Reset via Esc
 Escape
 Sleep 500ms
 
-# 4. Validation Popup
+# 5. Validate
 Type "v"
-Sleep 3s
-Escape
+Sleep 2.5s
+Enter
 Sleep 500ms
 
-# 5. Help
+# 6. Help
 Type "?"
 Sleep 2s
 Escape
+Sleep 500ms
 
 # Quit
-Sleep 500ms
 Type "q"

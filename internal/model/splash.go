@@ -13,59 +13,52 @@ const (
 	CompactArtHeightThreshold = 10
 
 	MediumArtWidthThreshold  = 60
-	MediumArtHeightThreshold = 12
+	MediumArtHeightThreshold = 14
 )
 
 // renderSplashScreen renders the y509 ASCII art splash screen with adaptive sizing
 func (m Model) renderSplashScreen() string {
-	// Get version dynamically
 	ver := version.GetShortVersion()
 
 	var asciiArt string
+	var subtitle string
 
-	// Adapt ASCII art based on terminal size
 	if m.width < CompactArtWidthThreshold || m.height < CompactArtHeightThreshold {
-		// Compact version for small terminals
-		asciiArt = fmt.Sprintf(`
- ██   ██ ███████  ██████   █████  
-  ████   ██       █████   ██   ██ 
-   ██    ███████ ██    ██  █████  
-                                 
-   Certificate Chain TUI Viewer
-                %s
-    `, ver)
+		asciiArt = `
+ ██   ██ ███████  ██████   █████
+  ████   ██       █████   ██   ██
+   ██    ███████ ██    ██  █████  `
+		subtitle = fmt.Sprintf("Certificate Chain TUI Viewer  %s", ver)
 	} else if m.width < MediumArtWidthThreshold || m.height < MediumArtHeightThreshold {
-		// Medium version
-		asciiArt = fmt.Sprintf(`
-██    ██ ███████  ██████   █████  
- ██  ██  ██      ██    ██ ██   ██ 
-  ████   ███████ ██    ██  █████  
-   ██         ██ ██    ██      ██ 
-   ██    ███████  ██████   █████  
-                                 
-     Certificate Chain TUI Viewer
-                 %s
-    `, ver)
+		asciiArt = `
+██    ██ ███████  ██████   █████
+ ██  ██  ██      ██    ██ ██   ██
+  ████   ███████ ██    ██  █████
+   ██         ██ ██    ██      ██
+   ██    ███████  ██████   █████  `
+		subtitle = fmt.Sprintf("Certificate Chain TUI Viewer  %s", ver)
 	} else {
-		// Full version for larger terminals
-		asciiArt = fmt.Sprintf(`
-██    ██ ███████  ██████   █████  
- ██  ██  ██      ██    ██ ██   ██ 
-  ████   ███████ ██    ██  █████  
-   ██         ██ ██    ██      ██ 
-   ██    ███████  ██████   █████  
-                                          
-         Certificate Chain TUI Viewer
-                   %s
-    `, ver)
+		asciiArt = `
+██    ██ ███████  ██████   █████
+ ██  ██  ██      ██    ██ ██   ██
+  ████   ███████ ██    ██  █████
+   ██         ██ ██    ██      ██
+   ██    ███████  ██████   █████  `
+		subtitle = fmt.Sprintf("🔐  Certificate Chain TUI Viewer\n%s", ver)
 	}
 
-	// Center the ASCII art
-	style := m.Styles.Title.
+	artStyle := m.Styles.Title.Bold(true)
+	subtitleStyle := m.Styles.Dimmed
+
+	rendered := lipgloss.JoinVertical(lipgloss.Center,
+		artStyle.Render(asciiArt),
+		"",
+		subtitleStyle.Render(subtitle),
+	)
+
+	return lipgloss.NewStyle().
 		Width(m.width).
 		Height(m.height).
 		Align(lipgloss.Center, lipgloss.Center).
-		Bold(true)
-
-	return style.Render(asciiArt)
+		Render(rendered)
 }
