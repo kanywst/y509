@@ -28,18 +28,18 @@ openssl s_client -connect example.com:443 -showcerts | y509
 
 ## Keybindings
 
-| Key | Action |
-|:---:|:---|
-| `↑/k` `↓/j` | Navigate list |
-| `←/h` `→/l` | Switch panes |
-| `tab` | Cycle detail tabs |
-| `/` | Search |
-| `f` | Filter (expired, expiring, valid, self-signed) |
-| `v` | Validate certificate |
-| `e` | Export certificate |
-| `esc` | Clear filter / close popup |
-| `?` | Help |
-| `q` | Quit |
+|     Key     | Action                                         |
+| :---------: | :--------------------------------------------- |
+| `↑/k` `↓/j` | Navigate list                                  |
+| `←/h` `→/l` | Switch panes                                   |
+|    `tab`    | Cycle detail tabs                              |
+|     `/`     | Search                                         |
+|     `f`     | Filter (expired, expiring, valid, self-signed) |
+|     `v`     | Validate certificate                           |
+|     `e`     | Export certificate                             |
+|    `esc`    | Clear filter / close popup                     |
+|     `?`     | Help                                           |
+|     `q`     | Quit                                           |
 
 ## Configuration
 
