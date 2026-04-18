@@ -182,12 +182,12 @@ func renderExpiryWithBar(certInfo *certificate.Info, styles Styles) string {
 	}
 
 	days := int(d.Hours() / 24)
-	totalLife := cert.NotAfter.Sub(cert.NotBefore).Hours() / 24
-	if totalLife <= 0 {
-		totalLife = 1
+	totalDuration := cert.NotAfter.Sub(cert.NotBefore)
+	if totalDuration <= 0 {
+		totalDuration = time.Hour
 	}
 
-	ratio := float64(days) / totalLife
+	ratio := d.Seconds() / totalDuration.Seconds()
 	if ratio > 1 {
 		ratio = 1
 	} else if ratio < 0 {
