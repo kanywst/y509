@@ -178,18 +178,27 @@ func renderExpiryWithBar(certInfo *certificate.Info, styles Styles) string {
 	d := time.Until(cert.NotAfter)
 
 	if d < 0 {
-		return styles.StatusExpired.Render("● Expired")
+		return styles.StatusExpired.Render("Expired")
 	}
 
 	days := int(d.Hours() / 24)
-	const maxDays = 3650 // 10 years as 100%
-	ratio := float64(days) / maxDays
-	if ratio > 1 {
-		ratio = 1
+	totalLife := cert.NotAfter.Sub(cert.NotBefore).Hours() / 24
+	if totalLife <= 0 {
+		totalLife = 1
 	}
 
-	barWidth := 20
-	filled := min(int(ratio*float64(barWidth)), barWidth)
+	ratio := float64(days) / totalLife
+	if ratio > 1 {
+		ratio = 1
+	} else if ratio < 0 {
+		ratio = 0
+	}
+
+	barWidth := 6 // Fits well within the 14-char column width (6 + 1 + label)
+	filled := int(ratio * float64(barWidth))
+	if filled == 0 && days > 0 {
+		filled = 1 // Show at least a minimal bar if active
+	}
 
 	var barStyle lipgloss.Style
 	if days <= 30 {
@@ -202,7 +211,8 @@ func renderExpiryWithBar(certInfo *certificate.Info, styles Styles) string {
 		styles.Dimmed.Render(strings.Repeat("░", barWidth-filled))
 
 	label := fmt.Sprintf("%dd", days)
-	return bar + " " + label
+	// Right-align label for neat column
+	return fmt.Sprintf("%s %4s", bar, label)
 }
 
 // renderRightPane renders the tabbed certificate details pane
