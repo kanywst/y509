@@ -1,9 +1,12 @@
 package model
 
 import (
+	"strings"
+
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/huh/v2"
 	"github.com/kanywst/y509/internal/logger"
 	"go.uber.org/zap"
 )
@@ -123,9 +126,8 @@ func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Export):
 		m.viewMode = ViewPopup
 		m.popupType = PopupExport
-		m.textInput.Placeholder = "Filename (e.g. cert.pem)..."
-		m.textInput.Focus()
-		return m, textinput.Blink
+		m.exportForm = newExportForm()
+		return m, m.exportForm.Init()
 	}
 
 	return m, nil
@@ -167,11 +169,11 @@ func (m Model) updateHelpMode(_ tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 // updatePopupMode handles key events in popup mode
 func (m Model) updatePopupMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	key := msg.String()
+	keyStr := msg.String()
 
 	// Handle Alert Popup (no input, just dismiss)
 	if m.popupType == PopupAlert {
-		if key == "enter" || key == "esc" || key == "q" {
+		if keyStr == "enter" || keyStr == "esc" || keyStr == "q" {
 			m.viewMode = ViewNormal
 			m.popupType = PopupNone
 			return m, nil
@@ -179,8 +181,33 @@ func (m Model) updatePopupMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Export popup is driven by huh; delegate the message and bail out.
+	if m.popupType == PopupExport && m.exportForm != nil {
+		if keyStr == "esc" {
+			m.viewMode = ViewNormal
+			m.popupType = PopupNone
+			m.exportForm = nil
+			return m, nil
+		}
+		form, cmd := m.exportForm.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.exportForm = f
+		}
+		if m.exportForm.State == huh.StateCompleted {
+			filename := m.exportForm.GetString("filename")
+			format := m.exportForm.GetString("format")
+			if filename != "" && !strings.Contains(filename, ".") {
+				filename = filename + "." + format
+			}
+			m.exportForm = nil
+			m = m.handleExportCommand(filename)
+			return m, cmd
+		}
+		return m, cmd
+	}
+
 	// Handle Input Popups (Search/Filter)
-	switch key {
+	switch keyStr {
 	case "enter":
 		value := m.textInput.Value()
 		m.viewMode = ViewNormal // Return to normal mode first
@@ -190,8 +217,6 @@ func (m Model) updatePopupMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m = m.searchCertificates(value)
 		case PopupFilter:
 			m = m.filterCertificates(value)
-		case PopupExport:
-			m = m.handleExportCommand(value)
 		}
 		m.popupType = PopupNone
 		m.textInput.Reset()
