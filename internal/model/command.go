@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"crypto/x509"
+	"encoding/pem"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/kanywst/y509/internal/logger"
 	"github.com/kanywst/y509/pkg/certificate"
 )
@@ -217,6 +219,30 @@ func (m Model) resetAllFields() Model {
 	m.filterType = ""
 	m.viewport.SetYOffset(0)
 	return m
+}
+
+// handleYankCommand encodes the selected certificate as PEM and ships it
+// to the system clipboard via OSC52, then opens an alert popup so the
+// user knows the copy succeeded (or why it didn't).
+func (m Model) handleYankCommand() (Model, tea.Cmd) {
+	if len(m.certificates) == 0 {
+		return m, nil
+	}
+	cert := m.certificates[m.list.Index()].Certificate
+	pemBytes := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert.Raw,
+	})
+	if pemBytes == nil {
+		m.popupMessage = "❌ Failed to encode certificate as PEM"
+		m.viewMode = ViewPopup
+		m.popupType = PopupAlert
+		return m, nil
+	}
+	m.popupMessage = fmt.Sprintf("✅ Copied PEM to clipboard\n\nSubject: %s\nBytes:   %d", cert.Subject.CommonName, len(pemBytes))
+	m.viewMode = ViewPopup
+	m.popupType = PopupAlert
+	return m, tea.SetClipboard(string(pemBytes))
 }
 
 // handleExportCommand handles the export of the current certificate

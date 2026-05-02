@@ -128,6 +128,10 @@ func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.popupType = PopupExport
 		m.exportForm = newExportForm()
 		return m, m.exportForm.Init()
+	case key.Matches(msg, m.keys.Yank):
+		var cmd tea.Cmd
+		m, cmd = m.handleYankCommand()
+		return m, cmd
 	}
 
 	return m, nil
