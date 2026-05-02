@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/table"
 	"github.com/kanywst/y509/pkg/certificate"
 )
 
@@ -326,35 +327,52 @@ func (m Model) renderTabContent(width int) string {
 	return lipgloss.NewStyle().Width(width).Render(b.String())
 }
 
-// renderChainPosition shows a visual chain diagram for the current cert
+// renderChainPosition shows the certificate chain as a table, marking the
+// current certificate with a leading caret. The table layout is provided
+// by lipgloss/v2/table, including border and per-cell styling.
 func (m Model) renderChainPosition(current *certificate.Info) string {
-	var b strings.Builder
-	connector := m.Styles.ChainLine.Render("  │")
-	arrow := m.Styles.ChainLine.Render("  ├── ")
-	lastArrow := m.Styles.ChainLine.Render("  └── ")
-
+	currentRow := -1
+	rows := make([][]string, 0, len(m.allCertificates))
 	for i, cert := range m.allCertificates {
 		cn := cert.Certificate.Subject.CommonName
 		if cn == "" {
 			cn = "(no CN)"
 		}
-
-		prefix := arrow
-		if i == len(m.allCertificates)-1 {
-			prefix = lastArrow
+		role := "Intermediate"
+		switch {
+		case i == 0:
+			role = "Leaf"
+		case i == len(m.allCertificates)-1 && cert.Certificate.Issuer.String() == cert.Certificate.Subject.String():
+			role = "Root"
 		}
-
+		marker := " "
 		if cert == current {
-			b.WriteString(prefix + m.Styles.Title.Bold(true).Render("● "+cn) + " ◄\n")
-		} else {
-			b.WriteString(prefix + m.Styles.Dimmed.Render("○ "+cn) + "\n")
+			marker = "►"
+			currentRow = i
 		}
-
-		if i < len(m.allCertificates)-1 {
-			b.WriteString(connector + "\n")
-		}
+		rows = append(rows, []string{marker, fmt.Sprintf("%d", i+1), role, cn})
 	}
-	return b.String()
+
+	t := table.New().
+		Border(lipgloss.RoundedBorder()).
+		BorderStyle(m.Styles.ChainLine).
+		Headers("", "#", "Type", "Subject").
+		Rows(rows...).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			base := lipgloss.NewStyle().Padding(0, 1)
+			if row == table.HeaderRow {
+				return base.Inherit(m.Styles.Dimmed.Bold(true))
+			}
+			if row == currentRow {
+				return base.Inherit(m.Styles.Title.Bold(true))
+			}
+			if col == 0 {
+				return base.Inherit(m.Styles.ChainNode)
+			}
+			return base.Inherit(m.Styles.Dimmed)
+		})
+
+	return t.Render()
 }
 
 func getStatusIconAndStyle(certInfo *certificate.Info, styles Styles) (string, lipgloss.Style) {
