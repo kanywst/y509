@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Built with Bubble Tea](https://img.shields.io/badge/Built%20with-Bubble%20Tea-B7A0E8.svg)](https://github.com/charmbracelet/bubbletea)
 
-A TUI for analyzing and validating X.509 certificate chains. Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Gloss](https://github.com/charmbracelet/lipgloss).
+A TUI for analyzing and validating X.509 certificate chains. Built on the [Charm](https://charm.sh) v2 stack — [Bubble Tea](https://charm.land/bubbletea/v2), [Lip Gloss](https://charm.land/lipgloss/v2), [Bubbles](https://charm.land/bubbles/v2), and [huh](https://charm.land/huh/v2).
 
 ![y509 Demo](demo.gif)
 
@@ -15,7 +15,7 @@ A TUI for analyzing and validating X.509 certificate chains. Built with [Bubble 
 brew tap kanywst/y509 https://github.com/kanywst/y509
 brew install y509
 
-# Go 1.25+
+# Go 1.26+
 go install github.com/kanywst/y509@latest
 ```
 
@@ -36,7 +36,8 @@ openssl s_client -connect example.com:443 -showcerts | y509
 |     `/`     | Search                                         |
 |     `f`     | Filter (expired, expiring, valid, self-signed) |
 |     `v`     | Validate certificate                           |
-|     `e`     | Export certificate                             |
+|     `e`     | Export certificate (filename + format form)    |
+|     `y`     | Copy selected certificate as PEM (OSC52)       |
 |    `esc`    | Clear filter / close popup                     |
 |     `?`     | Help                                           |
 |     `q`     | Quit                                           |
