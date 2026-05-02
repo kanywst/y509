@@ -74,8 +74,8 @@ func (m Model) renderHeader() string {
 		crumbs = append(crumbs, m.Styles.Title.Render(m.filterType))
 	}
 
-	if m.cursor < len(m.certificates) {
-		cn := m.certificates[m.cursor].Certificate.Subject.CommonName
+	if idx := m.list.Index(); idx < len(m.certificates) {
+		cn := m.certificates[idx].Certificate.Subject.CommonName
 		if cn == "" {
 			cn = "Unknown"
 		}
@@ -105,7 +105,7 @@ func (m Model) renderTwoPanes() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
 }
 
-// renderLeftPane renders the certificate list pane
+// renderLeftPane renders the certificate list pane backed by bubbles/list.
 func (m Model) renderLeftPane(width, height int) string {
 	paneStyle := m.Styles.Pane
 	if m.focus == FocusLeft {
@@ -113,72 +113,23 @@ func (m Model) renderLeftPane(width, height int) string {
 	}
 	paneStyle = paneStyle.BorderRight(false).Width(width).Height(height)
 
-	innerWidth := width - 1
-
-	var b strings.Builder
-
+	innerWidth := width - 2 // -2 for left/right border
 	statusWidth := 4
 	expiresWidth := 14
 	subjectWidth := innerWidth - statusWidth - expiresWidth
-	subjectWidth = max(subjectWidth, 10)
+	if subjectWidth < 10 {
+		subjectWidth = 10
+	}
 
-	// Column header with subtle style
 	header := lipgloss.JoinHorizontal(lipgloss.Left,
 		m.Styles.Dimmed.Bold(true).Width(statusWidth).Render("  "),
 		m.Styles.Dimmed.Bold(true).Width(subjectWidth).Render("SUBJECT"),
 		m.Styles.Dimmed.Bold(true).Width(expiresWidth).Render("EXPIRES"),
 	)
-	b.WriteString(header)
-	b.WriteString("\n")
 
-	// Calculate visible range
-	availableHeight := height - ListHeaderHeight
-	if availableHeight <= 0 {
-		return paneStyle.Render(b.String())
-	}
-
-	start := m.listScroll
-	end := min(start+availableHeight, len(m.certificates))
-
-	for i := start; i < end; i++ {
-		certInfo := m.certificates[i]
-		statusIcon, statusStyle := getStatusIconAndStyle(certInfo, m.Styles)
-		expiresStr := renderExpiryWithBar(certInfo, m.Styles)
-
-		var baseStyle lipgloss.Style
-		isCursor := i == m.cursor
-		if isCursor {
-			if m.focus == FocusLeft {
-				baseStyle = m.Styles.Highlight
-			} else {
-				baseStyle = m.Styles.HighlightDim
-			}
-		} else if i%2 != 0 {
-			baseStyle = m.Styles.ListRowAlt
-		} else {
-			baseStyle = lipgloss.NewStyle()
-		}
-
-		// Icon column
-		sStyle := statusStyle.Background(baseStyle.GetBackground())
-		sCol := sStyle.Width(statusWidth).Render(" " + statusIcon + " ")
-
-		// Subject column
-		cn := certInfo.Certificate.Subject.CommonName
-		if cn == "" {
-			cn = "(no CN)"
-		}
-		cCol := baseStyle.Width(subjectWidth).Render(truncateText(cn, subjectWidth-1))
-
-		// Expires column
-		eCol := baseStyle.Width(expiresWidth).Render(expiresStr)
-
-		row := lipgloss.JoinHorizontal(lipgloss.Left, sCol, cCol, eCol)
-		b.WriteString(row)
-		b.WriteString("\n")
-	}
-
-	return paneStyle.Render(b.String())
+	body := lipgloss.JoinVertical(lipgloss.Left, header, m.list.View())
+	_ = innerWidth // sizing handled in Update via WindowSizeMsg
+	return paneStyle.Render(body)
 }
 
 // renderExpiryWithBar renders expiry info with a mini progress bar
@@ -226,7 +177,7 @@ func renderExpiryWithBar(certInfo *certificate.Info, styles Styles) string {
 
 // renderRightPane renders the tabbed certificate details pane
 func (m Model) renderRightPane(width, height int) string {
-	if m.cursor >= len(m.certificates) {
+	if m.list.Index() >= len(m.certificates) {
 		return "No certificate selected."
 	}
 
@@ -276,7 +227,7 @@ func (m Model) renderTabs(_ int) string {
 // Width is used to size the inner column; vertical truncation is handled
 // by the caller's viewport.
 func (m Model) renderTabContent(width int) string {
-	cert := m.certificates[m.cursor]
+	cert := m.certificates[m.list.Index()]
 	var b strings.Builder
 
 	kv := func(key, value string) {

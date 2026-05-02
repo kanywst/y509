@@ -66,8 +66,8 @@ func TestNewModel(t *testing.T) {
 	if len(model.allCertificates) != 3 {
 		t.Errorf("Expected 3 certificates in allCertificates, got %d", len(model.allCertificates))
 	}
-	if model.cursor != 0 {
-		t.Errorf("Expected cursor to be 0, got %d", model.cursor)
+	if model.list.Index() != 0 {
+		t.Errorf("Expected cursor to be 0, got %d", model.list.Index())
 	}
 	if model.focus != FocusLeft {
 		t.Errorf("Expected focus to be FocusLeft, got %v", model.focus)
@@ -110,10 +110,11 @@ func TestUpdate(t *testing.T) {
 	}
 
 	m.viewMode = ViewNormal
+	m.list.SetSize(40, 10)
 	updatedModel, _ = m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyDown}))
 	m = updatedModel.(Model)
-	if m.cursor != 1 {
-		t.Errorf("Expected cursor to be 1, got %d", m.cursor)
+	if m.list.Index() != 1 {
+		t.Errorf("Expected cursor to be 1, got %d", m.list.Index())
 	}
 
 	// Test entering Popup mode

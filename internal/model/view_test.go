@@ -25,6 +25,7 @@ func TestRenderLeftPane(t *testing.T) {
 	m := NewModel(createTestCertificates(5), cfg)
 	m.width = 80
 	m.height = 24
+	m.list.SetSize(38, 18)
 	m.ready = true
 
 	pane := m.renderLeftPane(40, 20)
