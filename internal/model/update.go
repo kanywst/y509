@@ -1,6 +1,7 @@
 package model
 
 import (
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/kanywst/y509/internal/logger"
@@ -40,17 +41,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewMode = ViewNormal
 			return m, nil
 		}
-		key := msg.String()
 		// Global quit (except in Popup mode where q might be part of input)
 		if m.viewMode != ViewPopup {
-			if key == "ctrl+c" || key == "q" {
+			if key.Matches(msg, m.keys.Quit) {
 				return m, tea.Quit
 			}
-		} else {
+		} else if msg.String() == "ctrl+c" {
 			// In Popup, only Ctrl+C quits app. Esc closes popup.
-			if key == "ctrl+c" {
-				return m, tea.Quit
-			}
+			return m, tea.Quit
 		}
 
 		switch m.viewMode {
@@ -71,66 +69,49 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // updateNormalMode handles key events in normal (two-pane) mode
 func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "left":
+	switch {
+	case key.Matches(msg, m.keys.Left):
 		m.focus = FocusLeft
 		return m, nil
-	case "right":
+	case key.Matches(msg, m.keys.Right):
 		m.focus = FocusRight
 		return m, nil
-	case "tab":
+	case key.Matches(msg, m.keys.Tab):
 		if m.focus == FocusRight {
 			m.activeTab = (m.activeTab + 1) % len(m.tabs)
 			m.rightPaneScroll = 0
 		}
 		return m, nil
-	case "up":
+	case key.Matches(msg, m.keys.Up):
 		m = m.moveCursorUp()
 		return m, nil
-	case "down":
+	case key.Matches(msg, m.keys.Down):
 		m = m.moveCursorDown()
 		return m, nil
-	case "esc":
-		// Clear filters if active
+	case key.Matches(msg, m.keys.Back):
 		if m.filterActive {
 			m = m.resetView()
 		}
 		return m, nil
-	case "h":
-		m.focus = FocusLeft
-		return m, nil
-	case "l":
-		m.focus = FocusRight
-		return m, nil
-	case "q":
-		return m, tea.Quit
-	case "?":
+	case key.Matches(msg, m.keys.Help):
 		m.viewMode = ViewHelp
 		return m, nil
-	case "k":
-		m = m.moveCursorUp()
-		return m, nil
-	case "j":
-		m = m.moveCursorDown()
-		return m, nil
-	case "/":
+	case key.Matches(msg, m.keys.Search):
 		m.viewMode = ViewPopup
 		m.popupType = PopupSearch
 		m.textInput.Placeholder = "Search query..."
 		m.textInput.Focus()
 		return m, textinput.Blink
-	case "f":
+	case key.Matches(msg, m.keys.Filter):
 		m.viewMode = ViewPopup
 		m.popupType = PopupFilter
 		m.textInput.Placeholder = "Filter (expired, expiring, valid, self-signed)"
 		m.textInput.Focus()
 		return m, textinput.Blink
-	case "v":
-		// Trigger validation and show popup
+	case key.Matches(msg, m.keys.Validate):
 		m = m.handleValidateCommand()
 		return m, nil
-	case "e":
-		// Trigger export popup
+	case key.Matches(msg, m.keys.Export):
 		m.viewMode = ViewPopup
 		m.popupType = PopupExport
 		m.textInput.Placeholder = "Filename (e.g. cert.pem)..."
