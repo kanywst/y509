@@ -29,10 +29,20 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install ttyd
+        run: |
+          curl -L -o /tmp/ttyd https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.x86_64
+          chmod +x /tmp/ttyd
+          sudo mv /tmp/ttyd /usr/local/bin/ttyd
+
+      - name: Install vhs
+        run: go install github.com/charmbracelet/vhs@latest
+
       - name: Render demo.gif
-        uses: charmbracelet/vhs-action@v2
-        with:
-          path: demo.tape
+        run: vhs demo.tape
 
       - name: Commit and push if demo.gif changed
         run: |
