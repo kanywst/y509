@@ -231,10 +231,21 @@ func (m Model) renderRightPane(width, height int) string {
 	}
 
 	tabs := m.renderTabs(width)
-	content := m.renderTabContent(width, height-lipgloss.Height(tabs)-1)
+	const horizontalPadding = 2
+	const verticalPadding = 1
+	innerWidth := width - 2*horizontalPadding - 2 // -2 for pane border
+	innerHeight := height - lipgloss.Height(tabs) - 2*verticalPadding - 2
 
-	paddedContent := lipgloss.NewStyle().Padding(1, 2).Render(content)
+	content := m.renderTabContent(innerWidth)
 
+	vp := m.viewport
+	vp.SetWidth(innerWidth)
+	if innerHeight > 0 {
+		vp.SetHeight(innerHeight)
+	}
+	vp.SetContent(content)
+
+	paddedContent := lipgloss.NewStyle().Padding(verticalPadding, horizontalPadding).Render(vp.View())
 	paneContent := lipgloss.JoinVertical(lipgloss.Left, tabs, paddedContent)
 
 	paneStyle := m.Styles.Pane
@@ -261,8 +272,10 @@ func (m Model) renderTabs(_ int) string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
 }
 
-// renderTabContent renders the content for the currently active tab
-func (m Model) renderTabContent(width, height int) string {
+// renderTabContent renders the content for the currently active tab.
+// Width is used to size the inner column; vertical truncation is handled
+// by the caller's viewport.
+func (m Model) renderTabContent(width int) string {
 	cert := m.certificates[m.cursor]
 	var b strings.Builder
 
@@ -359,18 +372,7 @@ func (m Model) renderTabContent(width, height int) string {
 		b.WriteString(m.renderChainPosition(cert))
 	}
 
-	content := b.String()
-	lines := strings.Split(content, "\n")
-	start := m.rightPaneScroll
-	end := start + height
-	if start > len(lines) {
-		start = len(lines)
-	}
-	if end > len(lines) {
-		end = len(lines)
-	}
-
-	return lipgloss.NewStyle().Width(width).Render(strings.Join(lines[start:end], "\n"))
+	return lipgloss.NewStyle().Width(width).Render(b.String())
 }
 
 // renderChainPosition shows a visual chain diagram for the current cert
