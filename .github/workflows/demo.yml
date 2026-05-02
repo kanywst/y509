@@ -1,0 +1,47 @@
+name: Demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'demo.tape'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'pkg/**'
+      - 'scripts/gen_demo_certs.go'
+      - '.github/workflows/demo.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: demo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Render demo.gif
+        uses: charmbracelet/vhs-action@v2
+        with:
+          path: demo.tape
+
+      - name: Commit and push if demo.gif changed
+        run: |
+          if git diff --quiet -- demo.gif; then
+            echo "demo.gif unchanged, nothing to commit"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add demo.gif
+          git commit -m "chore(demo): refresh demo.gif"
+          git push
