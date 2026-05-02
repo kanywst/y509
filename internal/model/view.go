@@ -460,46 +460,9 @@ func (m Model) renderHelpView() string {
 	title := m.Styles.HeaderTitle.Render("🔐 y509 Help")
 	content.WriteString(title + "\n\n")
 
-	sections := []struct {
-		title string
-		items [][2]string
-	}{
-		{
-			"Navigation",
-			[][2]string{
-				{"↑/k  ↓/j", "Navigate certificate list"},
-				{"←/h  →/l", "Switch between panes"},
-				{"tab", "Cycle detail tabs"},
-			},
-		},
-		{
-			"Actions",
-			[][2]string{
-				{"/", "Search certificates"},
-				{"f", "Filter (expired, expiring, valid, self-signed)"},
-				{"v", "Validate certificate chain"},
-				{"e", "Export selected certificate"},
-				{"esc", "Clear filters"},
-			},
-		},
-		{
-			"General",
-			[][2]string{
-				{"?", "Toggle this help"},
-				{"q / ctrl+c", "Quit"},
-			},
-		},
-	}
-
-	for _, sec := range sections {
-		content.WriteString(m.Styles.SectionTitle.Render("  "+sec.title) + "\n")
-		for _, item := range sec.items {
-			key := m.Styles.Title.Bold(true).Width(14).Render("  " + item[0])
-			desc := m.Styles.DetailValue.Render(item[1])
-			content.WriteString(key + desc + "\n")
-		}
-		content.WriteString("\n")
-	}
+	help := m.help
+	help.ShowAll = true
+	content.WriteString(help.View(m.keys))
 
 	pane := m.Styles.PopupBorder.
 		Width(56).

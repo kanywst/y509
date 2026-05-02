@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"time"
 
+	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -129,6 +130,10 @@ type Model struct {
 	popupMessage string
 	textInput    textinput.Model
 
+	// Key bindings and help
+	keys keyMap
+	help help.Model
+
 	// Internal state for logic
 	detailField  string
 	detailValue  string
@@ -216,6 +221,9 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 	ti.SetStyles(tiStyles)
 	ti.Focus()
 
+	helpModel := help.New()
+	helpModel.Styles = help.DefaultDarkStyles()
+
 	return &Model{
 		certificates:    sortedCerts,
 		allCertificates: sortedCerts,
@@ -230,6 +238,8 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 		Config:          cfg,
 		Styles:          NewStyles(&cfg.Theme),
 		textInput:       ti,
+		keys:            defaultKeyMap(),
+		help:            helpModel,
 		// Logic fields
 		detailField:  "",
 		detailValue:  "",
