@@ -459,11 +459,16 @@ func (m Model) renderPopup() string {
 	var title string
 	var icon string
 
-	if m.popupType == PopupAlert {
+	switch {
+	case m.popupType == PopupAlert:
 		title = "Result"
 		icon = "◈"
 		content = m.popupMessage
-	} else {
+	case m.popupType == PopupExport && m.exportForm != nil:
+		title = "Export"
+		icon = "📤"
+		content = m.exportForm.View()
+	default:
 		switch m.popupType {
 		case PopupSearch:
 			title = "Search"

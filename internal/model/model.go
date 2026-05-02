@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/kanywst/y509/internal/config"
 	"github.com/kanywst/y509/pkg/certificate"
@@ -130,6 +131,7 @@ type Model struct {
 	popupType    PopupType
 	popupMessage string
 	textInput    textinput.Model
+	exportForm   *huh.Form
 
 	// Key bindings and help
 	keys keyMap
