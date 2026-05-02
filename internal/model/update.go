@@ -79,7 +79,7 @@ func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Tab):
 		if m.focus == FocusRight {
 			m.activeTab = (m.activeTab + 1) % len(m.tabs)
-			m.rightPaneScroll = 0
+			m.viewport.SetYOffset(0)
 		}
 		return m, nil
 	case key.Matches(msg, m.keys.Up):
@@ -127,16 +127,14 @@ func (m Model) moveCursorUp() Model {
 	if m.focus == FocusLeft {
 		if m.cursor > 0 {
 			m.cursor--
-			m.rightPaneScroll = 0
+			m.viewport.SetYOffset(0)
 			// Auto-scroll list
 			if m.cursor < m.listScroll {
 				m.listScroll = m.cursor
 			}
 		}
 	} else {
-		if m.rightPaneScroll > 0 {
-			m.rightPaneScroll--
-		}
+		m.viewport.ScrollUp(1)
 	}
 	return m
 }
@@ -146,7 +144,7 @@ func (m Model) moveCursorDown() Model {
 	if m.focus == FocusLeft {
 		if m.cursor < len(m.certificates)-1 {
 			m.cursor++
-			m.rightPaneScroll = 0
+			m.viewport.SetYOffset(0)
 			// Auto-scroll list
 			availableHeight := m.height - HeaderHeight - statusBarHeight - PaneBorderHeight
 			listHeight := availableHeight - ListHeaderHeight
@@ -157,7 +155,7 @@ func (m Model) moveCursorDown() Model {
 			}
 		}
 	} else {
-		m.rightPaneScroll++
+		m.viewport.ScrollDown(1)
 	}
 	return m
 }

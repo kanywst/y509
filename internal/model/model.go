@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/kanywst/y509/internal/config"
@@ -122,8 +123,8 @@ type Model struct {
 	viewMode ViewMode
 
 	// Scrolling
-	rightPaneScroll int
-	listScroll      int
+	listScroll int
+	viewport   viewport.Model
 
 	// Popup state
 	popupType    PopupType
@@ -224,6 +225,10 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 	helpModel := help.New()
 	helpModel.Styles = help.DefaultDarkStyles()
 
+	vp := viewport.New()
+	vp.MouseWheelEnabled = false
+	vp.SoftWrap = true
+
 	return &Model{
 		certificates:    sortedCerts,
 		allCertificates: sortedCerts,
@@ -233,8 +238,8 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 		focus:           FocusLeft,
 		tabs:            tabs,
 		activeTab:       0,
-		rightPaneScroll: 0,
 		listScroll:      0,
+		viewport:        vp,
 		Config:          cfg,
 		Styles:          NewStyles(&cfg.Theme),
 		textInput:       ti,

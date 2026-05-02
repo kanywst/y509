@@ -213,7 +213,7 @@ func (m Model) resetAllFields() Model {
 	m.searchQuery = ""
 	m.filterActive = false
 	m.filterType = ""
-	m.rightPaneScroll = 0
+	m.viewport.SetYOffset(0)
 	return m
 }
 

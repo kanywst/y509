@@ -63,26 +63,31 @@ func TestNavigationKeys(t *testing.T) {
 		}
 	})
 
-	// Switch focus to right pane
+	// Switch focus to right pane and seed the viewport with scrollable
+	// content so that ScrollDown actually moves the offset.
 	m.focus = FocusRight
+	m.viewport.SetWidth(20)
+	m.viewport.SetHeight(2)
+	m.viewport.SetContent("line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8")
+	m.viewport.SetYOffset(0)
 
 	// Test 'j' (scroll down) in detail pane (Normal Mode)
 	t.Run("NormalMode_Detail_Down_j", func(t *testing.T) {
-		initialScroll := m.rightPaneScroll
+		initialScroll := m.viewport.YOffset()
 		newModel, _ := m.Update(keyPress('j'))
 		m = newModel.(Model)
-		if m.rightPaneScroll != initialScroll+1 {
-			t.Errorf("Expected scroll to increment (j), got %d", m.rightPaneScroll)
+		if m.viewport.YOffset() != initialScroll+1 {
+			t.Errorf("Expected viewport YOffset to increment, got %d", m.viewport.YOffset())
 		}
 	})
 
 	// Test 'k' (scroll up) in detail pane (Normal Mode)
 	t.Run("NormalMode_Detail_Up_k", func(t *testing.T) {
-		initialScroll := m.rightPaneScroll
+		initialScroll := m.viewport.YOffset()
 		newModel, _ := m.Update(keyPress('k'))
 		m = newModel.(Model)
-		if m.rightPaneScroll != initialScroll-1 {
-			t.Errorf("Expected scroll to decrement (k), got %d", m.rightPaneScroll)
+		if m.viewport.YOffset() != initialScroll-1 {
+			t.Errorf("Expected viewport YOffset to decrement, got %d", m.viewport.YOffset())
 		}
 	})
 }
