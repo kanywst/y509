@@ -141,33 +141,27 @@ func TestAutoScrolling(t *testing.T) {
 	// Create enough certs to force scrolling
 	m := *NewModel(createTestCertificates(20), cfg)
 	m.height = 10 // Small height
+	m.list.SetSize(40, 5)
 	m.ready = true
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
-	m.listScroll = 0
-	m.cursor = 0
+	m.list.Select(0)
 
 	// Move cursor down multiple times to trigger scroll
 	for i := 0; i < 15; i++ {
 		m = m.moveCursorDown()
 	}
 
-	if m.cursor != 15 {
-		t.Errorf("Cursor position mismatch: %d", m.cursor)
-	}
-	if m.listScroll == 0 {
-		t.Errorf("List should have scrolled, but listScroll is 0")
+	if m.list.Index() != 15 {
+		t.Errorf("Cursor position mismatch: %d", m.list.Index())
 	}
 
 	// Move cursor up multiple times to trigger scroll up
 	for i := 0; i < 15; i++ {
 		m = m.moveCursorUp()
 	}
-	if m.cursor != 0 {
+	if m.list.Index() != 0 {
 		t.Errorf("Cursor should be back at 0")
-	}
-	if m.listScroll != 0 {
-		t.Errorf("listScroll should be back at 0")
 	}
 }
 

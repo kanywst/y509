@@ -39,27 +39,28 @@ func TestNavigationKeys(t *testing.T) {
 	modelPtr := NewModel(certs, cfg)
 	m := *modelPtr
 	m.SetDimensions(100, 20)
+	m.list.SetSize(40, 10)
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
 	m.ready = true
 
 	// Test 'j' (down) in list
 	t.Run("NormalMode_List_Down_j", func(t *testing.T) {
-		initialCursor := m.cursor
+		initialCursor := m.list.Index()
 		newModel, _ := m.Update(keyPress('j'))
 		m = newModel.(Model)
-		if m.cursor != initialCursor+1 {
-			t.Errorf("Expected cursor to increment (j), got %d", m.cursor)
+		if m.list.Index() != initialCursor+1 {
+			t.Errorf("Expected cursor to increment (j), got %d", m.list.Index())
 		}
 	})
 
 	// Test 'k' (up) in list
 	t.Run("NormalMode_List_Up_k", func(t *testing.T) {
-		initialCursor := m.cursor
+		initialCursor := m.list.Index()
 		newModel, _ := m.Update(keyPress('k'))
 		m = newModel.(Model)
-		if m.cursor != initialCursor-1 {
-			t.Errorf("Expected cursor to decrement (k), got %d", m.cursor)
+		if m.list.Index() != initialCursor-1 {
+			t.Errorf("Expected cursor to decrement (k), got %d", m.list.Index())
 		}
 	})
 

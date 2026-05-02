@@ -19,7 +19,7 @@ func (m Model) handleValidateCommand() Model {
 		return m
 	}
 
-	target := m.certificates[m.cursor]
+	target := m.certificates[m.list.Index()]
 	leaf := target.Certificate
 
 	roots := x509.NewCertPool()
@@ -151,7 +151,8 @@ func (m Model) applyFilter() Model {
 	}
 
 	m.certificates = filtered
-	m.cursor = 0
+	m.list.SetItems(toListItems(filtered))
+	m.list.Select(0)
 	m.viewMode = ViewNormal
 	return m
 }
@@ -201,7 +202,8 @@ func matchSearch(cert *x509.Certificate, query string) bool {
 func (m Model) resetView() Model {
 	m = m.resetAllFields()
 	m.certificates = m.allCertificates
-	m.cursor = 0
+	m.list.SetItems(toListItems(m.allCertificates))
+	m.list.Select(0)
 	return m
 }
 
@@ -231,7 +233,7 @@ func (m Model) handleExportCommand(filename string) Model {
 		return m
 	}
 
-	cert := m.certificates[m.cursor].Certificate
+	cert := m.certificates[m.list.Index()].Certificate
 	// Determine format from filename extension (.pem, .der, .crt, etc.)
 	err := certificate.ExportCertificate(cert, "", filename)
 

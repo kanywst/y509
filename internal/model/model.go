@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -107,7 +108,6 @@ func NewStyles(theme *config.Theme) Styles {
 type Model struct {
 	certificates    []*certificate.Info // Filtered list of certificates
 	allCertificates []*certificate.Info // Original unfiltered list
-	cursor          int                 // Index of the selected certificate
 	width           int                 // Window width
 	height          int                 // Window height
 	ready           bool                // Whether dimensions are initialized
@@ -122,9 +122,9 @@ type Model struct {
 	// View mode
 	viewMode ViewMode
 
-	// Scrolling
-	listScroll int
-	viewport   viewport.Model
+	// Components
+	list     list.Model
+	viewport viewport.Model
 
 	// Popup state
 	popupType    PopupType
@@ -229,19 +229,29 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 	vp.MouseWheelEnabled = false
 	vp.SoftWrap = true
 
+	styles := NewStyles(&cfg.Theme)
+
+	delegate := certDelegate{styles: styles}
+	listModel := list.New(toListItems(sortedCerts), delegate, 0, 0)
+	listModel.SetShowTitle(false)
+	listModel.SetShowStatusBar(false)
+	listModel.SetShowFilter(false)
+	listModel.SetShowHelp(false)
+	listModel.SetShowPagination(false)
+	listModel.SetFilteringEnabled(false)
+
 	return &Model{
 		certificates:    sortedCerts,
 		allCertificates: sortedCerts,
-		cursor:          0,
 		ready:           false,
 		viewMode:        ViewSplash,
 		focus:           FocusLeft,
 		tabs:            tabs,
 		activeTab:       0,
-		listScroll:      0,
+		list:            listModel,
 		viewport:        vp,
 		Config:          cfg,
-		Styles:          NewStyles(&cfg.Theme),
+		Styles:          styles,
 		textInput:       ti,
 		keys:            defaultKeyMap(),
 		help:            helpModel,

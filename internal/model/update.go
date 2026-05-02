@@ -15,6 +15,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
+		// Re-size the bubbles/list so its internal pagination tracks the
+		// current pane dimensions. Approximations matching renderLeftPane.
+		leftPaneWidth := m.width * 2 / 5
+		listInnerWidth := leftPaneWidth - 2
+		listInnerHeight := m.height - 2 - 1 - ListHeaderHeight - 2
+		if listInnerHeight < 1 {
+			listInnerHeight = 1
+		}
+		m.list.SetSize(listInnerWidth, listInnerHeight)
 		logger.Log.Debug("window size updated",
 			zap.Int("width", m.width),
 			zap.Int("height", m.height))
@@ -125,13 +134,10 @@ func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // moveCursorUp moves the selection cursor up and handles scrolling
 func (m Model) moveCursorUp() Model {
 	if m.focus == FocusLeft {
-		if m.cursor > 0 {
-			m.cursor--
+		prev := m.list.Index()
+		m.list.CursorUp()
+		if m.list.Index() != prev {
 			m.viewport.SetYOffset(0)
-			// Auto-scroll list
-			if m.cursor < m.listScroll {
-				m.listScroll = m.cursor
-			}
 		}
 	} else {
 		m.viewport.ScrollUp(1)
@@ -142,17 +148,10 @@ func (m Model) moveCursorUp() Model {
 // moveCursorDown moves the selection cursor down and handles scrolling
 func (m Model) moveCursorDown() Model {
 	if m.focus == FocusLeft {
-		if m.cursor < len(m.certificates)-1 {
-			m.cursor++
+		prev := m.list.Index()
+		m.list.CursorDown()
+		if m.list.Index() != prev {
 			m.viewport.SetYOffset(0)
-			// Auto-scroll list
-			availableHeight := m.height - HeaderHeight - statusBarHeight - PaneBorderHeight
-			listHeight := availableHeight - ListHeaderHeight
-			if listHeight > 0 {
-				if m.cursor >= m.listScroll+listHeight {
-					m.listScroll = m.cursor - listHeight + 1
-				}
-			}
 		}
 	} else {
 		m.viewport.ScrollDown(1)
