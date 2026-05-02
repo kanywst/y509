@@ -3,7 +3,7 @@ package model
 import (
 	"fmt"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/kanywst/y509/internal/version"
 )
 

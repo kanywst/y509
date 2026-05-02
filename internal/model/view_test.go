@@ -62,7 +62,7 @@ func TestRenderPopup(t *testing.T) {
 	// Test Search Popup
 	m.viewMode = ViewPopup
 	m.popupType = PopupSearch
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "Search") {
 		t.Errorf("Search popup title missing")
 	}
@@ -70,7 +70,7 @@ func TestRenderPopup(t *testing.T) {
 	// Test Alert Popup
 	m.popupType = PopupAlert
 	m.popupMessage = "Test Alert Message"
-	view = m.View()
+	view = m.View().Content
 	if !strings.Contains(view, "Test Alert Message") {
 		t.Errorf("Alert popup message missing")
 	}
@@ -83,7 +83,7 @@ func TestMinimumSizeWarning(t *testing.T) {
 	m.height = 3
 	m.ready = true
 
-	view := m.View()
+	view := m.View().Content
 	// When width is small, lipgloss wraps the text, so "Terminal too small" might be split by newlines
 	if !strings.Contains(view, "Terminal") || !strings.Contains(view, "too small") {
 		t.Errorf("Minimum size warning not displayed or correctly wrapped")

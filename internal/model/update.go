@@ -1,8 +1,8 @@
 package model
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"github.com/kanywst/y509/internal/logger"
 	"go.uber.org/zap"
 )
@@ -19,15 +19,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			zap.Int("height", m.height))
 		return m, nil
 
-	case tea.MouseMsg:
+	case tea.MouseWheelMsg:
 		if m.viewMode != ViewNormal {
 			return m, nil
 		}
-		// Mouse scrolling
 		switch msg.Button {
-		case tea.MouseButtonWheelUp:
+		case tea.MouseWheelUp:
 			m = m.moveCursorUp()
-		case tea.MouseButtonWheelDown:
+		case tea.MouseWheelDown:
 			m = m.moveCursorDown()
 		}
 		return m, nil
@@ -36,19 +35,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewMode = ViewNormal
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.viewMode == ViewSplash {
 			m.viewMode = ViewNormal
 			return m, nil
 		}
+		key := msg.String()
 		// Global quit (except in Popup mode where q might be part of input)
 		if m.viewMode != ViewPopup {
-			if msg.Type == tea.KeyCtrlC || msg.String() == "q" {
+			if key == "ctrl+c" || key == "q" {
 				return m, tea.Quit
 			}
 		} else {
 			// In Popup, only Ctrl+C quits app. Esc closes popup.
-			if msg.Type == tea.KeyCtrlC {
+			if key == "ctrl+c" {
 				return m, tea.Quit
 			}
 		}
@@ -70,37 +70,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // updateNormalMode handles key events in normal (two-pane) mode
-func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Key type based shortcuts
-	switch msg.Type {
-	case tea.KeyLeft:
+func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "left":
 		m.focus = FocusLeft
 		return m, nil
-	case tea.KeyRight:
+	case "right":
 		m.focus = FocusRight
 		return m, nil
-	case tea.KeyTab:
+	case "tab":
 		if m.focus == FocusRight {
 			m.activeTab = (m.activeTab + 1) % len(m.tabs)
 			m.rightPaneScroll = 0
 		}
 		return m, nil
-	case tea.KeyUp:
+	case "up":
 		m = m.moveCursorUp()
 		return m, nil
-	case tea.KeyDown:
+	case "down":
 		m = m.moveCursorDown()
 		return m, nil
-	case tea.KeyEsc:
+	case "esc":
 		// Clear filters if active
 		if m.filterActive {
 			m = m.resetView()
 		}
 		return m, nil
-	}
-
-	// Key string based shortcuts
-	switch msg.String() {
 	case "h":
 		m.focus = FocusLeft
 		return m, nil
@@ -114,8 +109,10 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "k":
 		m = m.moveCursorUp()
+		return m, nil
 	case "j":
 		m = m.moveCursorDown()
+		return m, nil
 	case "/":
 		m.viewMode = ViewPopup
 		m.popupType = PopupSearch
@@ -185,16 +182,18 @@ func (m Model) moveCursorDown() Model {
 }
 
 // updateHelpMode handles key events in help mode
-func (m Model) updateHelpMode(_ tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) updateHelpMode(_ tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.viewMode = ViewNormal
 	return m, nil
 }
 
 // updatePopupMode handles key events in popup mode
-func (m Model) updatePopupMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) updatePopupMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+
 	// Handle Alert Popup (no input, just dismiss)
 	if m.popupType == PopupAlert {
-		if msg.Type == tea.KeyEnter || msg.Type == tea.KeyEsc || msg.String() == "q" {
+		if key == "enter" || key == "esc" || key == "q" {
 			m.viewMode = ViewNormal
 			m.popupType = PopupNone
 			return m, nil
@@ -203,8 +202,8 @@ func (m Model) updatePopupMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Handle Input Popups (Search/Filter)
-	switch msg.Type {
-	case tea.KeyEnter:
+	switch key {
+	case "enter":
 		value := m.textInput.Value()
 		m.viewMode = ViewNormal // Return to normal mode first
 
@@ -220,7 +219,7 @@ func (m Model) updatePopupMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.textInput.Reset()
 		return m, nil
 
-	case tea.KeyEsc:
+	case "esc":
 		m.viewMode = ViewNormal
 		m.popupType = PopupNone
 		m.textInput.Reset()
