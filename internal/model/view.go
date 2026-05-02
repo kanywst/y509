@@ -107,6 +107,8 @@ func (m Model) renderTwoPanes() string {
 }
 
 // renderLeftPane renders the certificate list pane backed by bubbles/list.
+// The list itself is sized in Update via resizeComponents; this function
+// is purely presentational.
 func (m Model) renderLeftPane(width, height int) string {
 	paneStyle := m.Styles.Pane
 	if m.focus == FocusLeft {
@@ -114,7 +116,7 @@ func (m Model) renderLeftPane(width, height int) string {
 	}
 	paneStyle = paneStyle.BorderRight(false).Width(width).Height(height)
 
-	innerWidth := width - 2 // -2 for left/right border
+	innerWidth := width - PaneSideBorderWidth
 	statusWidth := 4
 	expiresWidth := 14
 	subjectWidth := innerWidth - statusWidth - expiresWidth
@@ -129,7 +131,6 @@ func (m Model) renderLeftPane(width, height int) string {
 	)
 
 	body := lipgloss.JoinVertical(lipgloss.Left, header, m.list.View())
-	_ = innerWidth // sizing handled in Update via WindowSizeMsg
 	return paneStyle.Render(body)
 }
 
@@ -176,7 +177,9 @@ func renderExpiryWithBar(certInfo *certificate.Info, styles Styles) string {
 	return fmt.Sprintf("%s %4s", bar, label)
 }
 
-// renderRightPane renders the tabbed certificate details pane
+// renderRightPane renders the tabbed certificate details pane. The
+// viewport is sized and populated in Update; here we only compose the
+// already-rendered tab strip with the viewport view.
 func (m Model) renderRightPane(width, height int) string {
 	if m.list.Index() >= len(m.certificates) {
 		return "No certificate selected."
@@ -185,19 +188,10 @@ func (m Model) renderRightPane(width, height int) string {
 	tabs := m.renderTabs(width)
 	const horizontalPadding = 2
 	const verticalPadding = 1
-	innerWidth := width - 2*horizontalPadding - 2 // -2 for pane border
-	innerHeight := height - lipgloss.Height(tabs) - 2*verticalPadding - 2
 
-	content := m.renderTabContent(innerWidth)
-
-	vp := m.viewport
-	vp.SetWidth(innerWidth)
-	if innerHeight > 0 {
-		vp.SetHeight(innerHeight)
-	}
-	vp.SetContent(content)
-
-	paddedContent := lipgloss.NewStyle().Padding(verticalPadding, horizontalPadding).Render(vp.View())
+	paddedContent := lipgloss.NewStyle().
+		Padding(verticalPadding, horizontalPadding).
+		Render(m.viewport.View())
 	paneContent := lipgloss.JoinVertical(lipgloss.Left, tabs, paddedContent)
 
 	paneStyle := m.Styles.Pane
