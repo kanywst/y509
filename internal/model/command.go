@@ -251,6 +251,14 @@ func (m Model) handleYankCommand() (Model, tea.Cmd) {
 func (m Model) handleExportCommand(filename string) Model {
 	filename = strings.TrimSpace(filename)
 	if filename == "" {
+		// Defensive: the export form's required-validator should prevent
+		// this, but if we're somehow asked to export an empty filename
+		// while the export popup is open, close it instead of leaving
+		// the user stranded with no form to interact with.
+		if m.viewMode == ViewPopup && m.popupType == PopupExport {
+			m.viewMode = ViewNormal
+			m.popupType = PopupNone
+		}
 		return m
 	}
 
