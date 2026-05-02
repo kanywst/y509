@@ -1,7 +1,7 @@
 package model
 
 import (
-	"strings"
+	"path/filepath"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
@@ -247,7 +247,9 @@ func (m Model) updatePopupMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if m.exportForm.State == huh.StateCompleted {
 			filename := m.exportForm.GetString("filename")
 			format := m.exportForm.GetString("format")
-			if filename != "" && !strings.Contains(filename, ".") {
+			// filepath.Ext only inspects the final path component, so paths
+			// like "./out/cert" or "dir.with.dots/cert" still get a suffix.
+			if filename != "" && filepath.Ext(filename) == "" {
 				filename = filename + "." + format
 			}
 			m.exportForm = nil
