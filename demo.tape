@@ -37,7 +37,8 @@ Sleep 400ms
 Type "k"
 Sleep 400ms
 
-# 2. Switch to details pane and browse tabs
+# 2. Switch to details pane and browse tabs (last tab is Misc with the
+# new lipgloss table-based chain view)
 Right
 Sleep 500ms
 Tab
@@ -47,7 +48,7 @@ Sleep 1s
 Tab
 Sleep 1s
 Tab
-Sleep 1s
+Sleep 1500ms
 Left
 Sleep 500ms
 
@@ -77,7 +78,27 @@ Sleep 2.5s
 Enter
 Sleep 500ms
 
-# 6. Help
+# 6. Yank current cert as PEM (OSC52)
+Type "y"
+Sleep 1800ms
+Enter
+Sleep 500ms
+
+# 7. Export via huh form (Filename + Format select)
+Type "e"
+Sleep 1s
+Type "demo-cert"
+Sleep 800ms
+Tab
+Sleep 800ms
+Down
+Sleep 700ms
+Up
+Sleep 700ms
+Escape
+Sleep 600ms
+
+# 8. Help (auto-generated from key.Binding)
 Type "?"
 Sleep 2s
 Escape
