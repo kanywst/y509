@@ -16,6 +16,7 @@ type keyMap struct {
 	Export   key.Binding
 	Help     key.Binding
 	Back     key.Binding
+	Yank     key.Binding
 	Quit     key.Binding
 }
 
@@ -65,6 +66,10 @@ func defaultKeyMap() keyMap {
 			key.WithKeys("esc"),
 			key.WithHelp("esc", "clear filter"),
 		),
+		Yank: key.NewBinding(
+			key.WithKeys("y"),
+			key.WithHelp("y", "copy PEM"),
+		),
 		Quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
 			key.WithHelp("q", "quit"),
@@ -81,7 +86,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right, k.Tab},
-		{k.Search, k.Filter, k.Validate, k.Export, k.Back},
+		{k.Search, k.Filter, k.Validate, k.Export, k.Yank, k.Back},
 		{k.Help, k.Quit},
 	}
 }
