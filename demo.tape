@@ -84,18 +84,18 @@ Sleep 1800ms
 Enter
 Sleep 500ms
 
-# 7. Export via huh form (Filename + Format select)
+# 7. Export via huh form (Filename + Format select), submit and dismiss
 Type "e"
 Sleep 1s
 Type "demo-cert"
 Sleep 800ms
-Tab
-Sleep 800ms
+Enter
+Sleep 600ms
 Down
-Sleep 700ms
-Up
-Sleep 700ms
-Escape
+Sleep 600ms
+Enter
+Sleep 1500ms
+Enter
 Sleep 600ms
 
 # 8. Help (auto-generated from key.Binding)
