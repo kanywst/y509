@@ -18,15 +18,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
-		// Re-size the bubbles/list so its internal pagination tracks the
-		// current pane dimensions. Approximations matching renderLeftPane.
-		leftPaneWidth := m.width * 2 / 5
-		listInnerWidth := leftPaneWidth - 2
-		listInnerHeight := m.height - 2 - 1 - ListHeaderHeight - 2
-		if listInnerHeight < 1 {
-			listInnerHeight = 1
-		}
-		m.list.SetSize(listInnerWidth, listInnerHeight)
+		m = m.resizeComponents()
+		m = m.refreshViewportContent()
 		logger.Log.Debug("window size updated",
 			zap.Int("width", m.width),
 			zap.Int("height", m.height))
@@ -92,6 +85,7 @@ func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if m.focus == FocusRight {
 			m.activeTab = (m.activeTab + 1) % len(m.tabs)
 			m.viewport.SetYOffset(0)
+			m = m.refreshViewportContent()
 		}
 		return m, nil
 	case key.Matches(msg, m.keys.Up):
@@ -144,6 +138,7 @@ func (m Model) moveCursorUp() Model {
 		m.list.CursorUp()
 		if m.list.Index() != prev {
 			m.viewport.SetYOffset(0)
+			m = m.refreshViewportContent()
 		}
 	} else {
 		m.viewport.ScrollUp(1)
@@ -158,10 +153,62 @@ func (m Model) moveCursorDown() Model {
 		m.list.CursorDown()
 		if m.list.Index() != prev {
 			m.viewport.SetYOffset(0)
+			m = m.refreshViewportContent()
 		}
 	} else {
 		m.viewport.ScrollDown(1)
 	}
+	return m
+}
+
+// resizeComponents recomputes child component sizes from the current
+// terminal dimensions. Both panes derive their geometry from the same
+// constants used by the renderers, keeping Update and View in agreement.
+func (m Model) resizeComponents() Model {
+	if m.width <= 0 || m.height <= 0 {
+		return m
+	}
+
+	leftPaneWidth := m.width * 2 / 5
+	rightPaneWidth := m.width - leftPaneWidth
+	paneHeight := m.height - HeaderHeight - statusBarHeight
+
+	// List sits inside the left pane, below the SUBJECT/EXPIRES header,
+	// inside one visible left border column and the rounded top + bottom
+	// border rows.
+	listInnerWidth := leftPaneWidth - PaneSideBorderWidth
+	listInnerHeight := paneHeight - PaneBorderHeight - ListHeaderHeight
+	if listInnerHeight < 1 {
+		listInnerHeight = 1
+	}
+	m.list.SetSize(listInnerWidth, listInnerHeight)
+
+	// Viewport sits inside the right pane, below the tab strip, with a
+	// 1x2 inner padding and the rounded top + bottom border.
+	const horizontalPadding = 2
+	const verticalPadding = 1
+	const tabStripHeight = 2 // label row + underline row
+	vpWidth := rightPaneWidth - 2*horizontalPadding - PaneBorderHeight
+	vpHeight := paneHeight - PaneBorderHeight - tabStripHeight - 2*verticalPadding
+	if vpWidth < 1 {
+		vpWidth = 1
+	}
+	if vpHeight < 1 {
+		vpHeight = 1
+	}
+	m.viewport.SetWidth(vpWidth)
+	m.viewport.SetHeight(vpHeight)
+	return m
+}
+
+// refreshViewportContent re-renders the active tab into the viewport.
+// Must be called any time the selected certificate, the active tab, or
+// the viewport width changes.
+func (m Model) refreshViewportContent() Model {
+	if m.viewport.Width() <= 0 || m.list.Index() >= len(m.certificates) {
+		return m
+	}
+	m.viewport.SetContent(m.renderTabContent(m.viewport.Width()))
 	return m
 }
 

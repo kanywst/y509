@@ -33,8 +33,26 @@ const (
 // SplashDoneMsg indicates splash screen is complete
 type SplashDoneMsg struct{}
 
-// Formatting constants
+// Layout constants. Kept centralized so that a UI tweak in one component
+// (e.g. a new bottom border) does not silently misalign sizing logic in
+// Update / renderLeftPane / renderRightPane.
 const (
-	// Layout heights
-	ListHeaderHeight = 2 // "STATUS", "SUBJECT", etc. + separator
+	// statusBarHeight is the rendered height of the bottom status bar.
+	statusBarHeight = 1
+
+	// HeaderHeight is the application header (title row + divider line).
+	HeaderHeight = 2
+
+	// PaneBorderHeight accounts for the rounded top + bottom border on a
+	// pane rendered with lipgloss.RoundedBorder().
+	PaneBorderHeight = 2
+
+	// ListHeaderHeight is the height occupied by the SUBJECT/EXPIRES
+	// column header above the list body in renderLeftPane.
+	ListHeaderHeight = 1
+
+	// PaneSideBorderWidth accounts for the single visible border column.
+	// The left pane uses BorderRight(false), so only one border column
+	// occupies horizontal space.
+	PaneSideBorderWidth = 1
 )

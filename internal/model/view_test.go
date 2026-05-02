@@ -41,10 +41,11 @@ func TestRenderLeftPane(t *testing.T) {
 
 func TestRenderRightPane(t *testing.T) {
 	cfg, _ := config.LoadConfig()
-	m := NewModel(createTestCertificates(1), cfg)
-	m.width = 80
-	m.height = 24
-	m.ready = true
+	mp := NewModel(createTestCertificates(1), cfg)
+	mp.width = 80
+	mp.height = 24
+	mp.ready = true
+	m := mp.resizeComponents().refreshViewportContent()
 
 	pane := m.renderRightPane(40, 20)
 	// Default tab is Subject

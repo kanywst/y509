@@ -156,6 +156,7 @@ func (m Model) applyFilter() Model {
 	m.list.SetItems(toListItems(filtered))
 	m.list.Select(0)
 	m.viewMode = ViewNormal
+	m = m.refreshViewportContent()
 	return m
 }
 
@@ -206,6 +207,7 @@ func (m Model) resetView() Model {
 	m.certificates = m.allCertificates
 	m.list.SetItems(toListItems(m.allCertificates))
 	m.list.Select(0)
+	m = m.refreshViewportContent()
 	return m
 }
 
