@@ -6,12 +6,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/kanywst/y509/pkg/certificate"
 )
 
 // View renders the model
-func (m Model) View() string {
+func (m Model) View() tea.View {
+	v := tea.NewView(m.viewContent())
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	return v
+}
+
+// viewContent renders the textual content for the current mode.
+func (m Model) viewContent() string {
 	if !m.ready {
 		return "Initializing..."
 	}

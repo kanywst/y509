@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/kanywst/y509/internal/config"
 	"github.com/kanywst/y509/pkg/certificate"
 )
@@ -103,14 +103,14 @@ func TestUpdate(t *testing.T) {
 	}
 
 	m.viewMode = ViewSplash
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	updatedModel, _ = m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
 	m = updatedModel.(Model)
 	if m.viewMode != ViewNormal {
 		t.Errorf("Expected view mode to be ViewNormal, got %v", m.viewMode)
 	}
 
 	m.viewMode = ViewNormal
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	updatedModel, _ = m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyDown}))
 	m = updatedModel.(Model)
 	if m.cursor != 1 {
 		t.Errorf("Expected cursor to be 1, got %d", m.cursor)
@@ -118,7 +118,7 @@ func TestUpdate(t *testing.T) {
 
 	// Test entering Popup mode
 	m.viewMode = ViewNormal
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	updatedModel, _ = m.Update(tea.KeyPressMsg(tea.Key{Code: '/', Text: "/"}))
 	m = updatedModel.(Model)
 	if m.viewMode != ViewPopup {
 		t.Errorf("Expected view mode to be ViewPopup after '/' key, got %v", m.viewMode)
@@ -129,7 +129,7 @@ func TestUpdate(t *testing.T) {
 
 	m = *NewModel(createTestCertificates(3), cfg)
 	m.viewMode = ViewNormal
-	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	_, cmd = m.Update(tea.KeyPressMsg(tea.Key{Code: 'c', Mod: tea.ModCtrl}))
 	if cmd == nil {
 		t.Error("Expected quit command")
 	}
@@ -141,13 +141,13 @@ func TestView(t *testing.T) {
 	model.ready = true
 
 	model.viewMode = ViewSplash
-	view := model.View()
+	view := model.View().Content
 	if view == "" {
 		t.Error("Expected non-empty splash view")
 	}
 
 	model.viewMode = ViewNormal
-	view = model.View()
+	view = model.View().Content
 	if view == "" {
 		t.Error("Expected non-empty normal view")
 	}

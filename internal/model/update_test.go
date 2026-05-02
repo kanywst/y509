@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/kanywst/y509/pkg/certificate"
 )
 
@@ -23,6 +23,10 @@ func createDummyCert(index int) *certificate.Info {
 		Index: index,
 		Label: "Test Cert",
 	}
+}
+
+func keyPress(r rune) tea.KeyPressMsg {
+	return tea.KeyPressMsg(tea.Key{Code: r, Text: string(r)})
 }
 
 func TestNavigationKeys(t *testing.T) {
@@ -42,7 +46,7 @@ func TestNavigationKeys(t *testing.T) {
 	// Test 'j' (down) in list
 	t.Run("NormalMode_List_Down_j", func(t *testing.T) {
 		initialCursor := m.cursor
-		newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+		newModel, _ := m.Update(keyPress('j'))
 		m = newModel.(Model)
 		if m.cursor != initialCursor+1 {
 			t.Errorf("Expected cursor to increment (j), got %d", m.cursor)
@@ -52,7 +56,7 @@ func TestNavigationKeys(t *testing.T) {
 	// Test 'k' (up) in list
 	t.Run("NormalMode_List_Up_k", func(t *testing.T) {
 		initialCursor := m.cursor
-		newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+		newModel, _ := m.Update(keyPress('k'))
 		m = newModel.(Model)
 		if m.cursor != initialCursor-1 {
 			t.Errorf("Expected cursor to decrement (k), got %d", m.cursor)
@@ -65,7 +69,7 @@ func TestNavigationKeys(t *testing.T) {
 	// Test 'j' (scroll down) in detail pane (Normal Mode)
 	t.Run("NormalMode_Detail_Down_j", func(t *testing.T) {
 		initialScroll := m.rightPaneScroll
-		newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+		newModel, _ := m.Update(keyPress('j'))
 		m = newModel.(Model)
 		if m.rightPaneScroll != initialScroll+1 {
 			t.Errorf("Expected scroll to increment (j), got %d", m.rightPaneScroll)
@@ -75,7 +79,7 @@ func TestNavigationKeys(t *testing.T) {
 	// Test 'k' (scroll up) in detail pane (Normal Mode)
 	t.Run("NormalMode_Detail_Up_k", func(t *testing.T) {
 		initialScroll := m.rightPaneScroll
-		newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+		newModel, _ := m.Update(keyPress('k'))
 		m = newModel.(Model)
 		if m.rightPaneScroll != initialScroll-1 {
 			t.Errorf("Expected scroll to decrement (k), got %d", m.rightPaneScroll)

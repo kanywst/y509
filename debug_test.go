@@ -30,14 +30,15 @@ func TestDebugMinimumSizeWarning(t *testing.T) {
 	fmt.Printf("Model width: %d, height: %d\n", m.GetWidth(), m.GetHeight())
 
 	view := m.View()
-	fmt.Printf("View content: %q\n", view)
+	content := view.Content
+	fmt.Printf("View content: %q\n", content)
 
 	// The text might contain newlines, so we check using substrings
-	if strings.Contains(view, "Terminal") && strings.Contains(view, "too small") {
+	if strings.Contains(content, "Terminal") && strings.Contains(content, "too small") {
 		fmt.Println("✓ Minimum size warning is working correctly")
 		// Test passed
 	} else {
-		t.Errorf("Expected minimum size warning, got: %q\n", view)
-		fmt.Printf("✗ Expected minimum size warning, got: %q\n", view)
+		t.Errorf("Expected minimum size warning, got: %q\n", content)
+		fmt.Printf("✗ Expected minimum size warning, got: %q\n", content)
 	}
 }

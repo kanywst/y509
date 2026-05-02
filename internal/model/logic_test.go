@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestFilterLogic(t *testing.T) {
@@ -94,7 +94,7 @@ func TestTabNavigation(t *testing.T) {
 	m.activeTab = 0
 
 	// Press Tab
-	newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	newModel, _ := m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyTab}))
 	m = newModel.(Model)
 	if m.activeTab != 1 {
 		t.Errorf("Expected activeTab to be 1 after Tab, got %d", m.activeTab)
@@ -107,26 +107,26 @@ func TestPopupTransitions(t *testing.T) {
 	m.viewMode = ViewNormal
 
 	// Press '/' to search
-	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	updatedModel, _ := m.Update(tea.KeyPressMsg(tea.Key{Code: '/', Text: "/"}))
 	m = updatedModel.(Model)
 	if m.viewMode != ViewPopup || m.popupType != PopupSearch {
 		t.Errorf("Failed to enter Search popup")
 	}
 
 	// Press Esc to cancel
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	updatedModel, _ = m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
 	m = updatedModel.(Model)
 	if m.viewMode != ViewNormal {
 		t.Errorf("Expected return to Normal mode after Esc")
 	}
 
 	// Enter search again
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	updatedModel, _ = m.Update(tea.KeyPressMsg(tea.Key{Code: '/', Text: "/"}))
 	m = updatedModel.(Model)
 
 	// Type 'test' and press Enter
 	m.textInput.SetValue("test")
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	updatedModel, _ = m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
 	m = updatedModel.(Model)
 	if m.viewMode != ViewNormal {
 		t.Errorf("Expected return to ViewNormal after popup Enter")

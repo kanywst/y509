@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/kanywst/y509/internal/config"
 	"github.com/kanywst/y509/internal/logger"
 	"github.com/kanywst/y509/internal/model"
@@ -104,11 +104,7 @@ func init() {
 
 		// Create and run the TUI
 		model := model.NewModel(certs, cfg)
-		p := tea.NewProgram(
-			model,
-			tea.WithAltScreen(),
-			tea.WithMouseCellMotion(),
-		)
+		p := tea.NewProgram(model)
 
 		if _, err := p.Run(); err != nil {
 			logger.Log.Error("Failed to run TUI", zap.Error(err))
