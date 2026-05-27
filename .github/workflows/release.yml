@@ -5,12 +5,15 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+  # Required for cosign keyless signing via GitHub OIDC
+  id-token: write
+
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -21,6 +24,12 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+
+      - name: Install syft (SBOM generator)
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Install cosign (keyless signing)
+        uses: sigstore/cosign-installer@v3
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7

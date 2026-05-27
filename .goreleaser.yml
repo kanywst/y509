@@ -44,8 +44,31 @@ homebrew_casks:
     description: "Certificate Chain TUI Viewer"
     repository:
       owner: kanywst
-      name: y509
-      token: "{{ .Env.GITHUB_TOKEN }}"
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Casks
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "chore(cask): {{ .ProjectName }} {{ .Tag }}"
+
+# SBOM generation (CycloneDX via syft)
+sboms:
+  - artifacts: archive
+
+# Keyless signing of checksums and SBOMs via Sigstore cosign + GitHub OIDC
+signs:
+  - cmd: cosign
+    certificate: "${artifact}.pem"
+    args:
+      - "sign-blob"
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+    output: true
 
 nfpms:
   - maintainer: kanywst
