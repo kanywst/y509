@@ -1,6 +1,6 @@
 module github.com/kanywst/y509
 
-go 1.26.2
+go 1.26.4
 
 tool (
 	github.com/golangci/golangci-lint/cmd/golangci-lint
