@@ -34,7 +34,15 @@ type Theme struct {
 // Config holds the application's configuration.
 type Config struct {
 	Theme Theme `mapstructure:"theme"`
+	// ExpiryWarningDays is the number of days before NotAfter at which a
+	// certificate is flagged as "expiring soon". As CA/Browser Forum maximum
+	// lifetimes shrink (200 days in 2026, 47 by 2029) a 30-day default becomes
+	// a large slice of a cert's life, so this is configurable.
+	ExpiryWarningDays int `mapstructure:"expiry_warning_days"`
 }
+
+// DefaultExpiryWarningDays is the fallback "expiring soon" window in days.
+const DefaultExpiryWarningDays = 30
 
 // newDefaultTheme returns a Theme struct with all default values.
 func newDefaultTheme() Theme {
@@ -87,6 +95,7 @@ func LoadConfig() (*Config, error) {
 	v.SetDefault("theme.section_title", defaultTheme.SectionTitle)
 	v.SetDefault("theme.detail_key", defaultTheme.DetailKey)
 	v.SetDefault("theme.list_row_alt", defaultTheme.ListRowAlt)
+	v.SetDefault("expiry_warning_days", DefaultExpiryWarningDays)
 
 	// Set config file
 	v.SetConfigName(".y509")
@@ -116,7 +125,12 @@ func LoadConfig() (*Config, error) {
 	if err := v.Unmarshal(&config); err != nil {
 		// If unmarshal fails entirely, we still want to return a config object with hardcoded defaults
 		// as a last resort, though viper defaults should have been enough.
-		return &Config{Theme: defaultTheme}, err
+		return &Config{Theme: defaultTheme, ExpiryWarningDays: DefaultExpiryWarningDays}, err
+	}
+
+	// Guard against non-positive values from a malformed config file.
+	if config.ExpiryWarningDays <= 0 {
+		config.ExpiryWarningDays = DefaultExpiryWarningDays
 	}
 
 	return &config, readErr

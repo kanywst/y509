@@ -178,6 +178,11 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 		}
 	}
 
+	// Normalize so callers that build Config directly still get a sane window.
+	if cfg.ExpiryWarningDays <= 0 {
+		cfg.ExpiryWarningDays = config.DefaultExpiryWarningDays
+	}
+
 	// Sort and validate the certificate chain
 	var sortedCerts []*certificate.Info
 	if len(certs) > 0 {
@@ -233,7 +238,7 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 
 	styles := NewStyles(&cfg.Theme)
 
-	delegate := certDelegate{styles: styles}
+	delegate := certDelegate{styles: styles, warnDays: cfg.ExpiryWarningDays}
 	listModel := list.New(toListItems(sortedCerts), delegate, 0, 0)
 	listModel.SetShowTitle(false)
 	listModel.SetShowStatusBar(false)

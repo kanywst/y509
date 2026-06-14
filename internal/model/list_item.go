@@ -29,7 +29,8 @@ func (c certItem) FilterValue() string {
 // pane is signalled by the surrounding border colour, so the delegate
 // itself doesn't need to know which pane currently has focus.
 type certDelegate struct {
-	styles Styles
+	styles   Styles
+	warnDays int
 }
 
 func (d certDelegate) Height() int                             { return 1 }
@@ -51,7 +52,7 @@ func (d certDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	}
 
 	statusIcon, statusStyle := getStatusIconAndStyle(ci.info, d.styles)
-	expiresStr := renderExpiryWithBar(ci.info, d.styles)
+	expiresStr := renderExpiryWithBar(ci.info, d.styles, d.warnDays)
 
 	var baseStyle lipgloss.Style
 	switch {

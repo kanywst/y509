@@ -134,8 +134,9 @@ func (m Model) renderLeftPane(width, height int) string {
 	return paneStyle.Render(body)
 }
 
-// renderExpiryWithBar renders expiry info with a mini progress bar
-func renderExpiryWithBar(certInfo *certificate.Info, styles Styles) string {
+// renderExpiryWithBar renders expiry info with a mini progress bar. Certs
+// expiring within warnDays are coloured with the warning style.
+func renderExpiryWithBar(certInfo *certificate.Info, styles Styles, warnDays int) string {
 	cert := certInfo.Certificate
 	d := time.Until(cert.NotAfter)
 
@@ -163,7 +164,7 @@ func renderExpiryWithBar(certInfo *certificate.Info, styles Styles) string {
 	}
 
 	var barStyle lipgloss.Style
-	if days <= 30 {
+	if days <= warnDays {
 		barStyle = styles.StatusWarning
 	} else {
 		barStyle = styles.StatusValid
@@ -263,7 +264,7 @@ func (m Model) renderTabContent(width int) string {
 			b.WriteString(m.Styles.BadgeExpired.Render("  ✖ EXPIRED") + "\n")
 		} else {
 			days := int(d.Hours() / 24)
-			if days <= 30 {
+			if days <= m.Config.ExpiryWarningDays {
 				b.WriteString(m.Styles.BadgeWarning.Render(fmt.Sprintf("  ▲ Expires in %d days", days)) + "\n")
 			} else {
 				b.WriteString(m.Styles.BadgeValid.Render(fmt.Sprintf("  ● Valid for %d days", days)) + "\n")
