@@ -130,7 +130,7 @@ func (m Model) applyFilter() Model {
 					match = true
 				}
 			case "expiring":
-				if !certificate.IsExpired(certInfo.Certificate) && certificate.IsExpiringSoon(certInfo.Certificate) {
+				if !certificate.IsExpired(certInfo.Certificate) && certificate.IsExpiringSoonWithin(certInfo.Certificate, m.Config.ExpiryWarningDays) {
 					match = true
 				}
 			case "valid":

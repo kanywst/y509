@@ -47,6 +47,10 @@ openssl s_client -connect example.com:443 -showcerts | y509
 `~/.y509.yaml` — Catppuccin Mocha theme by default.
 
 ```yaml
+# Days before expiry to flag a certificate as "expiring soon" (default 30).
+# Lower this as CA/Browser Forum maximum lifetimes shrink (200 days in 2026).
+expiry_warning_days: 30
+
 theme:
   text: "#cdd6f4"
   border: "#45475a"
@@ -76,6 +80,15 @@ make build       # Build with version info
 make test        # Run tests
 make lint        # Run golangci-lint
 make vulncheck   # Run govulncheck
+```
+
+## Verifying releases
+
+Release archives carry Sigstore-signed checksums, a CycloneDX SBOM, and SLSA
+build provenance. Verify provenance with the GitHub CLI:
+
+```bash
+gh attestation verify y509-<version>-<os>-<arch>.tar.gz -R kanywst/y509
 ```
 
 ## License

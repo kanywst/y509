@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -763,5 +764,116 @@ func TestExportCertificate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestIsExpiringSoonWithin(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name     string
+		notAfter time.Time
+		days     int
+		expected bool
+	}{
+		{name: "Within 7-day window", notAfter: now.Add(5 * 24 * time.Hour), days: 7, expected: true},
+		{name: "Outside 7-day window", notAfter: now.Add(10 * 24 * time.Hour), days: 7, expected: false},
+		{name: "Within 90-day window", notAfter: now.Add(60 * 24 * time.Hour), days: 90, expected: true},
+		{name: "Non-positive days falls back to default (within)", notAfter: now.Add(15 * 24 * time.Hour), days: 0, expected: true},
+		{name: "Non-positive days falls back to default (outside)", notAfter: now.Add(45 * 24 * time.Hour), days: -1, expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cert := &x509.Certificate{NotAfter: tt.notAfter}
+			if got := IsExpiringSoonWithin(cert, tt.days); got != tt.expected {
+				t.Errorf("IsExpiringSoonWithin(%d days) = %v, want %v", tt.days, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFormatValidityPeriod(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name       string
+		notBefore  time.Time
+		notAfter   time.Time
+		isCA       bool
+		wantPeriod string
+		wantNote   bool // whether the CA/B over-max note should appear
+	}{
+		{
+			name:       "Subscriber within CA/B max",
+			notBefore:  now.Add(-24 * time.Hour),
+			notAfter:   now.Add(90 * 24 * time.Hour),
+			isCA:       false,
+			wantPeriod: "Validity Period: 91 days",
+			wantNote:   false,
+		},
+		{
+			name:       "Subscriber exceeding CA/B max",
+			notBefore:  now.Add(-24 * time.Hour),
+			notAfter:   now.Add(365 * 24 * time.Hour),
+			isCA:       false,
+			wantPeriod: "Validity Period: 366 days",
+			wantNote:   true,
+		},
+		{
+			name:       "CA cert exempt from CA/B max",
+			notBefore:  now.Add(-24 * time.Hour),
+			notAfter:   now.Add(3650 * 24 * time.Hour),
+			isCA:       true,
+			wantPeriod: "Validity Period: 3651 days",
+			wantNote:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cert := &x509.Certificate{NotBefore: tt.notBefore, NotAfter: tt.notAfter, IsCA: tt.isCA}
+			result := FormatValidity(cert)
+
+			if !strings.Contains(result, tt.wantPeriod) {
+				t.Errorf("expected %q in:\n%s", tt.wantPeriod, result)
+			}
+			hasNote := strings.Contains(result, "exceeds CA/Browser Forum max")
+			if hasNote != tt.wantNote {
+				t.Errorf("CA/B note presence = %v, want %v\n%s", hasNote, tt.wantNote, result)
+			}
+		})
+	}
+}
+
+func TestDescribeUnknownPublicKey(t *testing.T) {
+	// Build a SubjectPublicKeyInfo carrying the ML-DSA-65 OID so the
+	// post-quantum branch is exercised without a real PQC certificate.
+	mldsa65 := asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 18}
+	spki := struct {
+		Algorithm pkix.AlgorithmIdentifier
+		PublicKey asn1.BitString
+	}{
+		Algorithm: pkix.AlgorithmIdentifier{Algorithm: mldsa65},
+		PublicKey: asn1.BitString{Bytes: []byte{0x01, 0x02, 0x03}, BitLength: 24},
+	}
+	der, err := asn1.Marshal(spki)
+	if err != nil {
+		t.Fatalf("failed to marshal SPKI: %v", err)
+	}
+
+	cert := &x509.Certificate{RawSubjectPublicKeyInfo: der}
+	result := describeUnknownPublicKey(cert, nil)
+
+	for _, want := range []string{"ML-DSA-65", "post-quantum", "2.16.840.1.101.3.4.3.18"} {
+		if !strings.Contains(result, want) {
+			t.Errorf("expected %q in:\n%s", want, result)
+		}
+	}
+
+	// Unparseable SPKI should fall back to the concrete Go type.
+	bad := &x509.Certificate{RawSubjectPublicKeyInfo: []byte{0xff, 0xff}}
+	if got := describeUnknownPublicKey(bad, nil); !strings.Contains(got, "Type:") {
+		t.Errorf("expected fallback Type line, got:\n%s", got)
 	}
 }

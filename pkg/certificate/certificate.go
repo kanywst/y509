@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -766,9 +767,27 @@ func IsExpired(cert *x509.Certificate) bool {
 	return cert.NotAfter.Before(time.Now())
 }
 
-// IsExpiringSoon checks if certificate expires within 30 days
+// defaultExpiryWarningDays is the fallback "expiring soon" window in days,
+// used when no caller-supplied threshold is available.
+const defaultExpiryWarningDays = 30
+
+// cabMaxSubscriberValidityDays is the CA/Browser Forum maximum lifetime for
+// publicly-trusted subscriber (leaf) certificates effective 2026-03-15. CA
+// certificates are exempt, so this is only applied to non-CA certs.
+const cabMaxSubscriberValidityDays = 200
+
+// IsExpiringSoon checks if a certificate expires within the default window.
 func IsExpiringSoon(cert *x509.Certificate) bool {
-	return cert.NotAfter.Before(time.Now().AddDate(0, 0, 30))
+	return IsExpiringSoonWithin(cert, defaultExpiryWarningDays)
+}
+
+// IsExpiringSoonWithin checks if a certificate expires within the given number
+// of days. Non-positive values fall back to the default window.
+func IsExpiringSoonWithin(cert *x509.Certificate, days int) bool {
+	if days <= 0 {
+		days = defaultExpiryWarningDays
+	}
+	return cert.NotAfter.Before(time.Now().AddDate(0, 0, days))
 }
 
 // FormatSubject formats certificate subject information
@@ -820,13 +839,21 @@ func FormatValidity(cert *x509.Certificate) string {
 	details.WriteString(fmt.Sprintf("Not Before: %s\n", cert.NotBefore.Format("2006-01-02 15:04:05 MST")))
 	details.WriteString(fmt.Sprintf("Not After:  %s\n", cert.NotAfter.Format("2006-01-02 15:04:05 MST")))
 
+	// Total validity period, plus a flag for subscriber certs that exceed the
+	// CA/Browser Forum maximum lifetime (CA certs are exempt).
+	periodDays := int(cert.NotAfter.Sub(cert.NotBefore).Hours() / 24)
+	details.WriteString(fmt.Sprintf("Validity Period: %d days\n", periodDays))
+	if !cert.IsCA && periodDays > cabMaxSubscriberValidityDays {
+		details.WriteString(fmt.Sprintf("Note: exceeds CA/Browser Forum max subscriber lifetime (%d days)\n", cabMaxSubscriberValidityDays))
+	}
+
 	now := time.Now()
 	duration := cert.NotAfter.Sub(now)
 
 	if cert.NotAfter.Before(now) {
 		details.WriteString("Status: EXPIRED\n")
 		details.WriteString(fmt.Sprintf("Expired: %s ago\n", (-duration).String()))
-	} else if cert.NotAfter.Before(now.AddDate(0, 0, 30)) {
+	} else if IsExpiringSoon(cert) {
 		details.WriteString("Status: EXPIRING SOON\n")
 		details.WriteString(fmt.Sprintf("Expires in: %s\n", duration.String()))
 	} else {
@@ -912,8 +939,48 @@ func FormatPublicKey(cert *x509.Certificate) string {
 		details.WriteString("Type: Ed25519\n")
 		details.WriteString("Key Size: 256 bits\n")
 	default:
-		details.WriteString(fmt.Sprintf("Type: %T\n", pub))
+		// Unrecognized key type. This is the path post-quantum algorithms
+		// (ML-DSA, SLH-DSA) take today: the Go standard library does not yet
+		// expose them through crypto/x509, so PublicKey is typically nil.
+		// Surface the SPKI algorithm OID so the cert isn't shown blank.
+		details.WriteString(describeUnknownPublicKey(cert, pub))
 	}
 
+	return details.String()
+}
+
+// pqcAlgorithmNames maps NIST post-quantum signature OIDs to friendly names so
+// PQC / hybrid certificates render meaningfully even before crypto/x509 support
+// lands (expected in Go 1.27).
+var pqcAlgorithmNames = map[string]string{
+	"2.16.840.1.101.3.4.3.17": "ML-DSA-44",
+	"2.16.840.1.101.3.4.3.18": "ML-DSA-65",
+	"2.16.840.1.101.3.4.3.19": "ML-DSA-87",
+	"2.16.840.1.101.3.4.3.20": "SLH-DSA-SHA2-128s",
+	"2.16.840.1.101.3.4.3.21": "SLH-DSA-SHA2-128f",
+}
+
+// describeUnknownPublicKey renders details for a key type the type switch did
+// not recognize, extracting the SubjectPublicKeyInfo algorithm OID.
+func describeUnknownPublicKey(cert *x509.Certificate, pub any) string {
+	var details strings.Builder
+
+	var spki struct {
+		Algorithm pkix.AlgorithmIdentifier
+		PublicKey asn1.BitString
+	}
+	if _, err := asn1.Unmarshal(cert.RawSubjectPublicKeyInfo, &spki); err == nil {
+		oid := spki.Algorithm.Algorithm.String()
+		if name, ok := pqcAlgorithmNames[oid]; ok {
+			details.WriteString(fmt.Sprintf("Type: %s (post-quantum)\n", name))
+		} else {
+			details.WriteString("Type: Unrecognized\n")
+		}
+		details.WriteString(fmt.Sprintf("Algorithm OID: %s\n", oid))
+		return details.String()
+	}
+
+	// Fall back to the concrete Go type if the SPKI cannot be parsed.
+	details.WriteString(fmt.Sprintf("Type: %T\n", pub))
 	return details.String()
 }
