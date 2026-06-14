@@ -784,6 +784,9 @@ func IsExpiringSoon(cert *x509.Certificate) bool {
 // IsExpiringSoonWithin checks if a certificate expires within the given number
 // of days. Non-positive values fall back to the default window.
 func IsExpiringSoonWithin(cert *x509.Certificate, days int) bool {
+	if cert == nil {
+		return false
+	}
 	if days <= 0 {
 		days = defaultExpiryWarningDays
 	}

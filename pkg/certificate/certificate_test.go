@@ -791,6 +791,11 @@ func TestIsExpiringSoonWithin(t *testing.T) {
 			}
 		})
 	}
+
+	// A nil certificate must not panic and is never "expiring soon".
+	if IsExpiringSoonWithin(nil, 30) {
+		t.Error("IsExpiringSoonWithin(nil) = true, want false")
+	}
 }
 
 func TestFormatValidityPeriod(t *testing.T) {
