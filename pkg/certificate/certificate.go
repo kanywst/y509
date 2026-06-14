@@ -771,10 +771,28 @@ func IsExpired(cert *x509.Certificate) bool {
 // used when no caller-supplied threshold is available.
 const defaultExpiryWarningDays = 30
 
-// cabMaxSubscriberValidityDays is the CA/Browser Forum maximum lifetime for
+// CABMaxSubscriberValidityDays is the CA/Browser Forum maximum lifetime for
 // publicly-trusted subscriber (leaf) certificates effective 2026-03-15. CA
 // certificates are exempt, so this is only applied to non-CA certs.
-const cabMaxSubscriberValidityDays = 200
+const CABMaxSubscriberValidityDays = 200
+
+// ValidityPeriodDays returns the certificate's total validity window in days,
+// rounded to the nearest day (avoids DST / sub-day truncation).
+func ValidityPeriodDays(cert *x509.Certificate) int {
+	if cert == nil {
+		return 0
+	}
+	return int((cert.NotAfter.Sub(cert.NotBefore) + 12*time.Hour) / (24 * time.Hour))
+}
+
+// ExceedsCABMaxLifetime reports whether a subscriber (non-CA) certificate's
+// validity period exceeds the CA/Browser Forum maximum. CA certs are exempt.
+func ExceedsCABMaxLifetime(cert *x509.Certificate) bool {
+	if cert == nil || cert.IsCA {
+		return false
+	}
+	return ValidityPeriodDays(cert) > CABMaxSubscriberValidityDays
+}
 
 // IsExpiringSoon checks if a certificate expires within the default window.
 func IsExpiringSoon(cert *x509.Certificate) bool {
@@ -844,10 +862,9 @@ func FormatValidity(cert *x509.Certificate) string {
 
 	// Total validity period, plus a flag for subscriber certs that exceed the
 	// CA/Browser Forum maximum lifetime (CA certs are exempt).
-	periodDays := int((cert.NotAfter.Sub(cert.NotBefore) + 12*time.Hour) / (24 * time.Hour))
-	details.WriteString(fmt.Sprintf("Validity Period: %d days\n", periodDays))
-	if !cert.IsCA && periodDays > cabMaxSubscriberValidityDays {
-		details.WriteString(fmt.Sprintf("Note: exceeds CA/Browser Forum max subscriber lifetime (%d days)\n", cabMaxSubscriberValidityDays))
+	details.WriteString(fmt.Sprintf("Validity Period: %d days\n", ValidityPeriodDays(cert)))
+	if ExceedsCABMaxLifetime(cert) {
+		details.WriteString(fmt.Sprintf("Note: exceeds CA/Browser Forum max subscriber lifetime (%d days)\n", CABMaxSubscriberValidityDays))
 	}
 
 	now := time.Now()
