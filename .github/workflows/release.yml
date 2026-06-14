@@ -9,6 +9,8 @@ permissions:
   contents: write
   # Required for cosign keyless signing via GitHub OIDC
   id-token: write
+  # Required for actions/attest-build-provenance to record SLSA provenance
+  attestations: write
 
 jobs:
   release:
@@ -40,3 +42,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+      # SLSA build provenance for the release archives and packages.
+      # Verify with: gh attestation verify <artifact> -R kanywst/y509
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.rpm
