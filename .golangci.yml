@@ -1,19 +1,31 @@
+version: "2"
+
 linters:
+  default: none
   enable:
     - errcheck
-    - gosimple
     - govet
+    - misspell
+    - revive
     - staticcheck
     - unused
-    - typecheck
-    - revive
-    - gofmt
-    - misspell
+  settings:
+    staticcheck:
+      # The WriteString(fmt.Sprintf(...)) builder style is used throughout the
+      # codebase; the QF (quickfix) suggestions only add churn, so disable them
+      # to keep v2 strictness equivalent to the previous staticcheck + gosimple.
+      checks:
+        - all
+        - -QF1012
+        - -QF1006
 
 run:
   timeout: 5m
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
