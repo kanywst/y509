@@ -876,4 +876,9 @@ func TestDescribeUnknownPublicKey(t *testing.T) {
 	if got := describeUnknownPublicKey(bad, nil); !strings.Contains(got, "Type:") {
 		t.Errorf("expected fallback Type line, got:\n%s", got)
 	}
+
+	// A nil certificate should not panic and falls back to the concrete type.
+	if got := describeUnknownPublicKey(nil, "some_type"); !strings.Contains(got, "Type: string") {
+		t.Errorf("expected fallback Type line for nil cert, got:\n%s", got)
+	}
 }

@@ -965,6 +965,11 @@ var pqcAlgorithmNames = map[string]string{
 func describeUnknownPublicKey(cert *x509.Certificate, pub any) string {
 	var details strings.Builder
 
+	if cert == nil {
+		details.WriteString(fmt.Sprintf("Type: %T\n", pub))
+		return details.String()
+	}
+
 	var spki struct {
 		Algorithm pkix.AlgorithmIdentifier
 		PublicKey asn1.BitString
