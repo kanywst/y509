@@ -898,7 +898,8 @@ func TestValidityPeriodDays(t *testing.T) {
 	}{
 		{"90 days", now, now.Add(90 * 24 * time.Hour), 90},
 		{"366 days", now.Add(-24 * time.Hour), now.Add(365 * 24 * time.Hour), 366},
-		{"nil-safe is zero via separate check", now, now, 0},
+		{"zero duration", now, now, 0},
+		{"inverted dates clamp to zero", now, now.Add(-24 * time.Hour), 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
