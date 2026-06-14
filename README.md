@@ -6,7 +6,7 @@
 
 A TUI for analyzing and validating X.509 certificate chains. Built on the [Charm](https://charm.sh) v2 stack — [Bubble Tea](https://charm.land/bubbletea/v2), [Lip Gloss](https://charm.land/lipgloss/v2), [Bubbles](https://charm.land/bubbles/v2), and [huh](https://charm.land/huh/v2).
 
-![y509 Demo](demo.gif)
+![y509 Demo](demo.gif?v=2)
 
 ## Install
 
