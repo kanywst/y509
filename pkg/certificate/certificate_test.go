@@ -912,6 +912,12 @@ func TestValidityPeriodDays(t *testing.T) {
 	if got := ValidityPeriodDays(nil); got != 0 {
 		t.Errorf("ValidityPeriodDays(nil) = %d, want 0", got)
 	}
+
+	// Far-future NotAfter (>292y) must not overflow time.Duration to 0/negative.
+	farCert := &x509.Certificate{NotBefore: now, NotAfter: now.AddDate(300, 0, 0)}
+	if got := ValidityPeriodDays(farCert); got < 100000 {
+		t.Errorf("ValidityPeriodDays(300y) = %d, want a large positive (no overflow)", got)
+	}
 }
 
 func TestExceedsCABMaxLifetime(t *testing.T) {

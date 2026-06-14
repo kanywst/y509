@@ -782,13 +782,17 @@ func ValidityPeriodDays(cert *x509.Certificate) int {
 	if cert == nil {
 		return 0
 	}
-	// Malformed certs (NotAfter <= NotBefore) have no meaningful period, and
-	// the round-half-up below would misbehave on a negative duration.
-	d := cert.NotAfter.Sub(cert.NotBefore)
-	if d <= 0 {
+	// Use Unix seconds rather than Time.Sub: time.Duration is int64 nanoseconds
+	// and caps at ~292 years, which overflows on certs with a far-future
+	// NotAfter (e.g. the 9999-12-31 "no expiry" convention).
+	const secsPerDay = 24 * 60 * 60
+	secs := cert.NotAfter.Unix() - cert.NotBefore.Unix()
+	if secs <= 0 {
+		// Malformed certs (NotAfter <= NotBefore) have no meaningful period.
 		return 0
 	}
-	return int((d + 12*time.Hour) / (24 * time.Hour))
+	// Round to the nearest day.
+	return int((secs + secsPerDay/2) / secsPerDay)
 }
 
 // ExceedsCABMaxLifetime reports whether a subscriber (non-CA) certificate's
