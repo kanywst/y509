@@ -74,7 +74,7 @@ nfpms:
   - maintainer: kanywst
     description: Certificate Chain TUI Viewer
     homepage: https://github.com/kanywst/y509
-    license: MIT
+    license: Apache-2.0
     formats:
       - deb
       - rpm
