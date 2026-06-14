@@ -137,6 +137,9 @@ func (m Model) renderLeftPane(width, height int) string {
 // renderExpiryWithBar renders expiry info with a mini progress bar. Certs
 // expiring within warnDays are coloured with the warning style.
 func renderExpiryWithBar(certInfo *certificate.Info, styles Styles, warnDays int) string {
+	if certInfo == nil || certInfo.Certificate == nil {
+		return ""
+	}
 	cert := certInfo.Certificate
 	d := time.Until(cert.NotAfter)
 
