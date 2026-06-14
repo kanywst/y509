@@ -841,7 +841,7 @@ func FormatValidity(cert *x509.Certificate) string {
 
 	// Total validity period, plus a flag for subscriber certs that exceed the
 	// CA/Browser Forum maximum lifetime (CA certs are exempt).
-	periodDays := int(cert.NotAfter.Sub(cert.NotBefore).Hours() / 24)
+	periodDays := int((cert.NotAfter.Sub(cert.NotBefore) + 12*time.Hour) / (24 * time.Hour))
 	details.WriteString(fmt.Sprintf("Validity Period: %d days\n", periodDays))
 	if !cert.IsCA && periodDays > cabMaxSubscriberValidityDays {
 		details.WriteString(fmt.Sprintf("Note: exceeds CA/Browser Forum max subscriber lifetime (%d days)\n", cabMaxSubscriberValidityDays))
