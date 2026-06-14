@@ -259,6 +259,7 @@ func (m Model) renderTabContent(width int) string {
 		notAfter := cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST")
 		kv("Not Before", notBefore)
 		kv("Not After", notAfter)
+		kv("Period", fmt.Sprintf("%d days", certificate.ValidityPeriodDays(cert.Certificate)))
 
 		// Validity status badge
 		b.WriteString("\n")
@@ -272,6 +273,11 @@ func (m Model) renderTabContent(width int) string {
 			} else {
 				b.WriteString(m.Styles.BadgeValid.Render(fmt.Sprintf("  ● Valid for %d days", days)) + "\n")
 			}
+		}
+
+		// Flag subscriber certs that exceed the CA/Browser Forum max lifetime.
+		if certificate.ExceedsCABMaxLifetime(cert.Certificate) {
+			b.WriteString(m.Styles.BadgeWarning.Render(fmt.Sprintf("  ⚠ Exceeds CA/B max lifetime (%d days)", certificate.CABMaxSubscriberValidityDays)) + "\n")
 		}
 
 		// Expiry progress bar

@@ -887,3 +887,53 @@ func TestDescribeUnknownPublicKey(t *testing.T) {
 		t.Errorf("expected fallback Type line for nil cert, got:\n%s", got)
 	}
 }
+
+func TestValidityPeriodDays(t *testing.T) {
+	now := time.Now()
+	tests := []struct {
+		name      string
+		notBefore time.Time
+		notAfter  time.Time
+		want      int
+	}{
+		{"90 days", now, now.Add(90 * 24 * time.Hour), 90},
+		{"366 days", now.Add(-24 * time.Hour), now.Add(365 * 24 * time.Hour), 366},
+		{"nil-safe is zero via separate check", now, now, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cert := &x509.Certificate{NotBefore: tt.notBefore, NotAfter: tt.notAfter}
+			if got := ValidityPeriodDays(cert); got != tt.want {
+				t.Errorf("ValidityPeriodDays() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+	if got := ValidityPeriodDays(nil); got != 0 {
+		t.Errorf("ValidityPeriodDays(nil) = %d, want 0", got)
+	}
+}
+
+func TestExceedsCABMaxLifetime(t *testing.T) {
+	now := time.Now()
+	tests := []struct {
+		name     string
+		notAfter time.Time
+		isCA     bool
+		want     bool
+	}{
+		{"subscriber within max", now.Add(200 * 24 * time.Hour), false, false},
+		{"subscriber over max", now.Add(365 * 24 * time.Hour), false, true},
+		{"CA over max is exempt", now.Add(3650 * 24 * time.Hour), true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cert := &x509.Certificate{NotBefore: now, NotAfter: tt.notAfter, IsCA: tt.isCA}
+			if got := ExceedsCABMaxLifetime(cert); got != tt.want {
+				t.Errorf("ExceedsCABMaxLifetime() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+	if ExceedsCABMaxLifetime(nil) {
+		t.Error("ExceedsCABMaxLifetime(nil) = true, want false")
+	}
+}
