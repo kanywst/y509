@@ -35,6 +35,7 @@ func TestStatusIconReflectsExpiringSoon(t *testing.T) {
 		notAfter time.Time
 		want     string
 	}{
+		{name: "Already expired", notAfter: time.Now().Add(-24 * time.Hour), want: "✖"},
 		{name: "Expiring within window", notAfter: time.Now().Add(5 * 24 * time.Hour), want: "▲"},
 		{name: "Well in the future", notAfter: time.Now().Add(365 * 24 * time.Hour), want: "●"},
 	}

@@ -389,9 +389,16 @@ func getStatusIconAndStyle(certInfo *certificate.Info, styles Styles, warnDays i
 	case certificate.StatusMismatchedIssuer, certificate.StatusInvalidSignature:
 		return "◆", styles.StatusExpired
 	default:
-		// Otherwise valid, but flag it if it expires within the warning
-		// window so the icon matches the expiry bar and the Validity tab.
-		if certInfo.Certificate != nil && certificate.IsExpiringSoonWithin(certInfo.Certificate, warnDays) {
+		// The status may not have been computed (StatusUnknown/StatusGood),
+		// so fall back to the dates: expired wins, then the warning window,
+		// so the icon matches the expiry bar and the Validity tab.
+		if certInfo.Certificate == nil {
+			return "●", styles.StatusValid
+		}
+		if certificate.IsExpired(certInfo.Certificate) {
+			return "✖", styles.StatusExpired
+		}
+		if certificate.IsExpiringSoonWithin(certInfo.Certificate, warnDays) {
 			return "▲", styles.StatusWarning
 		}
 		return "●", styles.StatusValid
