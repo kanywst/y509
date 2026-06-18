@@ -377,7 +377,7 @@ func (m Model) renderChainPosition(current *certificate.Info) string {
 	return t.Render()
 }
 
-func getStatusIconAndStyle(certInfo *certificate.Info, styles Styles) (string, lipgloss.Style) {
+func getStatusIconAndStyle(certInfo *certificate.Info, styles Styles, warnDays int) (string, lipgloss.Style) {
 	switch certInfo.ValidationStatus {
 	case certificate.StatusWarning:
 		return "▲", styles.StatusWarning
@@ -386,6 +386,11 @@ func getStatusIconAndStyle(certInfo *certificate.Info, styles Styles) (string, l
 	case certificate.StatusMismatchedIssuer, certificate.StatusInvalidSignature:
 		return "◆", styles.StatusExpired
 	default:
+		// Otherwise valid, but flag it if it expires within the warning
+		// window so the icon matches the expiry bar and the Validity tab.
+		if certInfo.Certificate != nil && certificate.IsExpiringSoonWithin(certInfo.Certificate, warnDays) {
+			return "▲", styles.StatusWarning
+		}
 		return "●", styles.StatusValid
 	}
 }
