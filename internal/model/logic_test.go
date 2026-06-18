@@ -53,6 +53,27 @@ func TestFilterLogic(t *testing.T) {
 	})
 }
 
+func TestEmptyFilterKeepsFrame(t *testing.T) {
+	cfg := loadTestConfig(t)
+	m := *NewModel(createTestCertificates(3), cfg)
+	m.width = 80
+	m.height = 24
+	m.ready = true
+
+	m = m.searchCertificates("no-such-certificate-anywhere")
+	if len(m.certificates) != 0 {
+		t.Fatalf("expected no matches, got %d", len(m.certificates))
+	}
+
+	view := m.renderNormalView()
+	if !strings.Contains(view, "y509") {
+		t.Error("empty state dropped the header")
+	}
+	if !strings.Contains(view, "Esc") {
+		t.Error("empty state does not tell the user how to clear the filter")
+	}
+}
+
 func TestSearchLogic(t *testing.T) {
 	cfg := loadTestConfig(t)
 	certs := createTestCertificates(3)

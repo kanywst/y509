@@ -45,7 +45,7 @@ func (m Model) viewContent() string {
 // renderNormalView renders the main view with header, panes, and status bar
 func (m Model) renderNormalView() string {
 	if len(m.certificates) == 0 {
-		return "No certificates found."
+		return m.renderEmptyState()
 	}
 
 	header := m.renderHeader()
@@ -59,6 +59,28 @@ func (m Model) renderNormalView() string {
 	mainContent := lipgloss.NewStyle().Height(panesHeight).Render(panes)
 
 	return lipgloss.JoinVertical(lipgloss.Left, header, mainContent, statusBar)
+}
+
+// renderEmptyState keeps the header and status bar in place when there are
+// no certificates to show, so a filter that matches nothing doesn't blank
+// the screen and the user can see how to get back.
+func (m Model) renderEmptyState() string {
+	header := m.renderHeader()
+	statusBar := m.renderStatusBar()
+	bodyHeight := m.height - lipgloss.Height(header) - lipgloss.Height(statusBar)
+
+	msg := "No certificates found."
+	if m.filterActive {
+		msg = fmt.Sprintf("Nothing matches %q\n\nPress Esc to clear the filter", m.filterType)
+	}
+
+	body := lipgloss.NewStyle().
+		Width(m.width).
+		Height(bodyHeight).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(m.Styles.Dimmed.Render(msg))
+
+	return lipgloss.JoinVertical(lipgloss.Left, header, body, statusBar)
 }
 
 // renderHeader renders the application header with breadcrumb
