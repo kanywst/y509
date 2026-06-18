@@ -1,10 +1,13 @@
 package model
 
 import (
+	"crypto/x509"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kanywst/y509/internal/config"
+	"github.com/kanywst/y509/pkg/certificate"
 )
 
 func TestChainPositionLabelsLoneSelfSignedAsRoot(t *testing.T) {
@@ -17,6 +20,33 @@ func TestChainPositionLabelsLoneSelfSignedAsRoot(t *testing.T) {
 	}
 	if strings.Contains(out, "Leaf") {
 		t.Errorf("lone self-signed cert should not be labeled Leaf, got:\n%s", out)
+	}
+}
+
+func TestStatusIconReflectsExpiringSoon(t *testing.T) {
+	cfg, _ := config.LoadConfig()
+	styles := NewStyles(&cfg.Theme)
+
+	tests := []struct {
+		name     string
+		notAfter time.Time
+		want     string
+	}{
+		{name: "Expiring within window", notAfter: time.Now().Add(5 * 24 * time.Hour), want: "▲"},
+		{name: "Well in the future", notAfter: time.Now().Add(365 * 24 * time.Hour), want: "●"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			info := &certificate.Info{
+				Certificate:      &x509.Certificate{NotAfter: tt.notAfter},
+				ValidationStatus: certificate.StatusGood,
+			}
+			icon, _ := getStatusIconAndStyle(info, styles, cfg.ExpiryWarningDays)
+			if icon != tt.want {
+				t.Errorf("icon = %q, want %q", icon, tt.want)
+			}
+		})
 	}
 }
 

@@ -51,7 +51,7 @@ func (d certDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		subjectWidth = 10
 	}
 
-	statusIcon, statusStyle := getStatusIconAndStyle(ci.info, d.styles)
+	statusIcon, statusStyle := getStatusIconAndStyle(ci.info, d.styles, d.warnDays)
 	expiresStr := renderExpiryWithBar(ci.info, d.styles, d.warnDays)
 
 	var baseStyle lipgloss.Style
