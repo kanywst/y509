@@ -344,10 +344,10 @@ func (m Model) renderChainPosition(current *certificate.Info) string {
 		}
 		role := "Intermediate"
 		switch {
+		case cert.Certificate.Issuer.String() == cert.Certificate.Subject.String():
+			role = "Root"
 		case i == 0:
 			role = "Leaf"
-		case i == len(m.allCertificates)-1 && cert.Certificate.Issuer.String() == cert.Certificate.Subject.String():
-			role = "Root"
 		}
 		marker := " "
 		if cert == current {

@@ -7,6 +7,19 @@ import (
 	"github.com/kanywst/y509/internal/config"
 )
 
+func TestChainPositionLabelsLoneSelfSignedAsRoot(t *testing.T) {
+	cfg, _ := config.LoadConfig()
+	m := NewModel(createTestCertificates(1), cfg)
+
+	out := m.renderChainPosition(m.allCertificates[0])
+	if !strings.Contains(out, "Root") {
+		t.Errorf("lone self-signed cert should be labeled Root, got:\n%s", out)
+	}
+	if strings.Contains(out, "Leaf") {
+		t.Errorf("lone self-signed cert should not be labeled Leaf, got:\n%s", out)
+	}
+}
+
 func TestRenderHeader(t *testing.T) {
 	cfg, _ := config.LoadConfig()
 	m := NewModel(createTestCertificates(1), cfg)
