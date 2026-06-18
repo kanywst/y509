@@ -50,7 +50,7 @@ func (m Model) renderNormalView() string {
 
 	header := m.renderHeader()
 	statusBar := m.renderStatusBar()
-	panesHeight := m.height - lipgloss.Height(header) - lipgloss.Height(statusBar)
+	panesHeight := max(0, m.height-lipgloss.Height(header)-lipgloss.Height(statusBar))
 
 	panes := m.renderTwoPanes(panesHeight)
 	mainContent := lipgloss.NewStyle().Height(panesHeight).Render(panes)
