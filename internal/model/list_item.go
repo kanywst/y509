@@ -39,7 +39,7 @@ func (d certDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
 func (d certDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	ci, ok := item.(certItem)
-	if !ok {
+	if !ok || ci.info == nil || ci.info.Certificate == nil {
 		return
 	}
 
