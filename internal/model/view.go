@@ -378,6 +378,9 @@ func (m Model) renderChainPosition(current *certificate.Info) string {
 }
 
 func getStatusIconAndStyle(certInfo *certificate.Info, styles Styles, warnDays int) (string, lipgloss.Style) {
+	if certInfo == nil {
+		return "", lipgloss.NewStyle()
+	}
 	switch certInfo.ValidationStatus {
 	case certificate.StatusWarning:
 		return "▲", styles.StatusWarning
