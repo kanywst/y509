@@ -671,7 +671,6 @@ func FilterCertificates(certs []*Info, filterType string) []*Info {
 	return results
 }
 
-// Update test cases to use ValidationResult instead of ChainValidationResult
 func TestFormatChainValidation(t *testing.T) {
 	tests := []struct {
 		name     string
