@@ -72,6 +72,9 @@ func TestEmptyFilterKeepsFrame(t *testing.T) {
 	if !strings.Contains(view, "Esc") {
 		t.Error("empty state does not tell the user how to clear the filter")
 	}
+	if !strings.Contains(view, "no-such-certificate-anywhere") {
+		t.Error("empty state does not show the search query that matched nothing")
+	}
 }
 
 func TestSearchLogic(t *testing.T) {
