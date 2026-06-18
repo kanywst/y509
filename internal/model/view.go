@@ -68,7 +68,11 @@ func (m Model) renderEmptyState() string {
 
 	msg := "No certificates found."
 	if m.filterActive {
-		msg = fmt.Sprintf("Nothing matches %q\n\nPress Esc to clear the filter", m.filterType)
+		term := "filter"
+		if m.searchQuery != "" {
+			term = "search"
+		}
+		msg = fmt.Sprintf("Nothing matches %q\n\nPress Esc to clear the %s", m.filterType, term)
 	}
 
 	body := lipgloss.NewStyle().
