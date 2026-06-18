@@ -773,6 +773,19 @@ func TestExportCertificate(t *testing.T) {
 	}
 }
 
+func TestExportCertificateUppercaseExtension(t *testing.T) {
+	cert := createTestCert()
+	target := filepath.Join(t.TempDir(), "out.PEM")
+
+	// Empty format means the extension decides; an uppercase one must work.
+	if err := ExportCertificate(cert, "", target); err != nil {
+		t.Fatalf("uppercase extension should be accepted, got: %v", err)
+	}
+	if _, err := os.Stat(target); err != nil {
+		t.Errorf("expected file to be written: %v", err)
+	}
+}
+
 func TestExportCertificateUnsupportedLeavesNoFile(t *testing.T) {
 	cert := createTestCert()
 	target := filepath.Join(t.TempDir(), "out.xyz")
