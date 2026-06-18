@@ -16,6 +16,18 @@ const (
 	MediumArtHeightThreshold = 14
 )
 
+const compactSplashArt = `
+ ██   ██ ███████  ██████   █████
+  ████   ██       █████   ██   ██
+   ██    ███████ ██    ██  █████  `
+
+const fullSplashArt = `
+██    ██ ███████  ██████   █████
+ ██  ██  ██      ██    ██ ██   ██
+  ████   ███████ ██    ██  █████
+   ██         ██ ██    ██      ██
+   ██    ███████  ██████   █████  `
+
 // renderSplashScreen renders the y509 ASCII art splash screen with adaptive sizing
 func (m Model) renderSplashScreen() string {
 	ver := version.GetShortVersion()
@@ -23,27 +35,15 @@ func (m Model) renderSplashScreen() string {
 	var asciiArt string
 	var subtitle string
 
-	if m.width < CompactArtWidthThreshold || m.height < CompactArtHeightThreshold {
-		asciiArt = `
- ██   ██ ███████  ██████   █████
-  ████   ██       █████   ██   ██
-   ██    ███████ ██    ██  █████  `
+	switch {
+	case m.width < CompactArtWidthThreshold || m.height < CompactArtHeightThreshold:
+		asciiArt = compactSplashArt
 		subtitle = fmt.Sprintf("Certificate Chain TUI Viewer  %s", ver)
-	} else if m.width < MediumArtWidthThreshold || m.height < MediumArtHeightThreshold {
-		asciiArt = `
-██    ██ ███████  ██████   █████
- ██  ██  ██      ██    ██ ██   ██
-  ████   ███████ ██    ██  █████
-   ██         ██ ██    ██      ██
-   ██    ███████  ██████   █████  `
+	case m.width < MediumArtWidthThreshold || m.height < MediumArtHeightThreshold:
+		asciiArt = fullSplashArt
 		subtitle = fmt.Sprintf("Certificate Chain TUI Viewer  %s", ver)
-	} else {
-		asciiArt = `
-██    ██ ███████  ██████   █████
- ██  ██  ██      ██    ██ ██   ██
-  ████   ███████ ██    ██  █████
-   ██         ██ ██    ██      ██
-   ██    ███████  ██████   █████  `
+	default:
+		asciiArt = fullSplashArt
 		subtitle = fmt.Sprintf("🔐  Certificate Chain TUI Viewer\n%s", ver)
 	}
 
