@@ -67,7 +67,7 @@ func (m Model) renderNormalView() string {
 func (m Model) renderEmptyState() string {
 	header := m.renderHeader()
 	statusBar := m.renderStatusBar()
-	bodyHeight := m.height - lipgloss.Height(header) - lipgloss.Height(statusBar)
+	bodyHeight := max(0, m.height-lipgloss.Height(header)-lipgloss.Height(statusBar))
 
 	msg := "No certificates found."
 	if m.filterActive {
