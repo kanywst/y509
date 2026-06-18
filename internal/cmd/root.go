@@ -62,11 +62,7 @@ func init() {
 	RootCmd.PersistentFlags().String("log-file", "", "Path to the log file")
 	RootCmd.PersistentFlags().Bool("debug", false, "Enable debug logging")
 
-	// Add subcommands
-	RootCmd.AddCommand(validateCmd)
-	RootCmd.AddCommand(exportCmd)
-	RootCmd.AddCommand(versionCmd)
-	RootCmd.AddCommand(completionCmd)
+	// Subcommands register themselves in their own init().
 
 	// Handle arguments
 	RootCmd.Args = func(_ *cobra.Command, args []string) error {
