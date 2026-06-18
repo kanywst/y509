@@ -49,13 +49,10 @@ func (m Model) renderNormalView() string {
 	}
 
 	header := m.renderHeader()
-	panes := m.renderTwoPanes()
 	statusBar := m.renderStatusBar()
+	panesHeight := m.height - lipgloss.Height(header) - lipgloss.Height(statusBar)
 
-	headerHeight := lipgloss.Height(header)
-	statusBarHeight := lipgloss.Height(statusBar)
-	panesHeight := m.height - headerHeight - statusBarHeight
-
+	panes := m.renderTwoPanes(panesHeight)
 	mainContent := lipgloss.NewStyle().Height(panesHeight).Render(panes)
 
 	return lipgloss.JoinVertical(lipgloss.Left, header, mainContent, statusBar)
@@ -94,9 +91,10 @@ func (m Model) renderHeader() string {
 	return lipgloss.JoinVertical(lipgloss.Left, headerLine, divider)
 }
 
-// renderTwoPanes renders the left and right panes
-func (m Model) renderTwoPanes() string {
-	paneHeight := m.height - lipgloss.Height(m.renderHeader()) - lipgloss.Height(m.renderStatusBar())
+// renderTwoPanes renders the left and right panes. The pane height is
+// passed in from renderNormalView so the header and status bar don't get
+// rendered again just to measure them.
+func (m Model) renderTwoPanes(paneHeight int) string {
 	leftPaneWidth := m.width * 2 / 5
 	rightPaneWidth := m.width - leftPaneWidth
 
