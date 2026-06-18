@@ -26,10 +26,12 @@ import (
 var logger = zap.NewNop()
 
 // SetLogger routes the package's diagnostics through the given logger.
+// Passing nil resets it to a no-op logger.
 func SetLogger(l *zap.Logger) {
-	if l != nil {
-		logger = l
+	if l == nil {
+		l = zap.NewNop()
 	}
+	logger = l
 }
 
 // ValidationStatus represents the validation status of a single certificate in the chain.
