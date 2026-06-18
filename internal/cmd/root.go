@@ -41,6 +41,7 @@ var (
 				fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 				os.Exit(1)
 			}
+			certificate.SetLogger(logger.Log)
 		},
 	}
 )
