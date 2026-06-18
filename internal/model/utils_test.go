@@ -15,6 +15,8 @@ func TestTruncateText(t *testing.T) {
 		{name: "Fits", text: "short", width: 10, want: "short"},
 		{name: "ASCII truncated", text: "abcdefghij", width: 7, want: "abcd..."},
 		{name: "Zero width", text: "abc", width: 0, want: ""},
+		{name: "Negative width", text: "abc", width: -5, want: ""},
+		{name: "Width equals three", text: "abcdef", width: 3, want: "..."},
 		{name: "Tiny width", text: "abcdef", width: 2, want: ".."},
 		{name: "Multibyte fits", text: "日本語", width: 5, want: "日本語"},
 		{name: "Multibyte truncated", text: "日本語テスト", width: 5, want: "日本..."},
