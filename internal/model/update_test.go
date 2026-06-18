@@ -109,3 +109,25 @@ func TestHelpModeQClosesWithoutQuitting(t *testing.T) {
 		t.Error("q in help mode should not issue a command (no quit)")
 	}
 }
+
+func TestCtrlCQuitsFromSplash(t *testing.T) {
+	cfg := loadTestConfig(t)
+	m := *NewModel([]*certificate.Info{createDummyCert(1)}, cfg)
+	// Still on the splash screen.
+	if m.viewMode != ViewSplash {
+		t.Fatalf("expected initial ViewSplash, got %v", m.viewMode)
+	}
+
+	ctrlC := tea.KeyPressMsg(tea.Key{Code: 'c', Mod: tea.ModCtrl})
+	if ctrlC.String() != "ctrl+c" {
+		t.Fatalf("test setup wrong, key string = %q", ctrlC.String())
+	}
+
+	_, cmd := m.Update(ctrlC)
+	if cmd == nil {
+		t.Fatal("expected a quit command from ctrl+c on splash")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Error("ctrl+c on splash did not produce tea.QuitMsg")
+	}
+}

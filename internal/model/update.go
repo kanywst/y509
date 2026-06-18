@@ -42,15 +42,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		if m.viewMode == ViewSplash {
-			m.viewMode = ViewNormal
-			return m, nil
-		}
-		// Ctrl+C always quits. In help and popup modes, the other keys
-		// close the overlay rather than the app, so q only quits from
+		// Ctrl+C always quits, before any mode-specific handling (including
+		// the splash dismissal below). In help and popup modes the other
+		// keys close the overlay rather than the app, so q only quits from
 		// the normal view.
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
+		}
+		if m.viewMode == ViewSplash {
+			m.viewMode = ViewNormal
+			return m, nil
 		}
 
 		switch m.viewMode {
