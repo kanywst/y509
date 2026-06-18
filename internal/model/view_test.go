@@ -138,3 +138,23 @@ func TestMinimumSizeWarning(t *testing.T) {
 		t.Errorf("Minimum size warning not displayed or correctly wrapped")
 	}
 }
+
+func TestScrollFooterAppearsOnOverflow(t *testing.T) {
+	cfg, _ := config.LoadConfig()
+	m := NewModel(createTestCertificates(1), cfg)
+	m.viewport.SetWidth(50)
+	m.viewport.SetHeight(5)
+
+	// Short content fits: no scroll arrows.
+	m.viewport.SetContent("one line")
+	if strings.ContainsAny(m.renderRightPane(54, 20), "▲▼") {
+		t.Error("scroll footer shown when content fits")
+	}
+
+	// Tall content overflows: a down arrow should appear at the top.
+	m.viewport.SetContent(strings.Repeat("line\n", 30))
+	m.viewport.GotoTop()
+	if !strings.Contains(m.renderRightPane(54, 20), "▼") {
+		t.Error("scroll footer missing when content overflows")
+	}
+}
