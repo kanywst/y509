@@ -228,21 +228,38 @@ func (m Model) renderRightPane(width, height int) string {
 	return paneStyle.Width(width).Height(height).Render(paneContent)
 }
 
-// renderTabs renders the UI for switching between detail tabs with underline indicator
-func (m Model) renderTabs(_ int) string {
+// renderTabs renders the detail-tab switcher. When the full strip doesn't
+// fit the pane width it collapses to a compact "‹ Active ›  i/n" form so the
+// tabs never wrap and push the pane border out of alignment. Both forms are
+// two rows tall (label + underline) to keep the pane geometry constant.
+func (m Model) renderTabs(width int) string {
 	var renderedTabs []string
 	for i, t := range m.tabs {
+		cellWidth := lipgloss.Width(t) + 4
 		if i == m.activeTab {
 			label := m.Styles.TabActive.Render(t)
-			underline := m.Styles.Title.Render(strings.Repeat("━", lipgloss.Width(t)+4))
+			underline := m.Styles.Title.Render(strings.Repeat("━", cellWidth))
 			renderedTabs = append(renderedTabs, lipgloss.JoinVertical(lipgloss.Center, label, underline))
 		} else {
 			label := m.Styles.Tab.Render(t)
-			spacer := lipgloss.NewStyle().Render(strings.Repeat(" ", lipgloss.Width(t)+4))
+			spacer := strings.Repeat(" ", cellWidth)
 			renderedTabs = append(renderedTabs, lipgloss.JoinVertical(lipgloss.Center, label, spacer))
 		}
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
+	full := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
+
+	budget := width - 2 // pane side borders
+	if budget <= 0 || lipgloss.Width(full) <= budget {
+		return full
+	}
+
+	// Compact fallback for narrow panes.
+	active := m.tabs[m.activeTab]
+	label := m.Styles.Dimmed.Render("‹ ") +
+		m.Styles.Title.Bold(true).Render(active) +
+		m.Styles.Dimmed.Render(fmt.Sprintf(" ›  %d/%d", m.activeTab+1, len(m.tabs)))
+	underline := m.Styles.Title.Render(strings.Repeat("━", lipgloss.Width(active)+2))
+	return lipgloss.JoinVertical(lipgloss.Center, label, underline)
 }
 
 // renderTabContent renders the content for the currently active tab.
