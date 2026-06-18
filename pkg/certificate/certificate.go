@@ -316,7 +316,7 @@ func ExportCertificate(cert *x509.Certificate, format string, filename string) e
 	if f == "" {
 		ext := filepath.Ext(filename)
 		if ext != "" {
-			f = ext[1:] // remove dot
+			f = strings.ToLower(ext[1:]) // remove dot, normalize case
 		}
 	}
 
