@@ -5,6 +5,9 @@ project_name: y509
 builds:
   - binary: y509
     main: ./cmd/y509
+    # Static link (pure-Go net resolver) so the binary runs on any glibc (#26).
+    env:
+      - CGO_ENABLED=0
     goos:
       - darwin
       - linux
