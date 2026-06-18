@@ -46,18 +46,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewMode = ViewNormal
 			return m, nil
 		}
-		// Global quit (except in Popup mode where q might be part of input)
-		if m.viewMode != ViewPopup {
-			if key.Matches(msg, m.keys.Quit) {
-				return m, tea.Quit
-			}
-		} else if msg.String() == "ctrl+c" {
-			// In Popup, only Ctrl+C quits app. Esc closes popup.
+		// Ctrl+C always quits. In help and popup modes, the other keys
+		// close the overlay rather than the app, so q only quits from
+		// the normal view.
+		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
 
 		switch m.viewMode {
 		case ViewNormal:
+			if key.Matches(msg, m.keys.Quit) {
+				return m, tea.Quit
+			}
 			return m.updateNormalMode(msg)
 		case ViewHelp:
 			return m.updateHelpMode(msg)

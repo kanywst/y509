@@ -92,3 +92,20 @@ func TestNavigationKeys(t *testing.T) {
 		}
 	})
 }
+
+func TestHelpModeQClosesWithoutQuitting(t *testing.T) {
+	cfg := loadTestConfig(t)
+	m := *NewModel([]*certificate.Info{createDummyCert(1)}, cfg)
+	m.ready = true
+	m.viewMode = ViewHelp
+
+	newModel, cmd := m.Update(keyPress('q'))
+	m = newModel.(Model)
+
+	if m.viewMode != ViewNormal {
+		t.Errorf("expected help to close to ViewNormal, got %v", m.viewMode)
+	}
+	if cmd != nil {
+		t.Error("q in help mode should not issue a command (no quit)")
+	}
+}
