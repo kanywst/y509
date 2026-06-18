@@ -425,9 +425,10 @@ func generateCertificateLabel(cert *x509.Certificate, index int) string {
 		cn = "Unknown"
 	}
 
-	// Truncate long common names
-	if len(cn) > 30 {
-		cn = cn[:27] + "..."
+	// Truncate long common names by rune so multibyte names aren't cut
+	// mid-character.
+	if r := []rune(cn); len(r) > 30 {
+		cn = string(r[:27]) + "..."
 	}
 
 	return fmt.Sprintf("%d. %s", index+1, cn)
