@@ -2,20 +2,19 @@
 package cmd
 
 import (
-	"github.com/kanywst/y509/internal/logger"
+	"fmt"
+
 	"github.com/kanywst/y509/internal/version"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
 
 // versionCmd represents the version command
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number",
-	Run: func(_ *cobra.Command, _ []string) {
-		logger.Log.Info("Version information",
-			zap.String("version", version.GetVersion()),
-			zap.String("build", version.GetFullVersion()))
+	Run: func(cmd *cobra.Command, _ []string) {
+		fmt.Fprintf(cmd.OutOrStdout(), "y509 version %s\nBuild: %s\n",
+			version.GetVersion(), version.GetFullVersion())
 	},
 }
 
