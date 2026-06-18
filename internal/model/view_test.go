@@ -27,6 +27,9 @@ func TestStatusIconReflectsExpiringSoon(t *testing.T) {
 	cfg, _ := config.LoadConfig()
 	styles := NewStyles(&cfg.Theme)
 
+	// Fixed window so the test doesn't depend on a local .y509 config.
+	const warnDays = 30
+
 	tests := []struct {
 		name     string
 		notAfter time.Time
@@ -42,7 +45,7 @@ func TestStatusIconReflectsExpiringSoon(t *testing.T) {
 				Certificate:      &x509.Certificate{NotAfter: tt.notAfter},
 				ValidationStatus: certificate.StatusGood,
 			}
-			icon, _ := getStatusIconAndStyle(info, styles, cfg.ExpiryWarningDays)
+			icon, _ := getStatusIconAndStyle(info, styles, warnDays)
 			if icon != tt.want {
 				t.Errorf("icon = %q, want %q", icon, tt.want)
 			}
