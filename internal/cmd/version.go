@@ -12,9 +12,10 @@ import (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number",
-	Run: func(cmd *cobra.Command, _ []string) {
-		fmt.Fprintf(cmd.OutOrStdout(), "y509 version %s\nBuild: %s\n",
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "y509 version %s\nBuild: %s\n",
 			version.GetVersion(), version.GetFullVersion())
+		return err
 	},
 }
 
