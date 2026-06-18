@@ -16,7 +16,7 @@ var exportCmd = &cobra.Command{
 	Use:   "export [index] [format] [filename]",
 	Short: "Export a certificate to a file",
 	Long: `Export a certificate to a file in the specified format.
-Format can be either 'pem' or 'der'.
+Format can be 'pem', 'der', or 'crt' (crt is written as PEM).
 If no index is provided, the currently selected certificate will be exported.
 If no format is provided, 'pem' will be used.
 If no filename is provided, a default name will be generated.`,

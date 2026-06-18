@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -735,6 +736,11 @@ func TestExportCertificate(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "CRT format",
+			format:      "crt",
+			expectError: false,
+		},
+		{
 			name:        "Invalid format",
 			format:      "invalid",
 			expectError: true,
@@ -764,6 +770,18 @@ func TestExportCertificate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestExportCertificateUnsupportedLeavesNoFile(t *testing.T) {
+	cert := createTestCert()
+	target := filepath.Join(t.TempDir(), "out.xyz")
+
+	if err := ExportCertificate(cert, "xyz", target); err == nil {
+		t.Fatal("expected error for unsupported format, got nil")
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Errorf("unsupported format left a file behind: %v", err)
 	}
 }
 
