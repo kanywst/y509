@@ -189,8 +189,9 @@ func (m Model) resizeComponents() Model {
 	const horizontalPadding = 2
 	const verticalPadding = 1
 	const tabStripHeight = 2 // label row + underline row
+	const scrollFooterHeight = 1
 	vpWidth := rightPaneWidth - 2*horizontalPadding - PaneBorderHeight
-	vpHeight := paneHeight - PaneBorderHeight - tabStripHeight - 2*verticalPadding
+	vpHeight := paneHeight - PaneBorderHeight - tabStripHeight - 2*verticalPadding - scrollFooterHeight
 	if vpWidth < 1 {
 		vpWidth = 1
 	}

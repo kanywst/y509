@@ -219,13 +219,41 @@ func (m Model) renderRightPane(width, height int) string {
 	paddedContent := lipgloss.NewStyle().
 		Padding(verticalPadding, horizontalPadding).
 		Render(m.viewport.View())
-	paneContent := lipgloss.JoinVertical(lipgloss.Left, tabs, paddedContent)
+	footer := m.renderScrollFooter(width - 2*horizontalPadding)
+	footer = lipgloss.NewStyle().Padding(0, horizontalPadding).Render(footer)
+	paneContent := lipgloss.JoinVertical(lipgloss.Left, tabs, paddedContent, footer)
 
 	paneStyle := m.Styles.Pane
 	if m.focus == FocusRight {
 		paneStyle = m.Styles.PaneFocus
 	}
 	return paneStyle.Width(width).Height(height).Render(paneContent)
+}
+
+// renderScrollFooter renders a one-row scroll indicator for the detail
+// viewport. It always returns a single row (blank when the content fits)
+// so the pane height stays constant; resizeComponents reserves the row.
+func (m Model) renderScrollFooter(width int) string {
+	if width < 1 {
+		width = 1
+	}
+	blank := lipgloss.NewStyle().Width(width).Render("")
+	if m.viewport.TotalLineCount() <= m.viewport.Height() {
+		return blank
+	}
+
+	up, down := " ", " "
+	if !m.viewport.AtTop() {
+		up = "▲"
+	}
+	if !m.viewport.AtBottom() {
+		down = "▼"
+	}
+	hint := fmt.Sprintf("%s %s  %3.0f%%", up, down, m.viewport.ScrollPercent()*100)
+	return lipgloss.NewStyle().
+		Width(width).
+		Align(lipgloss.Right).
+		Render(m.Styles.Dimmed.Render(hint))
 }
 
 // renderTabs renders the detail-tab switcher. When the full strip doesn't
