@@ -565,6 +565,10 @@ func FormatChainValidation(result *ValidationResult) string {
 
 // ExportCertificate exports a certificate to a file
 func ExportCertificate(cert *x509.Certificate, format string, filename string) error {
+	if cert == nil {
+		return fmt.Errorf("certificate is nil")
+	}
+
 	// Determine format from argument or extension
 	f := strings.ToLower(format)
 	if f == "" {
@@ -586,7 +590,7 @@ func ExportCertificate(cert *x509.Certificate, format string, filename string) e
 	case "der":
 		data = cert.Raw
 	default:
-		return fmt.Errorf("unsupported format: %s (supported: pem, der, crt)", f)
+		return fmt.Errorf("unsupported format: %s (supported: pem, der, crt, cert)", f)
 	}
 
 	// Create directory if it doesn't exist
