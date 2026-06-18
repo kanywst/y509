@@ -15,15 +15,30 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
 )
 
+// safeLogger holds the package logger behind an atomic pointer so SetLogger
+// can be called concurrently with the logging calls without a data race.
+type safeLogger struct {
+	l atomic.Pointer[zap.Logger]
+}
+
+func (s *safeLogger) Info(msg string, fields ...zap.Field)  { s.l.Load().Info(msg, fields...) }
+func (s *safeLogger) Warn(msg string, fields ...zap.Field)  { s.l.Load().Warn(msg, fields...) }
+func (s *safeLogger) Error(msg string, fields ...zap.Field) { s.l.Load().Error(msg, fields...) }
+
 // logger defaults to a no-op so the package stays quiet (and never writes
 // to stderr, which would corrupt the TUI). The application wires in its own
 // logger via SetLogger.
-var logger = zap.NewNop()
+var logger = func() *safeLogger {
+	s := &safeLogger{}
+	s.l.Store(zap.NewNop())
+	return s
+}()
 
 // SetLogger routes the package's diagnostics through the given logger.
 // Passing nil resets it to a no-op logger.
@@ -31,7 +46,7 @@ func SetLogger(l *zap.Logger) {
 	if l == nil {
 		l = zap.NewNop()
 	}
-	logger = l
+	logger.l.Store(l)
 }
 
 // ValidationStatus represents the validation status of a single certificate in the chain.
