@@ -24,13 +24,15 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger *zap.Logger
+// logger defaults to a no-op so the package stays quiet (and never writes
+// to stderr, which would corrupt the TUI). The application wires in its own
+// logger via SetLogger.
+var logger = zap.NewNop()
 
-func init() {
-	var err error
-	logger, err = zap.NewProduction()
-	if err != nil {
-		panic(fmt.Sprintf("failed to initialize logger: %v", err))
+// SetLogger routes the package's diagnostics through the given logger.
+func SetLogger(l *zap.Logger) {
+	if l != nil {
+		logger = l
 	}
 }
 
