@@ -317,6 +317,24 @@ func (m Model) renderTabs(width int) string {
 	return lipgloss.JoinVertical(lipgloss.Left, label, underline)
 }
 
+// groupHex inserts a colon between every byte (two hex chars) so a long
+// fingerprint reads like the familiar AA:BB:CC form and can wrap on the
+// separators instead of as one unbroken string.
+func groupHex(hexStr string) string {
+	var b strings.Builder
+	for i := 0; i < len(hexStr); i += 2 {
+		end := i + 2
+		if end > len(hexStr) {
+			end = len(hexStr)
+		}
+		if i > 0 {
+			b.WriteByte(':')
+		}
+		b.WriteString(hexStr[i:end])
+	}
+	return b.String()
+}
+
 // renderTabContent renders the content for the currently active tab.
 // Width is used to size the inner column; vertical truncation is handled
 // by the caller's viewport.
@@ -324,17 +342,37 @@ func (m Model) renderTabContent(width int) string {
 	cert := m.certificates[m.list.Index()]
 	var b strings.Builder
 
+	const keyWidth = 16
+	valueWidth := width - keyWidth
+	if valueWidth < 8 {
+		valueWidth = 8
+	}
+
+	// kv renders an aligned key/value row. Long values wrap inside the value
+	// column instead of spilling back to the left margin.
 	kv := func(key, value string) {
 		if value == "" {
 			return
 		}
-		keyStyle := m.Styles.DetailKey.Width(16)
-		valueStyle := m.Styles.DetailValue
-		row := lipgloss.JoinHorizontal(lipgloss.Left,
-			keyStyle.Render(key),
-			valueStyle.Render(value),
-		)
+		keyCell := m.Styles.DetailKey.Width(keyWidth).Render(key)
+		valueCell := m.Styles.DetailValue.Width(valueWidth).Render(value)
+		row := lipgloss.JoinHorizontal(lipgloss.Top, keyCell, valueCell)
 		b.WriteString(row + "\n")
+	}
+
+	// kvLines feeds "Key: Value" lines (e.g. from FormatPublicKey) through kv
+	// so they share the same alignment as the rest of the tab.
+	kvLines := func(text string) {
+		for _, line := range strings.Split(strings.TrimRight(text, "\n"), "\n") {
+			if line == "" {
+				continue
+			}
+			if k, v, ok := strings.Cut(line, ": "); ok {
+				kv(k, v)
+			} else {
+				b.WriteString(m.Styles.DetailValue.Render(line) + "\n")
+			}
+		}
 	}
 
 	switch m.tabs[m.activeTab] {
@@ -354,7 +392,7 @@ func (m Model) renderTabContent(width int) string {
 		notAfter := cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST")
 		kv("Not Before", notBefore)
 		kv("Not After", notAfter)
-		kv("Period", fmt.Sprintf("%d days", certificate.ValidityPeriodDays(cert.Certificate)))
+		kv("Lifetime", fmt.Sprintf("%d days total", certificate.ValidityPeriodDays(cert.Certificate)))
 
 		// Validity status badge
 		b.WriteString("\n")
@@ -364,9 +402,9 @@ func (m Model) renderTabContent(width int) string {
 		} else {
 			days := int(d.Hours() / 24)
 			if days <= m.Config.ExpiryWarningDays {
-				b.WriteString(m.Styles.BadgeWarning.Render(fmt.Sprintf("  ▲ Expires in %d days", days)) + "\n")
+				b.WriteString(m.Styles.BadgeWarning.Render(fmt.Sprintf("  ▲ %d days left", days)) + "\n")
 			} else {
-				b.WriteString(m.Styles.BadgeValid.Render(fmt.Sprintf("  ● Valid for %d days", days)) + "\n")
+				b.WriteString(m.Styles.BadgeValid.Render(fmt.Sprintf("  ● Valid · %d days left", days)) + "\n")
 			}
 		}
 
@@ -418,11 +456,11 @@ func (m Model) renderTabContent(width int) string {
 		}
 	case "Misc":
 		kv("Serial", cert.Certificate.SerialNumber.String())
-		kv("SHA256", certificate.FormatFingerprint(cert.Certificate))
+		kv("SHA256", groupHex(certificate.FormatFingerprint(cert.Certificate)))
 		kv("Sig Algo", cert.Certificate.SignatureAlgorithm.String())
 		b.WriteString("\n")
 		b.WriteString(m.Styles.SectionTitle.Render("Public Key") + "\n")
-		b.WriteString(certificate.FormatPublicKey(cert.Certificate) + "\n")
+		kvLines(certificate.FormatPublicKey(cert.Certificate))
 
 		// Chain position visualization
 		b.WriteString("\n")
