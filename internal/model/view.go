@@ -250,7 +250,9 @@ func (m Model) renderTabs(width int) string {
 	full := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
 
 	budget := width - 2 // pane side borders
-	if budget <= 0 || lipgloss.Width(full) <= budget {
+	// Only keep the full strip when it actually fits; at ultra-narrow widths
+	// (budget <= 0) fall through to the compact form.
+	if budget > 0 && lipgloss.Width(full) <= budget {
 		return full
 	}
 
