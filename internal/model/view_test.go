@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/kanywst/y509/internal/config"
 	"github.com/kanywst/y509/pkg/certificate"
 )
@@ -170,6 +171,21 @@ func TestGroupHex(t *testing.T) {
 	for in, want := range cases {
 		if got := groupHex(in); got != want {
 			t.Errorf("groupHex(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestStatusBarAlwaysShowsQuitAndHelp(t *testing.T) {
+	cfg, _ := config.LoadConfig()
+	m := NewModel(createTestCertificates(3), cfg)
+	for _, w := range []int{50, 80, 140} {
+		m.width = w
+		bar := m.renderStatusBar()
+		if !strings.Contains(bar, "quit") || !strings.Contains(bar, "help") {
+			t.Errorf("width %d: status bar missing quit/help: %q", w, bar)
+		}
+		if lipgloss.Width(bar) > w {
+			t.Errorf("width %d: status bar overflows (%d)", w, lipgloss.Width(bar))
 		}
 	}
 }
