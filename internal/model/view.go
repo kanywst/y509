@@ -600,25 +600,29 @@ func (m Model) renderStatusBar() string {
 		return m.Styles.StatusBar.Bold(true).Render(key) + m.Styles.StatusBar.Render(" "+desc)
 	}
 	sep := m.Styles.StatusBar.Foreground(lipgloss.Color(m.Config.Theme.Border)).Render(" │ ")
-	// quit and help are always shown; the rest fill whatever space is left.
-	quit := render("q", "quit")
-	help := render("?", "help")
 
+	// quit and help are the priority hints; the rest fill whatever space is
+	// left. Optional hints are dropped first, then the priority ones, so the
+	// bar fits on one line at any width.
 	core := make([]string, 0, len(hints))
 	for _, h := range hints {
 		core = append(core, render(h.key, h.desc))
 	}
+	tail := []string{render("q", "quit"), render("?", "help")}
 
 	leftWidth := lipgloss.Width(left)
-	build := func(items []string) string {
-		return strings.Join(append(append([]string{}, items...), quit, help), sep)
+	join := func() string {
+		return strings.Join(append(append([]string{}, core...), tail...), sep)
 	}
-	// Drop optional hints from the end until the bar fits on one line.
-	right := build(core)
-	for len(core) > 0 && leftWidth+lipgloss.Width(right) > m.width {
+	fits := func() bool { return leftWidth+lipgloss.Width(join()) <= m.width }
+
+	for len(core) > 0 && !fits() {
 		core = core[:len(core)-1]
-		right = build(core)
 	}
+	for len(tail) > 0 && !fits() {
+		tail = tail[:len(tail)-1]
+	}
+	right := join()
 
 	// Fill the middle with status bar background. Use an unpadded style so
 	// the filler doesn't add its own horizontal padding and overflow the row.
