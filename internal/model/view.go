@@ -237,13 +237,14 @@ func (m Model) renderRightPane(width, height int) string {
 
 // seamBorder is a rounded border whose left corners are T-junctions, used by
 // the right pane so the divider between the two panes joins cleanly. Built
-// once at init, since View runs on every frame.
-var seamBorder lipgloss.Border
+// once at package load, since View runs on every frame.
+var seamBorder = newSeamBorder()
 
-func init() {
-	seamBorder = lipgloss.RoundedBorder()
-	seamBorder.TopLeft = "┬"
-	seamBorder.BottomLeft = "┴"
+func newSeamBorder() lipgloss.Border {
+	b := lipgloss.RoundedBorder()
+	b.TopLeft = "┬"
+	b.BottomLeft = "┴"
+	return b
 }
 
 // renderScrollFooter renders a one-row scroll indicator for the detail
