@@ -356,8 +356,9 @@ func (m Model) renderTabContent(width int) string {
 }
 
 // renderChainPosition shows the certificate chain as a table, marking the
-// current certificate with a leading caret. The table layout is provided
-// by lipgloss/v2/table, including border and per-cell styling.
+// current certificate with a leading caret. The table sits inside the
+// already-bordered detail pane, so it uses only a thin rule under the
+// header rather than a full box, to avoid a heavy border-in-border look.
 func (m Model) renderChainPosition(current *certificate.Info) string {
 	currentRow := -1
 	rows := make([][]string, 0, len(m.allCertificates))
@@ -382,7 +383,14 @@ func (m Model) renderChainPosition(current *certificate.Info) string {
 	}
 
 	t := table.New().
-		Border(lipgloss.RoundedBorder()).
+		Border(lipgloss.NormalBorder()).
+		BorderTop(false).
+		BorderBottom(false).
+		BorderLeft(false).
+		BorderRight(false).
+		BorderColumn(false).
+		BorderRow(false).
+		BorderHeader(true).
 		BorderStyle(m.Styles.ChainLine).
 		Headers("", "#", "Type", "Subject").
 		Rows(rows...).
