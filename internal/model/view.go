@@ -343,7 +343,7 @@ func groupHex(hexStr string) string {
 // by the caller's viewport.
 func (m Model) renderTabContent(width int) string {
 	idx := m.list.Index()
-	if idx < 0 || idx >= len(m.certificates) || m.certificates[idx].Certificate == nil {
+	if idx < 0 || idx >= len(m.certificates) || m.certificates[idx] == nil || m.certificates[idx].Certificate == nil {
 		return ""
 	}
 	cert := m.certificates[idx]
