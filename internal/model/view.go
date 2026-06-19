@@ -304,10 +304,12 @@ func (m Model) renderTabContent(width int) string {
 			b.WriteString(m.Styles.BadgeWarning.Render(fmt.Sprintf("  ⚠ Exceeds CA/B max lifetime (%d days)", certificate.CABMaxSubscriberValidityDays)) + "\n")
 		}
 
-		// Expiry progress bar
+		// Life-remaining bar. Fills with the fraction of the lifetime still
+		// left, matching the list's expiry bar (full = healthy) so the two
+		// bars never read in opposite directions.
 		totalLife := cert.Certificate.NotAfter.Sub(cert.Certificate.NotBefore).Hours() / 24
-		elapsed := time.Since(cert.Certificate.NotBefore).Hours() / 24
-		ratio := elapsed / math.Max(totalLife, 1)
+		remaining := time.Until(cert.Certificate.NotAfter).Hours() / 24
+		ratio := remaining / math.Max(totalLife, 1)
 		if ratio > 1 {
 			ratio = 1
 		}
@@ -318,7 +320,7 @@ func (m Model) renderTabContent(width int) string {
 		filled := int(ratio * float64(barWidth))
 		bar := m.Styles.ProgressFull.Render(strings.Repeat("█", filled)) +
 			m.Styles.ProgressEmpty.Render(strings.Repeat("░", barWidth-filled))
-		pct := fmt.Sprintf(" %.0f%% elapsed", ratio*100)
+		pct := fmt.Sprintf(" %.0f%% left", ratio*100)
 		b.WriteString("  " + bar + m.Styles.Dimmed.Render(pct) + "\n")
 
 	case "SANs":
