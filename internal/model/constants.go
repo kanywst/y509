@@ -55,4 +55,8 @@ const (
 	// The left pane uses BorderRight(false), so only one border column
 	// occupies horizontal space.
 	PaneSideBorderWidth = 1
+
+	// PaneBorderWidth accounts for both side border columns on a pane that
+	// draws a full border (the right pane), used when sizing inner width.
+	PaneBorderWidth = 2
 )
