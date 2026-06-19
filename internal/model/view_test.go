@@ -175,7 +175,18 @@ func TestGroupHex(t *testing.T) {
 	}
 }
 
-func TestStatusBarAlwaysShowsQuitAndHelp(t *testing.T) {
+func TestStatusBarNeverOverflows(t *testing.T) {
+	cfg, _ := config.LoadConfig()
+	m := NewModel(createTestCertificates(3), cfg)
+	for _, w := range []int{20, 30, 50, 80, 140} {
+		m.width = w
+		if got := lipgloss.Width(m.renderStatusBar()); got > w {
+			t.Errorf("width %d: status bar overflows (%d)", w, got)
+		}
+	}
+}
+
+func TestStatusBarShowsQuitAndHelpWhenRoom(t *testing.T) {
 	cfg, _ := config.LoadConfig()
 	m := NewModel(createTestCertificates(3), cfg)
 	for _, w := range []int{50, 80, 140} {
@@ -183,9 +194,6 @@ func TestStatusBarAlwaysShowsQuitAndHelp(t *testing.T) {
 		bar := m.renderStatusBar()
 		if !strings.Contains(bar, "quit") || !strings.Contains(bar, "help") {
 			t.Errorf("width %d: status bar missing quit/help: %q", w, bar)
-		}
-		if lipgloss.Width(bar) > w {
-			t.Errorf("width %d: status bar overflows (%d)", w, lipgloss.Width(bar))
 		}
 	}
 }
