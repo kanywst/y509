@@ -322,6 +322,9 @@ func (m Model) renderTabs(width int) string {
 // separators instead of as one unbroken string.
 func groupHex(hexStr string) string {
 	var b strings.Builder
+	if n := len(hexStr); n > 0 {
+		b.Grow(n + (n-1)/2) // bytes plus one colon per pair after the first
+	}
 	for i := 0; i < len(hexStr); i += 2 {
 		end := i + 2
 		if end > len(hexStr) {
@@ -339,7 +342,11 @@ func groupHex(hexStr string) string {
 // Width is used to size the inner column; vertical truncation is handled
 // by the caller's viewport.
 func (m Model) renderTabContent(width int) string {
-	cert := m.certificates[m.list.Index()]
+	idx := m.list.Index()
+	if idx < 0 || idx >= len(m.certificates) || m.certificates[idx].Certificate == nil {
+		return ""
+	}
+	cert := m.certificates[idx]
 	var b strings.Builder
 
 	const keyWidth = 16
@@ -370,7 +377,8 @@ func (m Model) renderTabContent(width int) string {
 			if k, v, ok := strings.Cut(line, ": "); ok {
 				kv(k, v)
 			} else {
-				b.WriteString(m.Styles.DetailValue.Render(line) + "\n")
+				// No key: render full width so it still wraps in the column.
+				b.WriteString(m.Styles.DetailValue.Width(width).Render(line) + "\n")
 			}
 		}
 	}
