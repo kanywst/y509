@@ -350,21 +350,24 @@ func (m Model) renderTabContent(width int) string {
 	var b strings.Builder
 
 	// Keep the key column from crowding out the value on narrow panes: shrink
-	// it so key + value never exceed the available width.
+	// it so key + value never exceed the available width (down to a zero-width
+	// key on extremely narrow panes).
 	keyWidth := 16
-	if width-keyWidth < 8 {
-		keyWidth = width - 8
+	if keyWidth > width-8 {
+		keyWidth = width - 8 // prefer at least 8 cells for the value
 	}
-	if keyWidth < 4 {
-		keyWidth = 4
+	if keyWidth < 0 {
+		keyWidth = 0
 	}
 	valueWidth := width - keyWidth
 	if valueWidth < 1 {
 		valueWidth = 1
+		keyWidth = max(0, width-1)
 	}
 
 	// kv renders an aligned key/value row. Long values wrap inside the value
-	// column instead of spilling back to the left margin.
+	// column instead of spilling back to the left margin. An empty key gives
+	// a blank column so continuation/section lines still align with values.
 	kv := func(key, value string) {
 		if value == "" {
 			return
@@ -385,11 +388,7 @@ func (m Model) renderTabContent(width int) string {
 			if k, v, ok := strings.Cut(line, ": "); ok {
 				kv(k, v)
 			} else {
-				// No key: blank key cell so it still aligns under the value
-				// column and wraps there instead of at the left margin.
-				keyCell := m.Styles.DetailKey.Width(keyWidth).Render("")
-				valueCell := m.Styles.DetailValue.Width(valueWidth).Render(line)
-				b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, keyCell, valueCell) + "\n")
+				kv("", line)
 			}
 		}
 	}
