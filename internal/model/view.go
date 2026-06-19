@@ -219,7 +219,9 @@ func (m Model) renderRightPane(width, height int) string {
 	paddedContent := lipgloss.NewStyle().
 		Padding(verticalPadding, horizontalPadding).
 		Render(m.viewport.View())
-	footer := m.renderScrollFooter(width - 2*horizontalPadding)
+	// Inner width is the pane width minus its two border columns; the footer
+	// then loses the same horizontal padding as the content above it.
+	footer := m.renderScrollFooter(width - PaneBorderHeight - 2*horizontalPadding)
 	footer = lipgloss.NewStyle().Padding(0, horizontalPadding).Render(footer)
 	paneContent := lipgloss.JoinVertical(lipgloss.Left, tabs, paddedContent, footer)
 
