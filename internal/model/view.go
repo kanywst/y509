@@ -583,7 +583,9 @@ func (m Model) renderStatusBar() string {
 	}
 	left := lipgloss.JoinHorizontal(lipgloss.Left, leftParts...)
 
-	// Right section: keybinding hints
+	// Right section: keybinding hints. "? help" is always shown (it reveals
+	// the rest); the others are dropped from the end when the bar is too
+	// narrow to fit them all, so the hints never overflow the line.
 	hints := []struct{ key, desc string }{
 		{"↑↓", "nav"},
 		{"←→", "pane"},
@@ -591,21 +593,39 @@ func (m Model) renderStatusBar() string {
 		{"/", "search"},
 		{"f", "filter"},
 		{"v", "validate"},
-		{"?", "help"},
+		{"e", "export"},
+		{"y", "copy"},
 	}
-	var hintParts []string
-	for _, h := range hints {
-		hintParts = append(hintParts,
-			m.Styles.StatusBar.Bold(true).Render(h.key)+
-				m.Styles.StatusBar.Render(" "+h.desc))
+	render := func(key, desc string) string {
+		return m.Styles.StatusBar.Bold(true).Render(key) + m.Styles.StatusBar.Render(" "+desc)
 	}
-	right := strings.Join(hintParts, m.Styles.StatusBar.Foreground(lipgloss.Color(m.Config.Theme.Border)).Render(" │ "))
+	sep := m.Styles.StatusBar.Foreground(lipgloss.Color(m.Config.Theme.Border)).Render(" │ ")
+	// quit and help are always shown; the rest fill whatever space is left.
+	quit := render("q", "quit")
+	help := render("?", "help")
 
-	// Fill the middle with status bar background
+	core := make([]string, 0, len(hints))
+	for _, h := range hints {
+		core = append(core, render(h.key, h.desc))
+	}
+
 	leftWidth := lipgloss.Width(left)
-	rightWidth := lipgloss.Width(right)
-	gap := max(0, m.width-leftWidth-rightWidth)
-	middle := m.Styles.StatusBar.Render(strings.Repeat(" ", gap))
+	build := func(items []string) string {
+		return strings.Join(append(append([]string{}, items...), quit, help), sep)
+	}
+	// Drop optional hints from the end until the bar fits on one line.
+	right := build(core)
+	for len(core) > 0 && leftWidth+lipgloss.Width(right) > m.width {
+		core = core[:len(core)-1]
+		right = build(core)
+	}
+
+	// Fill the middle with status bar background. Use an unpadded style so
+	// the filler doesn't add its own horizontal padding and overflow the row.
+	gap := max(0, m.width-leftWidth-lipgloss.Width(right))
+	middle := lipgloss.NewStyle().
+		Background(lipgloss.Color(m.Config.Theme.StatusBar)).
+		Render(strings.Repeat(" ", gap))
 
 	return left + middle + right
 }
