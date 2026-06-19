@@ -239,9 +239,8 @@ func (m Model) renderScrollFooter(width int) string {
 	if width < 1 {
 		width = 1
 	}
-	blank := lipgloss.NewStyle().Width(width).Render("")
 	if m.viewport.TotalLineCount() <= m.viewport.Height() {
-		return blank
+		return strings.Repeat(" ", width)
 	}
 
 	up, down := " ", " "
