@@ -229,17 +229,18 @@ func (m Model) renderRightPane(width, height int) string {
 	// The left pane draws no right border, so the right pane's left edge is
 	// the shared divider. Use T-junctions where it meets the top and bottom
 	// rules instead of a second rounded corner butting against the left one.
-	return paneStyle.Border(seamBorder()).Width(width).Height(height).Render(paneContent)
+	return paneStyle.Border(seamBorder).Width(width).Height(height).Render(paneContent)
 }
 
 // seamBorder is a rounded border whose left corners are T-junctions, used by
-// the right pane so the divider between the two panes joins cleanly.
-func seamBorder() lipgloss.Border {
+// the right pane so the divider between the two panes joins cleanly. Built
+// once, since View runs on every frame.
+var seamBorder = func() lipgloss.Border {
 	b := lipgloss.RoundedBorder()
 	b.TopLeft = "┬"
 	b.BottomLeft = "┴"
 	return b
-}
+}()
 
 // renderTabs renders the UI for switching between detail tabs with underline indicator
 func (m Model) renderTabs(_ int) string {
