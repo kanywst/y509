@@ -256,13 +256,14 @@ func (m Model) renderTabs(width int) string {
 		return full
 	}
 
-	// Compact fallback for narrow panes.
+	// Compact fallback for narrow panes. Left-align and offset the rule by
+	// the "‹ " prefix so it sits directly under the active tab name.
 	active := m.tabs[m.activeTab]
 	label := m.Styles.Dimmed.Render("‹ ") +
 		m.Styles.Title.Bold(true).Render(active) +
 		m.Styles.Dimmed.Render(fmt.Sprintf(" ›  %d/%d", m.activeTab+1, len(m.tabs)))
-	underline := m.Styles.Title.Render(strings.Repeat("━", lipgloss.Width(active)+2))
-	return lipgloss.JoinVertical(lipgloss.Center, label, underline)
+	underline := "  " + m.Styles.Title.Render(strings.Repeat("━", lipgloss.Width(active)))
+	return lipgloss.JoinVertical(lipgloss.Left, label, underline)
 }
 
 // renderTabContent renders the content for the currently active tab.
