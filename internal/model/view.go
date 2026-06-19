@@ -2,7 +2,6 @@ package model
 
 import (
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -306,10 +305,15 @@ func (m Model) renderTabContent(width int) string {
 
 		// Life-remaining bar. Fills with the fraction of the lifetime still
 		// left, matching the list's expiry bar (full = healthy) so the two
-		// bars never read in opposite directions.
-		totalLife := cert.Certificate.NotAfter.Sub(cert.Certificate.NotBefore).Hours() / 24
-		remaining := time.Until(cert.Certificate.NotAfter).Hours() / 24
-		ratio := remaining / math.Max(totalLife, 1)
+		// bars never read in opposite directions. Compute in Unix seconds to
+		// avoid time.Duration overflow on far-future NotAfter dates and to
+		// stay accurate for sub-day lifetimes.
+		totalSecs := cert.Certificate.NotAfter.Unix() - cert.Certificate.NotBefore.Unix()
+		remainingSecs := cert.Certificate.NotAfter.Unix() - time.Now().Unix()
+		ratio := 0.0
+		if totalSecs > 0 {
+			ratio = float64(remainingSecs) / float64(totalSecs)
+		}
 		if ratio > 1 {
 			ratio = 1
 		}
