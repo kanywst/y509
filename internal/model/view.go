@@ -349,10 +349,18 @@ func (m Model) renderTabContent(width int) string {
 	cert := m.certificates[idx]
 	var b strings.Builder
 
-	const keyWidth = 16
+	// Keep the key column from crowding out the value on narrow panes: shrink
+	// it so key + value never exceed the available width.
+	keyWidth := 16
+	if width-keyWidth < 8 {
+		keyWidth = width - 8
+	}
+	if keyWidth < 4 {
+		keyWidth = 4
+	}
 	valueWidth := width - keyWidth
-	if valueWidth < 8 {
-		valueWidth = 8
+	if valueWidth < 1 {
+		valueWidth = 1
 	}
 
 	// kv renders an aligned key/value row. Long values wrap inside the value
@@ -377,8 +385,11 @@ func (m Model) renderTabContent(width int) string {
 			if k, v, ok := strings.Cut(line, ": "); ok {
 				kv(k, v)
 			} else {
-				// No key: render full width so it still wraps in the column.
-				b.WriteString(m.Styles.DetailValue.Width(width).Render(line) + "\n")
+				// No key: blank key cell so it still aligns under the value
+				// column and wraps there instead of at the left margin.
+				keyCell := m.Styles.DetailKey.Width(keyWidth).Render("")
+				valueCell := m.Styles.DetailValue.Width(valueWidth).Render(line)
+				b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, keyCell, valueCell) + "\n")
 			}
 		}
 	}
