@@ -233,10 +233,18 @@ func (m Model) renderRightPane(width, height int) string {
 // tabs never wrap and push the pane border out of alignment. Both forms are
 // two rows tall (label + underline) to keep the pane geometry constant.
 func (m Model) renderTabs(width int) string {
+	if len(m.tabs) == 0 {
+		return ""
+	}
+	activeIdx := m.activeTab
+	if activeIdx < 0 || activeIdx >= len(m.tabs) {
+		activeIdx = 0
+	}
+
 	var renderedTabs []string
 	for i, t := range m.tabs {
 		cellWidth := lipgloss.Width(t) + 4
-		if i == m.activeTab {
+		if i == activeIdx {
 			label := m.Styles.TabActive.Render(t)
 			underline := m.Styles.Title.Render(strings.Repeat("━", cellWidth))
 			renderedTabs = append(renderedTabs, lipgloss.JoinVertical(lipgloss.Center, label, underline))
@@ -257,10 +265,10 @@ func (m Model) renderTabs(width int) string {
 
 	// Compact fallback for narrow panes. Left-align and offset the rule by
 	// the "‹ " prefix so it sits directly under the active tab name.
-	active := m.tabs[m.activeTab]
+	active := m.tabs[activeIdx]
 	label := m.Styles.Dimmed.Render("‹ ") +
 		m.Styles.Title.Bold(true).Render(active) +
-		m.Styles.Dimmed.Render(fmt.Sprintf(" ›  %d/%d", m.activeTab+1, len(m.tabs)))
+		m.Styles.Dimmed.Render(fmt.Sprintf(" ›  %d/%d", activeIdx+1, len(m.tabs)))
 	underline := "  " + m.Styles.Title.Render(strings.Repeat("━", lipgloss.Width(active)))
 	return lipgloss.JoinVertical(lipgloss.Left, label, underline)
 }
