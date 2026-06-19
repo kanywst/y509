@@ -234,13 +234,14 @@ func (m Model) renderRightPane(width, height int) string {
 
 // seamBorder is a rounded border whose left corners are T-junctions, used by
 // the right pane so the divider between the two panes joins cleanly. Built
-// once, since View runs on every frame.
-var seamBorder = func() lipgloss.Border {
-	b := lipgloss.RoundedBorder()
-	b.TopLeft = "┬"
-	b.BottomLeft = "┴"
-	return b
-}()
+// once at init, since View runs on every frame.
+var seamBorder lipgloss.Border
+
+func init() {
+	seamBorder = lipgloss.RoundedBorder()
+	seamBorder.TopLeft = "┬"
+	seamBorder.BottomLeft = "┴"
+}
 
 // renderTabs renders the UI for switching between detail tabs with underline indicator
 func (m Model) renderTabs(_ int) string {
