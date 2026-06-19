@@ -158,3 +158,18 @@ func TestScrollFooterAppearsOnOverflow(t *testing.T) {
 		t.Error("scroll footer missing when content overflows")
 	}
 }
+
+func TestGroupHex(t *testing.T) {
+	cases := map[string]string{
+		"":         "",
+		"ab":       "ab",
+		"abcd":     "ab:cd",
+		"abcde":    "ab:cd:e",
+		"0011aabb": "00:11:aa:bb",
+	}
+	for in, want := range cases {
+		if got := groupHex(in); got != want {
+			t.Errorf("groupHex(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
