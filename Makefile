@@ -37,19 +37,25 @@ release-homebrew:
 	@rm .sha256
 	@echo "Updated Formula/y509.rb with new version and SHA256"
 
+# Generate the demo certificate chain. Not committed, since its baked-in
+# dates would go stale (the "expiring" leaf eventually becomes "expired").
+.PHONY: demo-certs
+demo-certs:
+	@go run scripts/gen_demo_certs.go
+
 # Run tests
 .PHONY: test
-test:
+test: demo-certs
 	go test -v $(GOTEST_ARGS) ./...
 
 # Run tests with JSON output (useful for CI)
 .PHONY: test-json
-test-json:
+test-json: demo-certs
 	@go test -v -json $(GOTEST_ARGS) ./...
 
 # Run tests with coverage
 .PHONY: test-coverage
-test-coverage:
+test-coverage: demo-certs
 	go test -cover ./...
 
 # Clean build artifacts
@@ -79,11 +85,11 @@ version:
 
 # Development helpers
 .PHONY: run
-run: build-dev
+run: build-dev demo-certs
 	./$(BINARY_NAME) testdata/demo/certs.pem
 
 .PHONY: demo
-demo: build-dev
+demo: build-dev demo-certs
 	./$(BINARY_NAME) testdata/demo/certs.pem
 
 # Format code
