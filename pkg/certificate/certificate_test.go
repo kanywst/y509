@@ -87,7 +87,7 @@ func TestParseCertificatesFromFile(t *testing.T) {
 	// Prefer the generated demo chain, but fall back to a freshly built one
 	// so this still runs under a plain `go test` (without `make demo-certs`).
 	data, err := os.ReadFile("../../testdata/demo/certs.pem")
-	if err != nil {
+	if err != nil || len(data) == 0 {
 		_, _, leafPEM, rootPEM := generateTestChain()
 		data = []byte(leafPEM + rootPEM)
 	}
