@@ -84,10 +84,18 @@ func createECDSACert() *x509.Certificate {
 }
 
 func TestParseCertificatesFromFile(t *testing.T) {
-	// Test with actual certificate file
+	// Prefer the generated demo chain, but fall back to a freshly built one
+	// so this still runs under a plain `go test` (without `make demo-certs`).
 	data, err := os.ReadFile("../../testdata/demo/certs.pem")
 	if err != nil {
-		t.Skipf("Skipping test: could not read ../../testdata/demo/certs.pem: %v", err)
+		_, _, leafPEM, rootPEM := generateTestChain()
+		path := filepath.Join(t.TempDir(), "certs.pem")
+		if werr := os.WriteFile(path, []byte(leafPEM+rootPEM), 0o600); werr != nil {
+			t.Fatalf("failed to write fallback chain: %v", werr)
+		}
+		if data, err = os.ReadFile(path); err != nil {
+			t.Fatalf("failed to read fallback chain: %v", err)
+		}
 	}
 
 	certs, err := ParseCertificates(data)

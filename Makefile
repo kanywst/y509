@@ -62,6 +62,7 @@ test-coverage: demo-certs
 .PHONY: clean
 clean:
 	rm -f $(BINARY_NAME)
+	rm -f testdata/demo/certs.pem
 	go clean
 
 # Build for multiple platforms
