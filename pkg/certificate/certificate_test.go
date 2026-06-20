@@ -89,13 +89,7 @@ func TestParseCertificatesFromFile(t *testing.T) {
 	data, err := os.ReadFile("../../testdata/demo/certs.pem")
 	if err != nil {
 		_, _, leafPEM, rootPEM := generateTestChain()
-		path := filepath.Join(t.TempDir(), "certs.pem")
-		if werr := os.WriteFile(path, []byte(leafPEM+rootPEM), 0o600); werr != nil {
-			t.Fatalf("failed to write fallback chain: %v", werr)
-		}
-		if data, err = os.ReadFile(path); err != nil {
-			t.Fatalf("failed to read fallback chain: %v", err)
-		}
+		data = []byte(leafPEM + rootPEM)
 	}
 
 	certs, err := ParseCertificates(data)
