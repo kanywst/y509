@@ -49,6 +49,10 @@ var (
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	// Cobra only registers the --version flag when Version is non-empty.
+	// Setting the template alone left --version and -v undefined, even though
+	// the man page and the shell completions both advertised them.
+	RootCmd.Version = version.GetVersion()
 	RootCmd.SetVersionTemplate("y509 version {{.Version}}\nBuild: " + version.GetFullVersion() + "\n")
 
 	if err := RootCmd.Execute(); err != nil {
