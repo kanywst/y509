@@ -1,6 +1,8 @@
 package model
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -208,12 +210,20 @@ func TestExportLogic(t *testing.T) {
 	m.ready = true
 
 	t.Run("Export_Success", func(t *testing.T) {
-		m = m.handleExportCommand("test_export.pem")
+		// Write into a temp dir: exporting into the package directory leaves
+		// the file behind, which is how three empty artifacts ended up tracked
+		// in pkg/certificate.
+		target := filepath.Join(t.TempDir(), "test_export.pem")
+
+		m = m.handleExportCommand(target)
 		if m.viewMode != ViewPopup || m.popupType != PopupAlert {
 			t.Errorf("Expected PopupAlert after export")
 		}
 		if !strings.Contains(m.popupMessage, "successfully") {
 			t.Errorf("Expected success message, got %q", m.popupMessage)
+		}
+		if _, err := os.Stat(target); err != nil {
+			t.Errorf("expected the certificate to be written: %v", err)
 		}
 	})
 
