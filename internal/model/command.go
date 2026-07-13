@@ -13,7 +13,9 @@ import (
 	"github.com/kanywst/y509/pkg/certificate"
 )
 
-// handleValidateCommand processes the validate command for the SELECTED certificate
+// handleValidateCommand verifies the chain the selected certificate sits in,
+// against the system trust store. It deliberately shares VerifyChain with the
+// validate subcommand so that `v` and `y509 validate` can never disagree.
 func (m Model) handleValidateCommand() Model {
 	logger.Log.Debug("validating selected certificate")
 
@@ -21,46 +23,46 @@ func (m Model) handleValidateCommand() Model {
 		return m
 	}
 
-	target := m.certificates[m.list.Index()]
-	leaf := target.Certificate
+	leaf := m.certificates[m.list.Index()].Certificate
 
-	roots := x509.NewCertPool()
-	intermediates := x509.NewCertPool()
-
-	var rootCount int
+	// Verify the selected certificate as the leaf, offering everything else
+	// that was loaded as a possible intermediate.
+	chain := []*x509.Certificate{leaf}
 	for _, c := range m.allCertificates {
-		intermediates.AddCert(c.Certificate)
-		if c.Certificate.Issuer.String() == c.Certificate.Subject.String() {
-			// Verify that the certificate is actually self-signed.
-			if err := c.Certificate.CheckSignature(c.Certificate.SignatureAlgorithm, c.Certificate.RawTBSCertificate, c.Certificate.Signature); err == nil {
-				roots.AddCert(c.Certificate)
-				rootCount++
-			}
+		if c.Certificate.Equal(leaf) {
+			continue
 		}
+		chain = append(chain, c.Certificate)
 	}
 
-	opts := x509.VerifyOptions{
-		Roots:         roots,
-		Intermediates: intermediates,
-		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+	result, err := certificate.VerifyChain(chain, certificate.VerifyOptions{})
+	if err != nil {
+		m.popupMessage = fmt.Sprintf("❌  Could not verify\n\n%v", err)
+		m.viewMode = ViewPopup
+		m.popupType = PopupAlert
+		return m
 	}
-
-	_, err := leaf.Verify(opts)
 
 	var sb strings.Builder
-	if err == nil {
-		sb.WriteString("✅  Certificate is VALID\n\n")
-		sb.WriteString(fmt.Sprintf("Subject: %s\n", leaf.Subject.CommonName))
-		sb.WriteString(fmt.Sprintf("Issuer:  %s\n", leaf.Issuer.CommonName))
-		sb.WriteString(fmt.Sprintf("Roots:   %d trusted roots found in loaded file", rootCount))
-	} else {
+	switch result.Level {
+	case certificate.TrustAnchored:
+		sb.WriteString("✅  Certificate is TRUSTED\n\n")
+		fmt.Fprintf(&sb, "Subject: %s\n", leaf.Subject.CommonName)
+		fmt.Fprintf(&sb, "Issuer:  %s\n", leaf.Issuer.CommonName)
+		fmt.Fprintf(&sb, "Anchor:  %s (system trust store)", result.Anchor)
+
+	case certificate.TrustSelfAnchored:
+		sb.WriteString("⚠️   Certificate is SELF-ANCHORED\n\n")
+		fmt.Fprintf(&sb, "Subject: %s\n", leaf.Subject.CommonName)
+		fmt.Fprintf(&sb, "Issuer:  %s\n", leaf.Issuer.CommonName)
+		fmt.Fprintf(&sb, "Anchor:  %s (from this file, not trusted)\n\n", result.Anchor)
+		sb.WriteString("The chain links up, but its root is not in the system trust\nstore, so a TLS client would reject it.")
+
+	default:
 		sb.WriteString("❌  Certificate is INVALID\n\n")
-		sb.WriteString(fmt.Sprintf("Error: %v\n", err))
-		if rootCount == 0 {
-			sb.WriteString("\nNote: No self-signed Root CA was found in the loaded certificates.\nVerification failed because no trust anchor could be established.")
-		} else {
-			sb.WriteString("\nNote: Chain verification failed despite presence of Root CAs.")
-		}
+		fmt.Fprintf(&sb, "Subject: %s\n", leaf.Subject.CommonName)
+		fmt.Fprintf(&sb, "Issuer:  %s\n\n", leaf.Issuer.CommonName)
+		fmt.Fprintf(&sb, "%v", result.Err)
 	}
 
 	m.popupMessage = sb.String()
