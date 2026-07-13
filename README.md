@@ -22,9 +22,46 @@ go install github.com/kanywst/y509@latest
 ## Usage
 
 ```bash
-y509 cert-chain.pem
-openssl s_client -connect example.com:443 -showcerts | y509
+y509 cert-chain.pem                       # a file (PEM or DER)
+y509 example.com:443                      # a live server
+y509 smtp.example.com:587 --starttls smtp # ...behind STARTTLS
+cat chain.pem | y509                      # stdin
 ```
+
+### Talking to a live server
+
+```bash
+y509 example.com:443
+y509 --connect 10.0.0.1:8443 --servername api.internal
+y509 db.example.com:5432 --starttls postgres
+```
+
+An argument naming an existing file is always read as a file; anything else is
+treated as an address. Pass `--connect` to force it. `--starttls` understands
+`smtp`, `imap` and `postgres`.
+
+The handshake deliberately verifies nothing, because a chain that fails to
+verify is usually the reason you came. Certificates come back **in the order the
+server sent them**, which is not necessarily a valid chain — a server shipping
+its root, or omitting an intermediate, is the classic "works in the browser,
+breaks in curl" bug.
+
+### Validating from a script
+
+`validate` verifies against the system trust store and exits non-zero on
+anything a TLS client would reject, so it can gate CI:
+
+```bash
+y509 validate chain.pem                        # 0 = trusted
+y509 validate example.com:443                  # also checks the hostname
+y509 validate chain.pem --roots internal-ca.pem
+```
+
+| Outcome | Exit | Meaning |
+| :--- | :--: | :--- |
+| trusted | 0 | verifies against the trust anchors |
+| self-anchored | 1 | links up, but its root is not trusted (an internal PKI, or a missing root) |
+| broken | 1 | does not link up: expired, bad signature, missing issuer, wrong hostname |
 
 ## Keybindings
 

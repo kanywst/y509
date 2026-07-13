@@ -4,6 +4,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/kanywst/y509/internal/config"
@@ -18,13 +19,19 @@ import (
 var (
 	// RootCmd represents the base command when called without any subcommands
 	RootCmd = &cobra.Command{
-		Use:   "y509",
-		Short: "A certificate management tool",
-		Long: `y509 is a certificate management tool that provides functionality for:
-- Viewing certificate information
-- Validating certificate chains
-- Exporting certificates in various formats
-- Managing certificate stores`,
+		Use:   "y509 [file | host:port]",
+		Short: "A TUI for X.509 certificate chains",
+		Long: `y509 opens a certificate chain in a terminal UI.
+
+The chain can come from a file, from stdin, or from a live server:
+
+  y509 chain.pem
+  y509 example.com:443
+  y509 smtp.example.com:587 --starttls smtp
+  openssl s_client -connect example.com:443 -showcerts | y509
+
+An argument that names an existing file is always read as a file. Otherwise it
+is treated as an address; pass --connect to force that.`,
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			// Initialize logger
 			logFile, err := cmd.Flags().GetString("log-file")
@@ -71,6 +78,13 @@ func init() {
 	RootCmd.PersistentFlags().String("log-file", "", "Path to the log file")
 	RootCmd.PersistentFlags().Bool("debug", false, "Enable debug logging")
 
+	// Persistent, so `validate` and `export` can read from a live server too.
+	RootCmd.PersistentFlags().String("connect", "", "Fetch the chain from a live server (host[:port])")
+	RootCmd.PersistentFlags().String("servername", "", "SNI server name to send (default: the host)")
+	RootCmd.PersistentFlags().String("starttls", "", "Upgrade a plaintext protocol first: "+
+		strings.Join(certificate.StartTLSProtocols, ", "))
+	RootCmd.PersistentFlags().Duration("timeout", certificate.DefaultConnectTimeout, "Timeout for a live connection")
+
 	// Subcommands register themselves in their own init().
 
 	// Handle arguments
@@ -88,27 +102,15 @@ func init() {
 			logger.Log.Error("Failed to load configuration", zap.Error(err))
 			// We don't exit here, as we can run with default settings
 		}
-		var inputFile string
-		if len(args) > 0 {
-			inputFile = args[0]
-		} else {
-			var err error
-			inputFile, err = cmd.Flags().GetString("input")
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error getting input flag: %v\n", err)
-				os.Exit(1)
-			}
-		}
 
-		// Load certificates
-		certs, err := certificate.LoadCertificates(inputFile)
+		source, err := loadInput(cmd, args)
 		if err != nil {
 			logger.Log.Error("Failed to load certificates", zap.Error(err))
 			return err
 		}
 
 		// Create and run the TUI
-		model := model.NewModel(certs, cfg)
+		model := model.NewModel(source.Certs, cfg)
 		p := tea.NewProgram(model)
 
 		if _, err := p.Run(); err != nil {
@@ -118,4 +120,89 @@ func init() {
 
 		return nil
 	}
+}
+
+// input is where a command's certificates came from.
+type input struct {
+	// Certs are the certificates, leaf first. When they came from a server this
+	// is the order the server sent them in, which is not necessarily valid.
+	Certs []*certificate.Info
+	// Host is the server that was contacted, empty for a file or stdin. It
+	// gives validate a hostname to check the leaf against, which is the whole
+	// question when you are looking at a live endpoint.
+	Host string
+}
+
+// loadInput decides where the certificates come from: a live server, a file, or
+// stdin.
+func loadInput(cmd *cobra.Command, args []string) (*input, error) {
+	target, err := cmd.Flags().GetString("connect")
+	if err != nil {
+		return nil, err
+	}
+	explicitConnect := target != ""
+
+	if target == "" && len(args) > 0 {
+		target = args[0]
+	}
+
+	if explicitConnect || looksLikeHost(target) {
+		result, err := connectFromFlags(cmd, target)
+		if err != nil {
+			return nil, err
+		}
+		return &input{Certs: result.Certificates, Host: result.ServerName}, nil
+	}
+
+	if target == "" {
+		// Fall back to -i, then to stdin.
+		target, err = cmd.Flags().GetString("input")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	certs, err := certificate.LoadCertificates(target)
+	if err != nil {
+		return nil, err
+	}
+	return &input{Certs: certs}, nil
+}
+
+// connectFromFlags fetches a chain from a live server.
+func connectFromFlags(cmd *cobra.Command, target string) (*certificate.ConnectResult, error) {
+	var opts certificate.ConnectOptions
+	var err error
+
+	if opts.ServerName, err = cmd.Flags().GetString("servername"); err != nil {
+		return nil, err
+	}
+	if opts.StartTLS, err = cmd.Flags().GetString("starttls"); err != nil {
+		return nil, err
+	}
+	if opts.Timeout, err = cmd.Flags().GetDuration("timeout"); err != nil {
+		return nil, err
+	}
+
+	return certificate.FetchChain(cmd.Context(), target, opts)
+}
+
+// looksLikeHost decides whether an argument names a server rather than a file.
+//
+// An existing file always wins, so a file that happens to be called
+// "example.com:443" still opens as a file. Otherwise anything with a scheme, or
+// a dot or a colon in it, is treated as an address -- a bare word like "certs"
+// is far more likely to be a mistyped filename than a hostname, and reporting a
+// failed DNS lookup for it would be baffling.
+func looksLikeHost(target string) bool {
+	if target == "" {
+		return false
+	}
+	if _, err := os.Stat(target); err == nil {
+		return false
+	}
+	if strings.Contains(target, "://") {
+		return true
+	}
+	return strings.ContainsAny(target, ".:")
 }
