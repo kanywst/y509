@@ -23,6 +23,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		logger.Log.Debug("window size updated",
 			zap.Int("width", m.width),
 			zap.Int("height", m.height))
+		if m.exportFormOpen() {
+			return m.updateExportForm(msg)
+		}
 		return m, nil
 
 	case tea.MouseWheelMsg:
@@ -70,7 +73,44 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// huh drives the export form through its own messages (nextFieldMsg,
+	// nextGroupMsg, ...), which it returns as commands. They come back here as
+	// plain tea.Msg values, so the form only ever advances a field or reaches
+	// StateCompleted if we hand them back to it.
+	if m.exportFormOpen() {
+		return m.updateExportForm(msg)
+	}
+
 	return m, nil
+}
+
+// exportFormOpen reports whether the huh-driven export popup is on screen.
+func (m Model) exportFormOpen() bool {
+	return m.viewMode == ViewPopup && m.popupType == PopupExport && m.exportForm != nil
+}
+
+// updateExportForm feeds a message to the export form and, once the form is
+// complete, performs the export.
+func (m Model) updateExportForm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	form, cmd := m.exportForm.Update(msg)
+	if f, ok := form.(*huh.Form); ok {
+		m.exportForm = f
+	}
+
+	if m.exportForm.State != huh.StateCompleted {
+		return m, cmd
+	}
+
+	filename := m.exportForm.GetString("filename")
+	format := m.exportForm.GetString("format")
+	// filepath.Ext only inspects the final path component, so paths like
+	// "./out/cert" or "dir.with.dots/cert" still get a suffix.
+	if filename != "" && filepath.Ext(filename) == "" {
+		filename = filename + "." + format
+	}
+	m.exportForm = nil
+	m = m.handleExportCommand(filename)
+	return m, cmd
 }
 
 // updateNormalMode handles key events in normal (two-pane) mode
@@ -242,23 +282,7 @@ func (m Model) updatePopupMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.exportForm = nil
 			return m, nil
 		}
-		form, cmd := m.exportForm.Update(msg)
-		if f, ok := form.(*huh.Form); ok {
-			m.exportForm = f
-		}
-		if m.exportForm.State == huh.StateCompleted {
-			filename := m.exportForm.GetString("filename")
-			format := m.exportForm.GetString("format")
-			// filepath.Ext only inspects the final path component, so paths
-			// like "./out/cert" or "dir.with.dots/cert" still get a suffix.
-			if filename != "" && filepath.Ext(filename) == "" {
-				filename = filename + "." + format
-			}
-			m.exportForm = nil
-			m = m.handleExportCommand(filename)
-			return m, cmd
-		}
-		return m, cmd
+		return m.updateExportForm(msg)
 	}
 
 	// Handle Input Popups (Search/Filter)

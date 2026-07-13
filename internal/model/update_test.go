@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -92,6 +93,102 @@ func TestNavigationKeys(t *testing.T) {
 			t.Errorf("Expected viewport YOffset to decrement, got %d", m.viewport.YOffset())
 		}
 	})
+}
+
+// pump delivers a message to the model and then feeds the resulting commands
+// back in, the way the Bubble Tea runtime does: batches are expanded and the
+// messages they produce are delivered in turn. Components like huh advance
+// their own state through messages they emit as commands, so a test that only
+// calls Update once never exercises the real key path.
+func pump(t *testing.T, m Model, msg tea.Msg) Model {
+	t.Helper()
+
+	queue := []tea.Msg{msg}
+	for delivered := 0; len(queue) > 0 && delivered < 64; delivered++ {
+		next := queue[0]
+		queue = queue[1:]
+
+		updated, cmd := m.Update(next)
+		m = updated.(Model)
+		if cmd == nil {
+			continue
+		}
+
+		switch produced := settle(cmd).(type) {
+		case nil:
+		case tea.BatchMsg:
+			for _, batched := range produced {
+				if out := settle(batched); out != nil {
+					queue = append(queue, out)
+				}
+			}
+		default:
+			queue = append(queue, produced)
+		}
+	}
+	return m
+}
+
+// settle runs a command and returns the message it produced, giving up on any
+// command that does not produce one promptly. Cursor blink ticks sleep on a
+// wall-clock timer before re-arming themselves, so waiting on them would make
+// every keystroke in a test take half a second and never settle.
+func settle(cmd tea.Cmd) tea.Msg {
+	if cmd == nil {
+		return nil
+	}
+
+	produced := make(chan tea.Msg, 1)
+	go func() { produced <- cmd() }()
+
+	select {
+	case msg := <-produced:
+		return msg
+	case <-time.After(50 * time.Millisecond):
+		return nil
+	}
+}
+
+// TestExportFormCompletesThroughUpdate drives the export popup the way a user
+// does: press e, type a filename, confirm the filename field, then confirm the
+// format field. The form only reaches StateCompleted if Update hands huh's own
+// messages back to it.
+func TestExportFormCompletesThroughUpdate(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	cfg := loadTestConfig(t)
+	m := *NewModel(createTestCertificates(1), cfg)
+	m = pump(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
+	m.viewMode = ViewNormal
+
+	const target = "out"
+
+	m = pump(t, m, keyPress('e'))
+	if !m.exportFormOpen() {
+		t.Fatal("e did not open the export form")
+	}
+
+	for _, r := range target {
+		m = pump(t, m, keyPress(r))
+	}
+
+	// First enter confirms the filename, second confirms the format select.
+	m = pump(t, m, tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	m = pump(t, m, tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+
+	if m.exportForm != nil {
+		t.Fatalf("export form never completed (huh state = %v)", m.exportForm.State)
+	}
+	if m.popupType != PopupAlert {
+		t.Errorf("expected an alert popup after export, got popupType=%v", m.popupType)
+	}
+	if !strings.Contains(m.popupMessage, "successfully") {
+		t.Errorf("expected a success message, got %q", m.popupMessage)
+	}
+	// The form's default format is PEM, so the extension is appended for us.
+	if _, err := os.Stat(target + ".pem"); err != nil {
+		t.Errorf("expected %s.pem to be written: %v", target, err)
+	}
 }
 
 func TestHelpModeQClosesWithoutQuitting(t *testing.T) {
