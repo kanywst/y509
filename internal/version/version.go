@@ -2,6 +2,7 @@
 package version
 
 import (
+	"runtime/debug"
 	"strings"
 )
 
@@ -13,6 +14,35 @@ var (
 	// BuildDate is the date the binary was built
 	BuildDate = "unknown"
 )
+
+// Release builds get these values from -ldflags. A `go install` build gets no
+// ldflags at all, so it reported itself as "dev" forever -- even though the
+// toolchain had already stamped the module version and the VCS revision into
+// the binary. Read them back out.
+func init() {
+	if Version != "dev" {
+		// -ldflags won; leave everything alone.
+		return
+	}
+
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
+
+	// "(devel)" is what a build from a local working tree reports.
+	if info.Main.Version != "" && info.Main.Version != "(devel)" {
+		Version = info.Main.Version
+	}
+	for _, setting := range info.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			GitCommit = setting.Value
+		case "vcs.time":
+			BuildDate = setting.Value
+		}
+	}
+}
 
 // GetVersion returns the version string
 func GetVersion() string {
