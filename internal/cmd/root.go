@@ -51,6 +51,14 @@ var (
 func Execute() {
 	RootCmd.SetVersionTemplate("y509 version {{.Version}}\nBuild: " + version.GetFullVersion() + "\n")
 
+	// Cobra prints the error itself and then dumps the usage text. For a
+	// runtime failure -- an unreadable file, a chain that does not verify --
+	// neither is wanted: the usage text is noise, and Execute below is the one
+	// printer. Cobra still reports genuine usage errors (unknown flags) through
+	// the returned error.
+	RootCmd.SilenceErrors = true
+	RootCmd.SilenceUsage = true
+
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
