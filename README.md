@@ -11,13 +11,16 @@ A TUI for analyzing and validating X.509 certificate chains. Built on the [Charm
 ## Install
 
 ```bash
-# Homebrew
-brew tap kanywst/y509 https://github.com/kanywst/y509
-brew install y509
+# Homebrew (macOS)
+brew install kanywst/tap/y509
 
 # Go 1.26+
-go install github.com/kanywst/y509@latest
+go install github.com/kanywst/y509/cmd/y509@latest
 ```
+
+Binaries, `.deb` and `.rpm` packages for Linux and macOS are attached to every
+[release](https://github.com/kanywst/y509/releases), with checksums, cosign
+signatures and an SBOM.
 
 ## Usage
 

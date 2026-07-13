@@ -28,15 +28,6 @@ build-dev:
 install:
 	go install $(LDFLAGS) ./cmd/y509
 
-# Create homebrew release
-.PHONY: release-homebrew
-release-homebrew:
-	@echo "Updating homebrew formula with version $(VERSION)"
-	@shasum -a 256 "$(BINARY_NAME)-$(VERSION).tar.gz" | cut -d ' ' -f 1 > .sha256
-	@sed -i '' "s/REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE/$$(cat .sha256)/g" Formula/y509.rb
-	@rm .sha256
-	@echo "Updated Formula/y509.rb with new version and SHA256"
-
 # Generate the demo certificate chain. Not committed, since its baked-in
 # dates would go stale (the "expiring" leaf eventually becomes "expired").
 .PHONY: demo-certs

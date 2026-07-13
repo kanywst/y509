@@ -1,2 +1,2 @@
-tap "kanywst/y509", "https://github.com/kanywst/y509"
+tap "kanywst/tap"
 brew "y509"
