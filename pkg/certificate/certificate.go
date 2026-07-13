@@ -404,10 +404,13 @@ func ParseCertificates(data []byte) ([]*Info, error) {
 				Index:       index,
 				Label:       label,
 			})
+			// Count certificates, not PEM blocks: a bundle may also carry a
+			// private key, DH parameters, or a CRL, and those must not consume
+			// a number. Index has to stay equal to the slice position.
+			index++
 		}
 
 		rest = remaining
-		index++
 	}
 
 	if len(certs) == 0 {
