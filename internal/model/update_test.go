@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
@@ -130,4 +131,40 @@ func TestCtrlCQuitsFromSplash(t *testing.T) {
 	if _, ok := cmd().(tea.QuitMsg); !ok {
 		t.Error("ctrl+c on splash did not produce tea.QuitMsg")
 	}
+}
+
+// TestInvalidFilterShowsAlert checks that submitting an unknown filter type
+// surfaces the error. filterCertificates raises a PopupAlert; the enter handler
+// used to clear popupType right after calling it, leaving ViewPopup with no
+// type -- an empty, title-less box, with the message discarded.
+func TestInvalidFilterShowsAlert(t *testing.T) {
+	cfg := loadTestConfig(t)
+	m := *NewModel(createTestCertificates(3), cfg)
+	m.SetDimensions(100, 30)
+	m.viewMode = ViewNormal
+	m.ready = true
+
+	m = pumpKeys(t, m, 'f', 'b', 'o', 'g', 'u', 's')
+	next, _ := m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	m = next.(Model)
+
+	if m.popupType != PopupAlert {
+		t.Fatalf("expected PopupAlert for an unknown filter, got popupType=%v", m.popupType)
+	}
+	if !strings.Contains(m.popupMessage, "Invalid filter type") {
+		t.Errorf("expected the error in popupMessage, got %q", m.popupMessage)
+	}
+	if !strings.Contains(m.View().Content, "Invalid filter type") {
+		t.Error("the invalid-filter error is not rendered on screen")
+	}
+}
+
+// pumpKeys presses each key in turn, discarding commands.
+func pumpKeys(t *testing.T, m Model, keys ...rune) Model {
+	t.Helper()
+	for _, r := range keys {
+		next, _ := m.Update(keyPress(r))
+		m = next.(Model)
+	}
+	return m
 }

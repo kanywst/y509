@@ -265,16 +265,22 @@ func (m Model) updatePopupMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch keyStr {
 	case "enter":
 		value := m.textInput.Value()
-		m.viewMode = ViewNormal // Return to normal mode first
+		submitted := m.popupType
 
-		switch m.popupType {
+		// Dismiss the input popup before dispatching. The handler may raise an
+		// alert of its own -- an unknown filter type does -- and clearing the
+		// popup afterwards would throw that alert away, leaving an empty box on
+		// screen with the error discarded.
+		m.viewMode = ViewNormal
+		m.popupType = PopupNone
+		m.textInput.Reset()
+
+		switch submitted {
 		case PopupSearch:
 			m = m.searchCertificates(value)
 		case PopupFilter:
 			m = m.filterCertificates(value)
 		}
-		m.popupType = PopupNone
-		m.textInput.Reset()
 		return m, nil
 
 	case "esc":
