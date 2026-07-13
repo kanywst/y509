@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -112,5 +113,125 @@ func TestParseCertificates_NumbersCertificatesNotBlocks(t *testing.T) {
 		if !strings.HasPrefix(info.Label, wantPrefix) {
 			t.Errorf("certificate %d: Label = %q, want it to start with %q", i, info.Label, wantPrefix)
 		}
+	}
+}
+
+// TestParseCertificates_DER covers raw DER input. y509's own export form offers
+// DER, so before this the tool could write a file it could not read back.
+func TestParseCertificates_DER(t *testing.T) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mint := func(serial int64, cn string) []byte {
+		template := x509.Certificate{
+			SerialNumber: big.NewInt(serial),
+			Subject:      pkix.Name{CommonName: cn},
+			NotBefore:    time.Now(),
+			NotAfter:     time.Now().Add(time.Hour),
+		}
+		der, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return der
+	}
+
+	t.Run("single certificate", func(t *testing.T) {
+		certs, err := ParseCertificates(mint(1, "der-leaf"))
+		if err != nil {
+			t.Fatalf("ParseCertificates on DER failed: %v", err)
+		}
+		if len(certs) != 1 {
+			t.Fatalf("expected 1 certificate, got %d", len(certs))
+		}
+		if got := certs[0].Certificate.Subject.CommonName; got != "der-leaf" {
+			t.Errorf("CommonName = %q, want %q", got, "der-leaf")
+		}
+	})
+
+	t.Run("concatenated chain", func(t *testing.T) {
+		var chain []byte
+		chain = append(chain, mint(1, "der-leaf")...)
+		chain = append(chain, mint(2, "der-intermediate")...)
+
+		certs, err := ParseCertificates(chain)
+		if err != nil {
+			t.Fatalf("ParseCertificates on a concatenated DER chain failed: %v", err)
+		}
+		if len(certs) != 2 {
+			t.Fatalf("expected 2 certificates, got %d", len(certs))
+		}
+		for i, info := range certs {
+			if info.Index != i {
+				t.Errorf("certificate %d: Index = %d, want %d", i, info.Index, i)
+			}
+		}
+	})
+
+	t.Run("round trip through ExportCertificate", func(t *testing.T) {
+		cert, err := x509.ParseCertificate(mint(3, "round-trip"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		target := filepath.Join(t.TempDir(), "cert.der")
+		if err := ExportCertificate(cert, "der", target); err != nil {
+			t.Fatalf("ExportCertificate: %v", err)
+		}
+
+		certs, err := LoadCertificates(target)
+		if err != nil {
+			t.Fatalf("could not read back a DER file y509 wrote itself: %v", err)
+		}
+		if len(certs) != 1 || certs[0].Certificate.Subject.CommonName != "round-trip" {
+			t.Errorf("round trip lost the certificate: %+v", certs)
+		}
+	})
+}
+
+// TestParseCertificates_Errors checks that unreadable input says what is wrong
+// rather than the blanket "no certificates found".
+func TestParseCertificates_Errors(t *testing.T) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	privBytes, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name  string
+		input []byte
+		want  string
+	}{
+		{
+			name:  "PEM with no certificate blocks",
+			input: pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes}),
+			want:  "no CERTIFICATE blocks",
+		},
+		{
+			name:  "a DER container that is not a certificate",
+			input: []byte{0x30, 0x82, 0x01, 0x02, 0x00, 0x01},
+			want:  "PKCS#7 and PKCS#12",
+		},
+		{
+			name:  "plain garbage",
+			input: []byte("hello, this is not a certificate"),
+			want:  "not PEM, and not valid DER",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseCertificates(tt.input)
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("error = %q, want it to mention %q", err, tt.want)
+			}
+		})
 	}
 }

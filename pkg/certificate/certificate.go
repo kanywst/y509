@@ -379,9 +379,34 @@ func ExportCertificate(cert *x509.Certificate, format string, filename string) e
 	return nil
 }
 
-// ParseCertificates parses PEM blocks and extracts certificates
+// ParseCertificates extracts certificates from a PEM bundle or from raw DER.
+//
+// PEM is tried first. If the input holds no PEM armour at all it is treated as
+// DER, which is what Windows and most CAs hand out as .der / .cer, and what
+// y509's own export writes when asked for DER.
 func ParseCertificates(data []byte) ([]*Info, error) {
-	var certs []*Info
+	certs, sawPEM, err := parsePEMCertificates(data)
+	if err != nil {
+		return nil, err
+	}
+	if len(certs) > 0 {
+		return certs, nil
+	}
+
+	if sawPEM {
+		// The input is PEM, it just holds no certificates -- a lone private key
+		// file, say. Saying "no certificates found" is right, but say why.
+		logger.Error("PEM input contains no CERTIFICATE blocks")
+		return nil, fmt.Errorf("no certificates found in input: the PEM data contains no CERTIFICATE blocks")
+	}
+
+	return parseDERCertificates(data)
+}
+
+// parsePEMCertificates walks the PEM blocks in data. sawPEM reports whether any
+// PEM block at all was present, which tells ParseCertificates whether it is
+// worth retrying the input as DER.
+func parsePEMCertificates(data []byte) (certs []*Info, sawPEM bool, err error) {
 	rest := data
 	index := 0
 
@@ -390,19 +415,19 @@ func ParseCertificates(data []byte) ([]*Info, error) {
 		if block == nil {
 			break
 		}
+		sawPEM = true
 
 		if block.Type == "CERTIFICATE" {
 			crt, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
 				logger.Error("Failed to parse certificate", zap.Error(err))
-				return nil, fmt.Errorf("failed to parse certificate %d: %w", index, err)
+				return nil, sawPEM, fmt.Errorf("failed to parse certificate %d: %w", index, err)
 			}
 
-			label := generateCertificateLabel(crt, index)
 			certs = append(certs, &Info{
 				Certificate: crt,
 				Index:       index,
-				Label:       label,
+				Label:       generateCertificateLabel(crt, index),
 			})
 			// Count certificates, not PEM blocks: a bundle may also carry a
 			// private key, DH parameters, or a CRL, and those must not consume
@@ -413,13 +438,48 @@ func ParseCertificates(data []byte) ([]*Info, error) {
 		rest = remaining
 	}
 
-	if len(certs) == 0 {
+	return certs, sawPEM, nil
+}
+
+// parseDERCertificates reads the input as raw DER. x509.ParseCertificates
+// handles several certificates concatenated together, which is how a DER chain
+// is usually shipped.
+func parseDERCertificates(data []byte) ([]*Info, error) {
+	parsed, err := x509.ParseCertificates(data)
+	if err != nil {
+		logger.Error("Input is neither PEM nor DER", zap.Error(err))
+
+		// A DER SEQUENCE that is not a certificate is almost always a container
+		// y509 cannot open yet. Say so, rather than claiming there is nothing
+		// there.
+		if len(data) > 0 && data[0] == derSequenceTag {
+			return nil, fmt.Errorf("input is DER but not a certificate "+
+				"(PKCS#7 and PKCS#12 bundles are not supported): %w", err)
+		}
+		return nil, fmt.Errorf("no certificates found in input: not PEM, and not valid DER")
+	}
+
+	// x509.ParseCertificates accepts empty input and returns no certificates
+	// and no error, so the empty case has to be caught here.
+	if len(parsed) == 0 {
 		logger.Error("No certificates found in input")
 		return nil, fmt.Errorf("no certificates found in input")
 	}
 
+	certs := make([]*Info, len(parsed))
+	for i, crt := range parsed {
+		certs[i] = &Info{
+			Certificate: crt,
+			Index:       i,
+			Label:       generateCertificateLabel(crt, i),
+		}
+	}
 	return certs, nil
 }
+
+// derSequenceTag is the ASN.1 universal SEQUENCE tag, the first byte of any
+// DER-encoded certificate, PKCS#7 blob or PKCS#12 bundle.
+const derSequenceTag = 0x30
 
 // generateCertificateLabel creates a display label for the certificate
 func generateCertificateLabel(cert *x509.Certificate, index int) string {
