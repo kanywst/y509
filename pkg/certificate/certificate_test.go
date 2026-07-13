@@ -182,45 +182,6 @@ func generateTestChain() (leaf, root *x509.Certificate, leafPEM, rootPEM string)
 	return leafCert, rootCertParsed, certToPEM(leafCert), certToPEM(rootCertParsed)
 }
 
-// TestValidateChain with actual certificate chain
-func TestValidateChain(t *testing.T) {
-	leaf, root, _, _ := generateTestChain()
-	tests := []struct {
-		name    string
-		certs   []*x509.Certificate
-		want    bool
-		wantErr bool
-	}{
-		{
-			name:    "Empty chain",
-			certs:   []*x509.Certificate{},
-			want:    false,
-			wantErr: true,
-		},
-		{
-			name:    "Valid chain",
-			certs:   []*x509.Certificate{leaf, root},
-			want:    true,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ValidateChain(tt.certs)
-			if err != nil {
-				t.Logf("ValidateChain() error detail: %v", err)
-			}
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateChain() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("ValidateChain() IsValid = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 // Fix TestParseCertificates Valid certificate case
 func TestParseCertificates(t *testing.T) {
 	_, _, leafPEM, _ := generateTestChain()
@@ -672,50 +633,6 @@ func FilterCertificates(certs []*Info, filterType string) []*Info {
 	}
 
 	return results
-}
-
-func TestFormatChainValidation(t *testing.T) {
-	tests := []struct {
-		name     string
-		result   *ValidationResult
-		expected string
-	}{
-		{
-			name: "Valid chain",
-			result: &ValidationResult{
-				IsValid: true,
-			},
-			expected: "✅ Certificate chain is valid.",
-		},
-		{
-			name: "Invalid chain with errors",
-			result: &ValidationResult{
-				IsValid: false,
-				Errors: []string{
-					"Certificate expired",
-					"Invalid signature",
-				},
-				Warnings: []string{
-					"Certificate expiring soon",
-				},
-			},
-			expected: `Certificate chain validation failed:
-Errors:
-- Certificate expired
-- Invalid signature
-Warnings:
-- Certificate expiring soon`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := FormatChainValidation(tt.result)
-			if got != tt.expected {
-				t.Errorf("FormatChainValidation() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
 }
 
 func TestExportCertificate(t *testing.T) {

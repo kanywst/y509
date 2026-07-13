@@ -80,13 +80,6 @@ type Info struct {
 	ValidationError  error
 }
 
-// ValidationResult represents the result of certificate chain validation
-type ValidationResult struct {
-	IsValid  bool
-	Errors   []string
-	Warnings []string
-}
-
 // LoadCertificates loads certificates from a file or stdin
 func LoadCertificates(filename string) ([]*Info, error) {
 	var input io.Reader
@@ -265,63 +258,6 @@ func ValidateChainLinks(certs []*Info) {
 			certInfo.ValidationError = fmt.Errorf("invalid signature from parent '%s': %w", parentCert.Subject.CommonName, err)
 		}
 	}
-}
-
-// ValidateChain validates a certificate chain using x509.Verify
-func ValidateChain(certs []*x509.Certificate) (bool, error) {
-	if len(certs) == 0 {
-		return false, fmt.Errorf("empty certificate chain")
-	}
-
-	// certs is expected to be [Leaf, Intermediate, ..., Root]
-	leaf := certs[0]
-	root := certs[len(certs)-1]
-
-	intermediates := x509.NewCertPool()
-	for i := 1; i < len(certs)-1; i++ {
-		intermediates.AddCert(certs[i])
-	}
-
-	roots := x509.NewCertPool()
-	roots.AddCert(root)
-
-	opts := x509.VerifyOptions{
-		Roots:         roots,
-		Intermediates: intermediates,
-		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-	}
-
-	if _, err := leaf.Verify(opts); err != nil {
-		return false, fmt.Errorf("certificate verification failed: %w", err)
-	}
-
-	return true, nil
-}
-
-// FormatChainValidation formats the validation results
-func FormatChainValidation(result *ValidationResult) string {
-	if result.IsValid {
-		return "✅ Certificate chain is valid."
-	}
-
-	var sb strings.Builder
-	sb.WriteString("Certificate chain validation failed:\n")
-
-	if len(result.Errors) > 0 {
-		sb.WriteString("Errors:\n")
-		for _, err := range result.Errors {
-			sb.WriteString(fmt.Sprintf("- %s\n", err))
-		}
-	}
-
-	if len(result.Warnings) > 0 {
-		sb.WriteString("Warnings:\n")
-		for _, warning := range result.Warnings {
-			sb.WriteString(fmt.Sprintf("- %s\n", warning))
-		}
-	}
-
-	return strings.TrimSpace(sb.String())
 }
 
 // ExportCertificate exports a certificate to a file
