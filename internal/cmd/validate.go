@@ -23,21 +23,14 @@ is simply missing its root -- is reported as self-anchored rather than valid,
 and exits non-zero. Pass --roots to supply your own trust anchors.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var inputFile string
-		if len(args) > 0 {
-			inputFile = args[0]
-		} else {
-			inputFile, _ = cmd.Flags().GetString("input")
-		}
-
-		certs, err := certificate.LoadCertificates(inputFile)
+		source, err := loadInput(cmd, args)
 		if err != nil {
 			logger.Log.Error("Error loading certificates", zap.Error(err))
 			return err
 		}
 
-		inputCerts := make([]*x509.Certificate, len(certs))
-		for i, c := range certs {
+		inputCerts := make([]*x509.Certificate, len(source.Certs))
+		for i, c := range source.Certs {
 			inputCerts[i] = c.Certificate
 		}
 
@@ -50,6 +43,12 @@ and exits non-zero. Pass --roots to supply your own trust anchors.`,
 		opts, err := verifyOptionsFromFlags(cmd)
 		if err != nil {
 			return err
+		}
+		// When the chain came off the wire, check it is actually valid for the
+		// host we talked to. That is the question a live endpoint raises, and
+		// it is what a TLS client would ask. An explicit --host still wins.
+		if opts.DNSName == "" {
+			opts.DNSName = source.Host
 		}
 
 		result, err := certificate.VerifyChain(chain, opts)
