@@ -174,3 +174,29 @@ func TestFormatChainReport_SilentWhenClean(t *testing.T) {
 		t.Errorf("a clean chain should format to nothing, got:\n%s", got)
 	}
 }
+
+// TestAnalyzeChain_CarriesSortedChain checks the report hands back the sorted
+// chain, so a caller does not have to sort a second time.
+func TestAnalyzeChain_CarriesSortedChain(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	// Presented backwards.
+	report := AnalyzeChain([]*x509.Certificate{intermediate, leaf})
+
+	if report.SortErr != nil {
+		t.Fatalf("SortErr = %v, want nil", report.SortErr)
+	}
+	if len(report.Sorted) != 2 {
+		t.Fatalf("Sorted holds %d certificates, want 2", len(report.Sorted))
+	}
+	if !report.Sorted[0].Equal(leaf) {
+		t.Errorf("Sorted[0] = %q, want the leaf", report.Sorted[0].Subject.CommonName)
+	}
+	// The sent order is preserved untouched alongside it.
+	if !report.Sent[0].Equal(intermediate) {
+		t.Errorf("Sent[0] = %q, want the intermediate that was actually sent first",
+			report.Sent[0].Subject.CommonName)
+	}
+}
