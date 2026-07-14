@@ -189,20 +189,35 @@ func connectFromFlags(cmd *cobra.Command, target string) (*certificate.ConnectRe
 
 // looksLikeHost decides whether an argument names a server rather than a file.
 //
-// An existing file always wins, so a file that happens to be called
-// "example.com:443" still opens as a file. Otherwise anything with a scheme, or
-// a dot or a colon in it, is treated as an address -- a bare word like "certs"
-// is far more likely to be a mistyped filename than a hostname, and reporting a
-// failed DNS lookup for it would be baffling.
+// Getting this wrong is worse than it sounds: a mistyped path answered with a
+// DNS failure tells the user nothing about what actually went wrong. So the
+// rule leans towards "file", and only what unambiguously reads as an address
+// goes to the network. --connect forces the issue either way.
 func looksLikeHost(target string) bool {
 	if target == "" {
 		return false
 	}
-	if _, err := os.Stat(target); err == nil {
+
+	// An existing file always wins, so a file genuinely named "example.com:443"
+	// still opens as a file. A stat error that is not "no such file" -- a
+	// permission problem, say -- means something is there, and the user meant
+	// it; let the file path report the real error.
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
 		return false
 	}
+
 	if strings.Contains(target, "://") {
 		return true
 	}
+
+	// Anything shaped like a path is a path, even a missing one. "./chain.pem"
+	// and "/etc/ssl/cert.pem" both contain a dot, and answering a typo in
+	// either with a failed DNS lookup would be baffling.
+	if strings.ContainsAny(target, `/\`) {
+		return false
+	}
+
+	// A bare word like "certs" is far likelier to be a mistyped filename than a
+	// hostname. Require a dot (a domain) or a colon (a port).
 	return strings.ContainsAny(target, ".:")
 }
