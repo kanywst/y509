@@ -34,12 +34,6 @@ and exits non-zero. Pass --roots to supply your own trust anchors.`,
 			inputCerts[i] = c.Certificate
 		}
 
-		chain, err := certificate.SortChain(inputCerts)
-		if err != nil {
-			logger.Log.Error("Failed to sort certificate chain", zap.Error(err))
-			return err
-		}
-
 		opts, err := verifyOptionsFromFlags(cmd)
 		if err != nil {
 			return err
@@ -51,6 +45,16 @@ and exits non-zero. Pass --roots to supply your own trust anchors.`,
 			opts.DNSName = source.Host
 		}
 
+		// Look at the chain as it was presented, before sorting it: sorting is
+		// what destroys the evidence.
+		report := certificate.AnalyzeChain(inputCerts)
+
+		chain, err := certificate.SortChain(inputCerts)
+		if err != nil {
+			logger.Log.Error("Failed to sort certificate chain", zap.Error(err))
+			return err
+		}
+
 		result, err := certificate.VerifyChain(chain, opts)
 		if err != nil {
 			logger.Log.Error("Certificate chain verification failed", zap.Error(err))
@@ -59,9 +63,18 @@ and exits non-zero. Pass --roots to supply your own trust anchors.`,
 
 		fmt.Println(certificate.FormatVerifyResult(result))
 
+		// How the chain was presented is a separate question from whether it
+		// verifies, and a chain can be perfectly trusted while still being
+		// mis-served. Report it either way.
+		if presentation := certificate.FormatChainReport(report); presentation != "" {
+			fmt.Println()
+			fmt.Println(presentation)
+		}
+
 		logger.Log.Info("Certificate chain validation result",
 			zap.String("trust", result.Level.String()),
-			zap.String("anchor", result.Anchor))
+			zap.String("anchor", result.Anchor),
+			zap.Int("presentationFindings", len(report.Findings)))
 
 		// Only a chain that reaches a real trust anchor is a success. A
 		// self-anchored chain gets reported, but a TLS client would not accept
