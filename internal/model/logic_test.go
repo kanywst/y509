@@ -215,15 +215,22 @@ func TestExportLogic(t *testing.T) {
 		// in pkg/certificate.
 		target := filepath.Join(t.TempDir(), "test_export.pem")
 
-		m = m.handleExportCommand(target)
+		// Shadow m: a subtest should not mutate the model the others share.
+		m := m.handleExportCommand(target)
 		if m.viewMode != ViewPopup || m.popupType != PopupAlert {
 			t.Errorf("Expected PopupAlert after export")
 		}
 		if !strings.Contains(m.popupMessage, "successfully") {
 			t.Errorf("Expected success message, got %q", m.popupMessage)
 		}
-		if _, err := os.Stat(target); err != nil {
-			t.Errorf("expected the certificate to be written: %v", err)
+		// Size matters here: an empty file is exactly what this PR is cleaning
+		// up, so a zero-byte export must not read as success.
+		info, err := os.Stat(target)
+		if err != nil {
+			t.Fatalf("expected the certificate to be written: %v", err)
+		}
+		if info.Size() == 0 {
+			t.Error("the exported certificate is empty")
 		}
 	})
 
