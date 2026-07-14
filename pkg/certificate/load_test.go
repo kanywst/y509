@@ -221,6 +221,29 @@ func TestParseCertificates_Errors(t *testing.T) {
 			input: []byte("hello, this is not a certificate"),
 			want:  "not PEM, and not valid DER",
 		},
+		{
+			name: "a truncated certificate",
+			// A real certificate cut in half is still a DER SEQUENCE, so the
+			// message must not assert it is a PKCS container.
+			input: func() []byte {
+				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				if err != nil {
+					t.Fatal(err)
+				}
+				template := x509.Certificate{
+					SerialNumber: big.NewInt(7),
+					Subject:      pkix.Name{CommonName: "truncated"},
+					NotBefore:    time.Now(),
+					NotAfter:     time.Now().Add(time.Hour),
+				}
+				der, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return der[:len(der)/2]
+			}(),
+			want: "could not be parsed as a certificate",
+		},
 	}
 
 	for _, tt := range tests {
