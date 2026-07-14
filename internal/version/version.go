@@ -20,26 +20,30 @@ var (
 // toolchain had already stamped the module version and the VCS revision into
 // the binary. Read them back out.
 func init() {
-	if Version != "dev" {
-		// -ldflags won; leave everything alone.
-		return
-	}
-
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return
 	}
 
-	// "(devel)" is what a build from a local working tree reports.
-	if info.Main.Version != "" && info.Main.Version != "(devel)" {
-		Version = info.Main.Version
+	// Each value falls back on its own. A build that sets only Version through
+	// -ldflags should still pick up the commit and the build time the toolchain
+	// recorded, rather than being left reporting "unknown" for both.
+	if Version == "dev" {
+		// "(devel)" is what a build from a local working tree reports.
+		if info.Main.Version != "" && info.Main.Version != "(devel)" {
+			Version = info.Main.Version
+		}
 	}
 	for _, setting := range info.Settings {
 		switch setting.Key {
 		case "vcs.revision":
-			GitCommit = setting.Value
+			if GitCommit == "unknown" {
+				GitCommit = setting.Value
+			}
 		case "vcs.time":
-			BuildDate = setting.Value
+			if BuildDate == "unknown" {
+				BuildDate = setting.Value
+			}
 		}
 	}
 }
