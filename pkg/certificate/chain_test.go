@@ -1,0 +1,176 @@
+package certificate
+
+import (
+	"crypto/x509"
+	"strings"
+	"testing"
+)
+
+// hasProblem reports whether the report contains a finding of the given kind.
+func hasProblem(report *ChainReport, problem ChainProblem) bool {
+	for _, finding := range report.Findings {
+		if finding.Problem == problem {
+			return true
+		}
+	}
+	return false
+}
+
+func problemNames(report *ChainReport) []string {
+	names := make([]string, 0, len(report.Findings))
+	for _, finding := range report.Findings {
+		names = append(names, finding.Problem.String())
+	}
+	return names
+}
+
+// TestAnalyzeChain_WellFormed is the case that must stay silent: leaf then
+// intermediate, with the root left to the client. This is what a correctly
+// configured server sends.
+func TestAnalyzeChain_WellFormed(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	report := AnalyzeChain([]*x509.Certificate{leaf, intermediate})
+	if !report.OK() {
+		t.Errorf("a correctly served chain was flagged: %v", problemNames(report))
+	}
+}
+
+// TestAnalyzeChain_MissingIntermediate is the bug worth catching: the server
+// sends only the leaf, so a client that does not chase AIA cannot build a
+// chain. This is the "works in Chrome, breaks in curl" case.
+func TestAnalyzeChain_MissingIntermediate(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	report := AnalyzeChain([]*x509.Certificate{leaf})
+	if !hasProblem(report, ProblemMissingIssuer) {
+		t.Fatalf("a missing intermediate was not reported; findings: %v", problemNames(report))
+	}
+
+	for _, finding := range report.Findings {
+		if finding.Problem == ProblemMissingIssuer {
+			if !strings.Contains(finding.Detail, "Issuing CA") {
+				t.Errorf("the finding does not name the missing issuer: %q", finding.Detail)
+			}
+		}
+	}
+}
+
+// TestAnalyzeChain_CrossSignedRootIsNotMissingItsIssuer is the false positive to
+// avoid. A cross-signed root sits at the top of the chain with its own issuer
+// absent -- and always will, because the client trusts the root itself. This is
+// what google.com sends (GTS Root R1, issued by GlobalSign Root CA).
+func TestAnalyzeChain_CrossSignedRootIsNotMissingItsIssuer(t *testing.T) {
+	oldRoot, oldRootKey := issue(t, "Legacy Root CA", true, nil, nil)
+	// A CA certificate whose issuer is the legacy root: this is the shape of a
+	// cross-signed root, and its own issuer is never sent.
+	crossSigned, crossSignedKey := issue(t, "Modern Root CA", true, oldRoot, oldRootKey)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, crossSigned, crossSignedKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	report := AnalyzeChain([]*x509.Certificate{leaf, intermediate, crossSigned})
+	if hasProblem(report, ProblemMissingIssuer) {
+		t.Errorf("a cross-signed root at the top was wrongly reported as a missing issuer; findings: %v",
+			problemNames(report))
+	}
+}
+
+// TestAnalyzeChain_RedundantRoot covers a server shipping its own root.
+func TestAnalyzeChain_RedundantRoot(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	report := AnalyzeChain([]*x509.Certificate{leaf, intermediate, root})
+	if !hasProblem(report, ProblemRedundantRoot) {
+		t.Errorf("a self-signed root in the bundle was not reported; findings: %v", problemNames(report))
+	}
+	// It is redundant, not missing.
+	if hasProblem(report, ProblemMissingIssuer) {
+		t.Errorf("shipping the root must not also report a missing issuer; findings: %v",
+			problemNames(report))
+	}
+}
+
+// TestAnalyzeChain_OutOfOrder covers a server sending the intermediate first.
+func TestAnalyzeChain_OutOfOrder(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	report := AnalyzeChain([]*x509.Certificate{intermediate, leaf})
+	if !hasProblem(report, ProblemOutOfOrder) {
+		t.Errorf("a chain sent intermediate-first was not reported; findings: %v", problemNames(report))
+	}
+}
+
+// TestAnalyzeChain_Duplicate covers the same certificate sent twice.
+func TestAnalyzeChain_Duplicate(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	report := AnalyzeChain([]*x509.Certificate{leaf, intermediate, intermediate})
+	if !hasProblem(report, ProblemDuplicate) {
+		t.Errorf("a duplicated certificate was not reported; findings: %v", problemNames(report))
+	}
+}
+
+// TestAnalyzeChain_Unrelated covers a certificate that belongs to no chain in
+// the bundle.
+func TestAnalyzeChain_Unrelated(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	otherRoot, otherRootKey := issue(t, "Unrelated Root", true, nil, nil)
+	stranger, _ := issue(t, "stranger.example.net", false, otherRoot, otherRootKey)
+
+	report := AnalyzeChain([]*x509.Certificate{leaf, intermediate, stranger})
+	if !hasProblem(report, ProblemUnrelated) {
+		t.Errorf("a stranger in the bundle was not reported; findings: %v", problemNames(report))
+	}
+}
+
+// TestAnalyzeChain_SelfSignedAlone covers a single self-signed certificate: it
+// is a redundant root, but nothing is missing and nothing is unrelated.
+func TestAnalyzeChain_SelfSignedAlone(t *testing.T) {
+	selfSigned, _ := issue(t, "self-signed.example.com", true, nil, nil)
+
+	report := AnalyzeChain([]*x509.Certificate{selfSigned})
+	if hasProblem(report, ProblemMissingIssuer) {
+		t.Errorf("a self-signed certificate has no missing issuer; findings: %v", problemNames(report))
+	}
+	if hasProblem(report, ProblemUnrelated) {
+		t.Errorf("a lone self-signed certificate is not unrelated to itself; findings: %v",
+			problemNames(report))
+	}
+}
+
+// TestAnalyzeChain_Empty covers the degenerate input.
+func TestAnalyzeChain_Empty(t *testing.T) {
+	report := AnalyzeChain(nil)
+	if !report.OK() {
+		t.Errorf("an empty chain should produce no findings, got %v", problemNames(report))
+	}
+	if FormatChainReport(report) != "" {
+		t.Error("an empty chain should format to nothing")
+	}
+}
+
+// TestFormatChainReport_SilentWhenClean checks that a clean chain formats to the
+// empty string, so callers can print it unconditionally.
+func TestFormatChainReport_SilentWhenClean(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	report := AnalyzeChain([]*x509.Certificate{leaf, intermediate})
+	if got := FormatChainReport(report); got != "" {
+		t.Errorf("a clean chain should format to nothing, got:\n%s", got)
+	}
+}

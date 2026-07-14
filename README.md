@@ -66,6 +66,35 @@ y509 validate chain.pem --roots internal-ca.pem
 | self-anchored | 1 | links up, but its root is not trusted (an internal PKI, or a missing root) |
 | broken | 1 | does not link up: expired, bad signature, missing issuer, wrong hostname |
 
+### How the chain was served
+
+Verifying a chain and *serving it correctly* are different questions, and y509
+answers both. A server can present a chain that your browser accepts and that
+`curl` refuses — because browsers chase the AIA URL to fetch a missing
+intermediate and `curl`, Go and Java do not.
+
+y509 reports that separately, from what was actually sent:
+
+```text
+$ y509 validate incomplete-chain.badssl.com:443
+✅ Certificate chain is valid.
+Trust anchor: ISRG Root X1
+
+Chain as presented:
+  • missing issuer: *.badssl.com
+    the chain stops at a certificate that is not a CA; its issuer "R13" was
+    never sent, so a client that does not chase AIA (curl, Go, Java) cannot
+    build a chain
+    fetch from: http://r13.i.lencr.org/
+```
+
+Note that the chain *verified* — on macOS the platform verifier fetched the
+missing intermediate over the network — and it is still misconfigured. That gap
+is the whole point: the check is structural, so it cannot be papered over.
+
+It also reports a redundant root (a root the server should not be sending),
+certificates sent out of order, duplicates, and strangers in the bundle.
+
 ## Keybindings
 
 |     Key     | Action                                         |
