@@ -181,6 +181,11 @@ func normalizeAddress(addr string) (address, host string, err error) {
 	if i := strings.IndexAny(addr, "/?#"); i >= 0 {
 		addr = addr[:i]
 	}
+	// Drop any userinfo. Left in place it becomes part of the host, and both
+	// the DNS lookup and the SNI name go out as "user:pass@example.com".
+	if i := strings.LastIndex(addr, "@"); i >= 0 {
+		addr = addr[i+1:]
+	}
 	if addr == "" {
 		return "", "", fmt.Errorf("no host in address")
 	}
@@ -189,6 +194,12 @@ func normalizeAddress(addr string) (address, host string, err error) {
 	if splitErr != nil {
 		// No port, or an unbracketed IPv6 literal. Assume the former.
 		host, port = addr, DefaultTLSPort
+		// A bracketed literal with no port ("[::1]") lands here with its
+		// brackets still on. They belong to the address syntax, not the host,
+		// and JoinHostPort would add a second pair.
+		if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+			host = host[1 : len(host)-1]
+		}
 	}
 	if host == "" {
 		return "", "", fmt.Errorf("no host in address %q", addr)
@@ -231,44 +242,50 @@ func negotiateStartTLS(conn net.Conn, protocol string) error {
 func startTLSSMTP(conn net.Conn) error {
 	reader := bufio.NewReader(conn)
 
-	// Greeting.
-	if err := expectSMTPCode(reader, "220"); err != nil {
-		return err
+	// The greeting is frequently several lines. Every one of them has to be
+	// consumed here, or the leftovers are read back as the answer to EHLO.
+	if err := expectSMTPReply(reader, "220"); err != nil {
+		return fmt.Errorf("greeting: %w", err)
 	}
 
 	if _, err := fmt.Fprintf(conn, "EHLO y509\r\n"); err != nil {
 		return err
 	}
-	// EHLO answers with several 250- lines and a final 250 one.
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			return err
-		}
-		if !strings.HasPrefix(line, "250") {
-			return fmt.Errorf("unexpected EHLO response: %s", strings.TrimSpace(line))
-		}
-		if len(line) > 3 && line[3] == ' ' {
-			break
-		}
+	if err := expectSMTPReply(reader, "250"); err != nil {
+		return fmt.Errorf("EHLO: %w", err)
 	}
 
 	if _, err := fmt.Fprintf(conn, "STARTTLS\r\n"); err != nil {
 		return err
 	}
-	return expectSMTPCode(reader, "220")
-}
-
-// expectSMTPCode reads one response and checks its status code.
-func expectSMTPCode(reader *bufio.Reader, code string) error {
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		return err
-	}
-	if !strings.HasPrefix(line, code) {
-		return fmt.Errorf("expected %s, got: %s", code, strings.TrimSpace(line))
+	if err := expectSMTPReply(reader, "220"); err != nil {
+		return fmt.Errorf("STARTTLS: %w", err)
 	}
 	return nil
+}
+
+// expectSMTPReply reads a complete SMTP reply and checks its status code.
+//
+// A reply may span several lines. RFC 5321 marks a continuation with a hyphen
+// in the fourth column ("250-STARTTLS") and the final line with anything else,
+// normally a space ("250 OK"). Reading only the first line leaves the rest in
+// the buffer, where it gets mistaken for the answer to the next command -- so a
+// server with a multi-line greeting broke the exchange before it began.
+func expectSMTPReply(reader *bufio.Reader, code string) error {
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(line, code) {
+			return fmt.Errorf("expected %s, got: %s", code, strings.TrimSpace(line))
+		}
+		// Anything but a hyphen in column four ends the reply. Testing for a
+		// space instead would hang on a bare "250\r\n", which is legal.
+		if len(line) < 4 || line[3] != '-' {
+			return nil
+		}
+	}
 }
 
 // startTLSIMAP does the STARTTLS exchange from RFC 3501.
@@ -284,17 +301,27 @@ func startTLSIMAP(conn net.Conn) error {
 		return fmt.Errorf("unexpected greeting: %s", strings.TrimSpace(line))
 	}
 
-	if _, err := fmt.Fprintf(conn, "a001 STARTTLS\r\n"); err != nil {
+	const tag = "a001"
+	if _, err := fmt.Fprintf(conn, "%s STARTTLS\r\n", tag); err != nil {
 		return err
 	}
-	line, err = reader.ReadString('\n')
-	if err != nil {
-		return err
+
+	// A server may send untagged responses -- "* CAPABILITY ...", say -- before
+	// the tagged completion. Skip past them to the line that carries our tag,
+	// rather than reading one line and calling anything else a refusal.
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(line, tag+" ") {
+			continue
+		}
+		if !strings.HasPrefix(line, tag+" OK") {
+			return fmt.Errorf("server refused STARTTLS: %s", strings.TrimSpace(line))
+		}
+		return nil
 	}
-	if !strings.HasPrefix(line, "a001 OK") {
-		return fmt.Errorf("server refused STARTTLS: %s", strings.TrimSpace(line))
-	}
-	return nil
 }
 
 // startTLSPostgres sends the SSLRequest packet from the PostgreSQL frontend
