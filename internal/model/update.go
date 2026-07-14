@@ -41,7 +41,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case SplashDoneMsg:
-		m.viewMode = ViewNormal
+		// The splash is also dismissed by any key press, and the timer message
+		// is still in flight when that happens. Only let it retire the splash,
+		// never anything else: a popup opened within the first half-second
+		// would otherwise be torn down, taking whatever was typed into it.
+		if m.viewMode == ViewSplash {
+			m.viewMode = ViewNormal
+		}
 		return m, nil
 
 	case tea.KeyPressMsg:
@@ -93,9 +99,13 @@ func (m Model) exportFormOpen() bool {
 // complete, performs the export.
 func (m Model) updateExportForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	form, cmd := m.exportForm.Update(msg)
-	if f, ok := form.(*huh.Form); ok {
-		m.exportForm = f
+	updated, ok := form.(*huh.Form)
+	if !ok {
+		// Nothing else huh can return is a form we can drive. Leave the popup
+		// as it was rather than reading state off the copy we no longer hold.
+		return m, cmd
 	}
+	m.exportForm = updated
 
 	if m.exportForm.State != huh.StateCompleted {
 		return m, cmd
