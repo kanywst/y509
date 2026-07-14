@@ -72,6 +72,9 @@ type ChainReport struct {
 	Sent []*x509.Certificate
 	// Sorted is the chain rebuilt leaf-first.
 	Sorted []*x509.Certificate
+	// SortErr is whatever SortChain made of the input. It is carried here so a
+	// caller that needs the sorted chain does not have to sort it a second time.
+	SortErr error
 	// Findings are the problems with how it was presented, in the order they
 	// were discovered.
 	Findings []ChainFinding
@@ -101,8 +104,9 @@ func AnalyzeChain(certs []*x509.Certificate) *ChainReport {
 		return report
 	}
 
-	sorted, _ := SortChain(certs)
+	sorted, sortErr := SortChain(certs)
 	report.Sorted = sorted
+	report.SortErr = sortErr
 
 	seen := make(map[string]bool, len(certs))
 	for _, cert := range certs {
@@ -164,7 +168,10 @@ func AnalyzeChain(certs []*x509.Certificate) *ChainReport {
 		})
 	}
 
-	if !sameOrder(certs, sorted) {
+	// Only meaningful when the chain sorted cleanly. Otherwise `sorted` may not
+	// hold the same certificates, and the comparison would report an ordering
+	// problem that is really a sorting failure.
+	if sortErr == nil && !sameOrder(certs, sorted) {
 		report.Findings = append(report.Findings, ChainFinding{
 			Problem: ProblemOutOfOrder,
 			Subject: displayName(certs[0]),

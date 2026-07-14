@@ -46,14 +46,14 @@ and exits non-zero. Pass --roots to supply your own trust anchors.`,
 		}
 
 		// Look at the chain as it was presented, before sorting it: sorting is
-		// what destroys the evidence.
+		// what destroys the evidence. AnalyzeChain sorts it on the way through,
+		// so take its result rather than sorting a second time.
 		report := certificate.AnalyzeChain(inputCerts)
-
-		chain, err := certificate.SortChain(inputCerts)
-		if err != nil {
-			logger.Log.Error("Failed to sort certificate chain", zap.Error(err))
-			return err
+		if report.SortErr != nil {
+			logger.Log.Error("Failed to sort certificate chain", zap.Error(report.SortErr))
+			return report.SortErr
 		}
+		chain := report.Sorted
 
 		result, err := certificate.VerifyChain(chain, opts)
 		if err != nil {
