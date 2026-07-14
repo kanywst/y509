@@ -18,9 +18,9 @@ brew install kanywst/tap/y509
 go install github.com/kanywst/y509/cmd/y509@latest
 ```
 
-Binaries, `.deb` and `.rpm` packages for Linux and macOS are attached to every
-[release](https://github.com/kanywst/y509/releases), with checksums, cosign
-signatures and an SBOM.
+Every [release](https://github.com/kanywst/y509/releases) attaches binaries for
+macOS and Linux, plus `.deb` and `.rpm` packages for Linux, with checksums,
+cosign signatures and an SBOM.
 
 ## Usage
 
