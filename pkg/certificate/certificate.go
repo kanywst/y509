@@ -383,13 +383,13 @@ func parsePEMCertificates(data []byte) (certs []*Info, sawPEM bool, err error) {
 func parseDERCertificates(data []byte) ([]*Info, error) {
 	parsed, err := x509.ParseCertificates(data)
 	if err != nil {
-		logger.Error("Input is neither PEM nor DER", zap.Error(err))
+		logger.Error("Failed to parse DER input", zap.Error(err))
 
-		// A DER SEQUENCE that is not a certificate is almost always a container
-		// y509 cannot open yet. Say so, rather than claiming there is nothing
-		// there.
+		// The input is a DER structure of some sort but not a certificate. It
+		// is usually a container y509 cannot open yet -- though it may simply
+		// be a corrupt certificate, so do not claim to know which.
 		if len(data) > 0 && data[0] == derSequenceTag {
-			return nil, fmt.Errorf("input is DER but not a certificate "+
+			return nil, fmt.Errorf("input is DER but could not be parsed as a certificate "+
 				"(PKCS#7 and PKCS#12 bundles are not supported): %w", err)
 		}
 		return nil, fmt.Errorf("no certificates found in input: not PEM, and not valid DER")
