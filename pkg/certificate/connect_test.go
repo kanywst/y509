@@ -1,6 +1,7 @@
 package certificate
 
 import (
+	"bufio"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -310,6 +311,204 @@ func TestStartTLSPostgres(t *testing.T) {
 			}
 			if !tt.wantErr && err != nil {
 				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// TestNormalizeAddress_Awkward covers the shapes that used to come out wrong:
+// a URL carrying userinfo, and a bracketed IPv6 literal with no port.
+func TestNormalizeAddress_Awkward(t *testing.T) {
+	tests := []struct {
+		name        string
+		in          string
+		wantAddress string
+		wantHost    string
+	}{
+		{
+			name: "URL with userinfo",
+			// Left in place, "user:pass@example.com" becomes the host, and goes
+			// out as both the DNS name and the SNI value.
+			in:          "https://user:pass@example.com/admin",
+			wantAddress: "example.com:443",
+			wantHost:    "example.com",
+		},
+		{
+			name:        "userinfo without a scheme",
+			in:          "user@example.com:8443",
+			wantAddress: "example.com:8443",
+			wantHost:    "example.com",
+		},
+		{
+			name: "bracketed IPv6 with no port",
+			// The brackets belong to the address syntax, not the host. Kept,
+			// they are sent as the SNI name and JoinHostPort double-wraps them.
+			in:          "[::1]",
+			wantAddress: "[::1]:443",
+			wantHost:    "::1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			address, host, err := normalizeAddress(tt.in)
+			if err != nil {
+				t.Fatalf("normalizeAddress(%q): %v", tt.in, err)
+			}
+			if address != tt.wantAddress {
+				t.Errorf("address = %q, want %q", address, tt.wantAddress)
+			}
+			if host != tt.wantHost {
+				t.Errorf("host = %q, want %q", host, tt.wantHost)
+			}
+		})
+	}
+}
+
+// fakeLineServer replies with the given script, line by line, to whatever the
+// client sends. It returns the client end of the connection.
+func fakeLineServer(t *testing.T, script []string) net.Conn {
+	t.Helper()
+
+	client, server := net.Pipe()
+	t.Cleanup(func() { _ = client.Close() })
+
+	go func() {
+		defer func() { _ = server.Close() }()
+		reader := bufio.NewReader(server)
+		for _, reply := range script {
+			if reply == "<read>" {
+				if _, err := reader.ReadString('\n'); err != nil {
+					return
+				}
+				continue
+			}
+			if _, err := server.Write([]byte(reply)); err != nil {
+				return
+			}
+		}
+		// Let the client finish reading before the pipe closes.
+		time.Sleep(50 * time.Millisecond)
+	}()
+
+	return client
+}
+
+// TestStartTLSSMTP_MultiLineReplies covers the reply shapes that used to desync
+// the exchange: a multi-line greeting, and an EHLO reply whose last line is a
+// bare code with no trailing space.
+func TestStartTLSSMTP_MultiLineReplies(t *testing.T) {
+	tests := []struct {
+		name    string
+		script  []string
+		wantErr bool
+	}{
+		{
+			name: "multi-line greeting",
+			script: []string{
+				"220-mail.example.com ESMTP Postfix\r\n",
+				"220-This server is monitored\r\n",
+				"220 Ready\r\n",
+				"<read>", // EHLO
+				"250-mail.example.com\r\n",
+				"250-PIPELINING\r\n",
+				"250 STARTTLS\r\n",
+				"<read>", // STARTTLS
+				"220 Go ahead\r\n",
+			},
+		},
+		{
+			name: "EHLO reply ends with a bare code and no space",
+			script: []string{
+				"220 mail.example.com ESMTP\r\n",
+				"<read>",
+				"250-mail.example.com\r\n",
+				"250\r\n", // legal, and used to hang the old loop forever
+				"<read>",
+				"220 Go ahead\r\n",
+			},
+		},
+		{
+			name: "server refuses STARTTLS",
+			script: []string{
+				"220 mail.example.com ESMTP\r\n",
+				"<read>",
+				"250 STARTTLS\r\n",
+				"<read>",
+				"454 TLS not available\r\n",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conn := fakeLineServer(t, tt.script)
+
+			done := make(chan error, 1)
+			go func() { done <- startTLSSMTP(conn) }()
+
+			select {
+			case err := <-done:
+				if tt.wantErr && err == nil {
+					t.Error("expected an error")
+				}
+				if !tt.wantErr && err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			case <-time.After(3 * time.Second):
+				t.Fatal("startTLSSMTP hung; it did not consume the reply correctly")
+			}
+		})
+	}
+}
+
+// TestStartTLSIMAP_UntaggedResponses covers a compliant server that sends
+// untagged data before the tagged completion of STARTTLS.
+func TestStartTLSIMAP_UntaggedResponses(t *testing.T) {
+	tests := []struct {
+		name    string
+		script  []string
+		wantErr bool
+	}{
+		{
+			name: "untagged responses before the tagged OK",
+			script: []string{
+				"* OK [CAPABILITY IMAP4rev1 STARTTLS] Dovecot ready\r\n",
+				"<read>",
+				"* CAPABILITY IMAP4rev1 STARTTLS\r\n",
+				"* SOMETHING else entirely\r\n",
+				"a001 OK Begin TLS negotiation now\r\n",
+			},
+		},
+		{
+			name: "server refuses",
+			script: []string{
+				"* OK Dovecot ready\r\n",
+				"<read>",
+				"a001 NO TLS is not available\r\n",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conn := fakeLineServer(t, tt.script)
+
+			done := make(chan error, 1)
+			go func() { done <- startTLSIMAP(conn) }()
+
+			select {
+			case err := <-done:
+				if tt.wantErr && err == nil {
+					t.Error("expected an error")
+				}
+				if !tt.wantErr && err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			case <-time.After(3 * time.Second):
+				t.Fatal("startTLSIMAP hung")
 			}
 		})
 	}
