@@ -204,3 +204,43 @@ func TestVerifyChain_EmptyChain(t *testing.T) {
 		t.Error("expected an error for an empty chain")
 	}
 }
+
+// TestVerifyChain_NilCertificates checks the exported entry point survives a
+// malformed slice. x509.CertPool.AddCert panics on a nil certificate, so this
+// must not reach it.
+func TestVerifyChain_NilCertificates(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	leaf, _ := issue(t, "leaf.internal", false, root, rootKey)
+
+	t.Run("nil leaf", func(t *testing.T) {
+		if _, err := VerifyChain([]*x509.Certificate{nil, root}, VerifyOptions{}); err == nil {
+			t.Error("expected an error for a nil leaf")
+		}
+	})
+
+	t.Run("nil intermediate is skipped", func(t *testing.T) {
+		result, err := VerifyChain(
+			[]*x509.Certificate{leaf, nil, root},
+			VerifyOptions{ExtraRoots: []*x509.Certificate{root}},
+		)
+		if err != nil {
+			t.Fatalf("a nil intermediate should be skipped, got: %v", err)
+		}
+		if result.Level != TrustAnchored {
+			t.Errorf("Level = %v (%v), want %v", result.Level, result.Err, TrustAnchored)
+		}
+	})
+
+	t.Run("nil extra root is skipped", func(t *testing.T) {
+		result, err := VerifyChain(
+			[]*x509.Certificate{leaf, root},
+			VerifyOptions{ExtraRoots: []*x509.Certificate{nil, root}},
+		)
+		if err != nil {
+			t.Fatalf("a nil extra root should be skipped, got: %v", err)
+		}
+		if result.Level != TrustAnchored {
+			t.Errorf("Level = %v (%v), want %v", result.Level, result.Err, TrustAnchored)
+		}
+	})
+}

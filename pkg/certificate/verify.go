@@ -85,10 +85,18 @@ func VerifyChain(certs []*x509.Certificate, opts VerifyOptions) (*VerifyResult, 
 		return nil, fmt.Errorf("empty certificate chain")
 	}
 
+	// This is an exported entry point, so it does not get to assume a
+	// well-formed slice: AddCert panics on a nil certificate.
 	leaf := certs[0]
+	if leaf == nil {
+		return nil, fmt.Errorf("leaf certificate is nil")
+	}
 
 	intermediates := x509.NewCertPool()
 	for _, cert := range certs[1:] {
+		if cert == nil {
+			continue
+		}
 		intermediates.AddCert(cert)
 	}
 
@@ -139,13 +147,18 @@ func trustAnchors(opts VerifyOptions) (*x509.CertPool, error) {
 				return nil, fmt.Errorf("failed to load the system trust store: %w", err)
 			}
 			logger.Warn("failed to load the system trust store", zap.Error(err))
-		} else {
-			// SystemCertPool returns a copy, so adding to it is safe.
+		} else if system != nil {
+			// SystemCertPool returns a copy, so adding to it is safe. Guard the
+			// nil: it is documented to return one with no error where no system
+			// pool is available, and AddCert below would panic on it.
 			pool = system
 		}
 	}
 
 	for _, root := range opts.ExtraRoots {
+		if root == nil {
+			continue
+		}
 		pool.AddCert(root)
 	}
 
@@ -160,6 +173,9 @@ func selfSignedFrom(certs []*x509.Certificate) *x509.CertPool {
 	found := false
 
 	for _, cert := range certs {
+		if cert == nil {
+			continue
+		}
 		if cert.Issuer.String() != cert.Subject.String() {
 			continue
 		}
