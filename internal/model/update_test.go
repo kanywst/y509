@@ -265,3 +265,38 @@ func pumpKeys(t *testing.T, m Model, keys ...rune) Model {
 	}
 	return m
 }
+
+// TestLateSplashDoneDoesNotClosePopup covers a race: the splash is dismissed by
+// any key, but the 500ms timer message is still in flight. If it retires the
+// splash unconditionally it tears down whatever the user opened in the
+// meantime, discarding their input.
+func TestLateSplashDoneDoesNotClosePopup(t *testing.T) {
+	cfg := loadTestConfig(t)
+	m := *NewModel(createTestCertificates(2), cfg)
+	m = pump(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	if m.viewMode != ViewSplash {
+		t.Fatalf("expected to start on the splash, got %v", m.viewMode)
+	}
+
+	// A key dismisses the splash, and the user immediately opens search.
+	m = pump(t, m, keyPress('x'))
+	m = pump(t, m, keyPress('/'))
+	m = pump(t, m, keyPress('a'))
+
+	if m.viewMode != ViewPopup || m.popupType != PopupSearch {
+		t.Fatalf("expected the search popup to be open, got viewMode=%v popupType=%v",
+			m.viewMode, m.popupType)
+	}
+
+	// Now the splash timer finally fires.
+	m = pump(t, m, SplashDoneMsg{})
+
+	if m.viewMode != ViewPopup || m.popupType != PopupSearch {
+		t.Errorf("a late SplashDoneMsg closed the search popup: viewMode=%v popupType=%v",
+			m.viewMode, m.popupType)
+	}
+	if got := m.textInput.Value(); got != "a" {
+		t.Errorf("the typed query was lost, textInput = %q", got)
+	}
+}
