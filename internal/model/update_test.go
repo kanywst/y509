@@ -5,6 +5,7 @@ import (
 	"crypto/x509/pkix"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -154,23 +155,23 @@ func settle(cmd tea.Cmd) tea.Msg {
 // format field. The form only reaches StateCompleted if Update hands huh's own
 // messages back to it.
 func TestExportFormCompletesThroughUpdate(t *testing.T) {
-	t.Chdir(t.TempDir())
-
 	cfg := loadTestConfig(t)
 	m := *NewModel(createTestCertificates(1), cfg)
 	m = pump(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
 	m.viewMode = ViewNormal
 
-	const target = "out"
+	// An absolute path in a temp dir, entered in one paste rather than typed
+	// character by character. Each keystroke otherwise pays the cursor-blink
+	// settle, which a long path makes slow; pasting also keeps the test off the
+	// process working directory, so it stays safe to run in parallel.
+	target := filepath.Join(t.TempDir(), "out")
 
 	m = pump(t, m, keyPress('e'))
 	if !m.exportFormOpen() {
 		t.Fatal("e did not open the export form")
 	}
 
-	for _, r := range target {
-		m = pump(t, m, keyPress(r))
-	}
+	m = pump(t, m, tea.PasteMsg{Content: target})
 
 	// First enter confirms the filename, second confirms the format select.
 	m = pump(t, m, tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
