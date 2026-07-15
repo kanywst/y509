@@ -123,6 +123,20 @@ func FetchChain(ctx context.Context, addr string, opts ConnectOptions) (*Connect
 		}
 	}
 
+	// The STARTTLS negotiation below reads synchronously and does not watch the
+	// context itself. The deadline bounds it, but an early cancellation would
+	// otherwise wait the deadline out. Close the connection when the context is
+	// done so those reads unblock at once; stop the watcher on the normal path.
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = conn.Close()
+		case <-stop:
+		}
+	}()
+
 	if opts.StartTLS != "" {
 		if err := negotiateStartTLS(conn, opts.StartTLS); err != nil {
 			return nil, fmt.Errorf("STARTTLS (%s) failed: %w", opts.StartTLS, err)
@@ -201,6 +215,10 @@ func normalizeAddress(addr string) (address, host string, err error) {
 		if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
 			host = host[1 : len(host)-1]
 		}
+	} else if port == "" {
+		// A trailing colon ("example.com:") splits cleanly but leaves an empty
+		// port, which would dial an invalid address. Fall back to the default.
+		port = DefaultTLSPort
 	}
 	if host == "" {
 		return "", "", fmt.Errorf("no host in address %q", addr)

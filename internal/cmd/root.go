@@ -224,7 +224,28 @@ func looksLikeHost(target string) bool {
 		return false
 	}
 
+	// A certificate extension means a file, even a mistyped one that does not
+	// exist. "y509 chian.pem" should report "no such file", not a DNS failure
+	// for a host called chian.pem.
+	if hasCertExtension(target) {
+		return false
+	}
+
 	// A bare word like "certs" is far likelier to be a mistyped filename than a
 	// hostname. Require a dot (a domain) or a colon (a port).
 	return strings.ContainsAny(target, ".:")
+}
+
+// certExtensions are the file suffixes that mean "this is a certificate file",
+// so a missing one is reported as a missing file rather than dialled as a host.
+var certExtensions = []string{".pem", ".crt", ".cer", ".der", ".p7b", ".p7c", ".pfx", ".p12"}
+
+func hasCertExtension(target string) bool {
+	lower := strings.ToLower(target)
+	for _, ext := range certExtensions {
+		if strings.HasSuffix(lower, ext) {
+			return true
+		}
+	}
+	return false
 }
