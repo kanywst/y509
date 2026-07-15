@@ -232,13 +232,22 @@ func chainTerminus(sorted []*x509.Certificate) *x509.Certificate {
 	}
 }
 
-// unrelatedIn returns the certificates that neither issued nor were issued by
-// anything else in the bundle. A single self-signed certificate on its own is
-// not unrelated -- it is the whole chain.
+// unrelatedIn returns the certificates that do not belong to the chain the
+// primary leaf (the first certificate presented) sits in.
 //
-// Duplicates are collapsed first. Two copies of the same certificate are not
-// each other's issuer, so without this a duplicated leaf would be reported as
-// unrelated -- which it is not; it is a duplicate, and reported as one already.
+// It works by reachability rather than a pairwise "has any neighbour" test.
+// Anything reachable from the leaf by issuer/subject links -- in either
+// direction -- is part of its chain; everything else is baggage. Two things
+// fall out of that:
+//
+//   - The leaf is the starting point, so it is always reachable and can never
+//     be reported as unrelated -- even when its own issuer was not sent, which
+//     is a missing-issuer finding, not an unrelated one.
+//   - A second, disjoint chain is unrelated as a whole, even though its own
+//     members are connected to each other. A pairwise test misses that.
+//
+// Duplicates are collapsed first: two copies of a certificate are not each
+// other's issuer, and a duplicated leaf is already reported as a duplicate.
 func unrelatedIn(certs []*x509.Certificate) []*x509.Certificate {
 	unique := make([]*x509.Certificate, 0, len(certs))
 	seen := make(map[string]bool, len(certs))
@@ -255,24 +264,42 @@ func unrelatedIn(certs []*x509.Certificate) []*x509.Certificate {
 		return nil
 	}
 
+	reachable := reachableFrom(unique[0], unique)
+
 	var unrelated []*x509.Certificate
-	for i, cert := range unique {
-		connected := false
-		for j, other := range unique {
-			if i == j {
-				continue
-			}
-			if cert.Issuer.String() == other.Subject.String() ||
-				other.Issuer.String() == cert.Subject.String() {
-				connected = true
-				break
-			}
-		}
-		if !connected {
+	for _, cert := range unique {
+		if !reachable[FormatFingerprint(cert)] {
 			unrelated = append(unrelated, cert)
 		}
 	}
 	return unrelated
+}
+
+// reachableFrom returns the fingerprints of every certificate reachable from
+// start by issuer/subject links, in either direction. start itself is always
+// included.
+func reachableFrom(start *x509.Certificate, certs []*x509.Certificate) map[string]bool {
+	reached := map[string]bool{FormatFingerprint(start): true}
+	queue := []*x509.Certificate{start}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		for _, other := range certs {
+			fingerprint := FormatFingerprint(other)
+			if reached[fingerprint] {
+				continue
+			}
+			if current.Issuer.String() == other.Subject.String() ||
+				other.Issuer.String() == current.Subject.String() {
+				reached[fingerprint] = true
+				queue = append(queue, other)
+			}
+		}
+	}
+
+	return reached
 }
 
 // sameOrder reports whether two chains hold the same certificates in the same

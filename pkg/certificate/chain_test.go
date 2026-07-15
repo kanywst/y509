@@ -243,3 +243,63 @@ func TestAnalyzeChain_NilEntries(t *testing.T) {
 		}
 	})
 }
+
+// TestAnalyzeChain_LeafNotFlaggedUnrelated is a regression: when the
+// intermediate is missing, the leaf has no neighbour in the bundle, so the old
+// pairwise check reported the validation target itself as "unrelated" on top of
+// the missing-issuer finding.
+func TestAnalyzeChain_LeafNotFlaggedUnrelated(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	otherRoot, otherRootKey := issue(t, "Other Root", true, nil, nil)
+	stranger, _ := issue(t, "stranger.net", false, otherRoot, otherRootKey)
+
+	// The intermediate is absent, so the leaf connects to nothing.
+	report := AnalyzeChain([]*x509.Certificate{leaf, stranger})
+
+	if !hasProblem(report, ProblemMissingIssuer) {
+		t.Errorf("the missing intermediate should be reported; findings: %v", problemNames(report))
+	}
+	for _, finding := range report.Findings {
+		if finding.Problem == ProblemUnrelated && finding.Subject == "leaf.example.com" {
+			t.Error("the primary leaf must never be reported as unrelated")
+		}
+	}
+	// The stranger, on the other hand, is genuinely unrelated.
+	if !hasProblem(report, ProblemUnrelated) {
+		t.Errorf("the stranger should be reported as unrelated; findings: %v", problemNames(report))
+	}
+}
+
+// TestAnalyzeChain_DisjointSecondChainIsUnrelated checks that a whole second
+// chain -- whose members are connected to each other but not to the primary
+// leaf -- is reported as unrelated. A pairwise "has any neighbour" test misses
+// this, because each member has a neighbour within its own chain.
+func TestAnalyzeChain_DisjointSecondChainIsUnrelated(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	otherRoot, otherRootKey := issue(t, "Other Root", true, nil, nil)
+	otherIntermediate, otherIntermediateKey := issue(t, "Other CA", true, otherRoot, otherRootKey)
+	otherLeaf, _ := issue(t, "other.example.net", false, otherIntermediate, otherIntermediateKey)
+
+	report := AnalyzeChain([]*x509.Certificate{leaf, intermediate, otherIntermediate, otherLeaf})
+
+	unrelated := map[string]bool{}
+	for _, finding := range report.Findings {
+		if finding.Problem == ProblemUnrelated {
+			unrelated[finding.Subject] = true
+		}
+	}
+	for _, want := range []string{"Other CA", "other.example.net"} {
+		if !unrelated[want] {
+			t.Errorf("%q should be reported as unrelated; findings: %v", want, problemNames(report))
+		}
+	}
+	if unrelated["leaf.example.com"] || unrelated["Issuing CA"] {
+		t.Error("the primary chain must not be reported as unrelated")
+	}
+}
