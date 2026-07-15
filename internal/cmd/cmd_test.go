@@ -56,7 +56,10 @@ func TestLooksLikeHost(t *testing.T) {
 		{"certs", false},         // a bare word is likelier a mistyped file
 		{"./chain.pem", false},   // path-shaped, even though it has a dot
 		{"/etc/ssl/cert.pem", false},
-		{"chain.pem", true}, // a dot with no separator still reads as host-ish; opens as file only if it exists
+		{"chain.pem", false},   // a cert extension, so a file even when missing
+		{"MISSING.PEM", false}, // extension match is case-insensitive
+		{"bundle.p12", false},
+		{"sub.example.com", true}, // a plain domain is still a host
 		{"", false},
 	}
 	for _, tt := range tests {
