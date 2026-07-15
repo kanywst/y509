@@ -37,11 +37,13 @@ func init() {
 	for _, setting := range info.Settings {
 		switch setting.Key {
 		case "vcs.revision":
-			if GitCommit == "unknown" {
+			// An empty value must not overwrite "unknown" -- it would render as
+			// "y509 version dev ()".
+			if GitCommit == "unknown" && setting.Value != "" {
 				GitCommit = setting.Value
 			}
 		case "vcs.time":
-			if BuildDate == "unknown" {
+			if BuildDate == "unknown" && setting.Value != "" {
 				BuildDate = setting.Value
 			}
 		}
