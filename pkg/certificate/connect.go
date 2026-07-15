@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"time"
@@ -339,7 +340,7 @@ func startTLSPostgres(conn net.Conn) error {
 	}
 
 	response := make([]byte, 1)
-	if _, err := conn.Read(response); err != nil {
+	if _, err := io.ReadFull(conn, response); err != nil {
 		return err
 	}
 	switch response[0] {
