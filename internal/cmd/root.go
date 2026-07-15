@@ -210,6 +210,13 @@ func looksLikeHost(target string) bool {
 		return true
 	}
 
+	// localhost is the one bare word that is far likelier to be a host than a
+	// file -- it is the obvious target for local development, and it carries
+	// neither the dot nor the colon the fallback below looks for.
+	if target == "localhost" {
+		return true
+	}
+
 	// Anything shaped like a path is a path, even a missing one. "./chain.pem"
 	// and "/etc/ssl/cert.pem" both contain a dot, and answering a typo in
 	// either with a failed DNS lookup would be baffling.
