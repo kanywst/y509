@@ -341,6 +341,14 @@ func TestNormalizeAddress_Awkward(t *testing.T) {
 			wantHost:    "example.com",
 		},
 		{
+			name: "trailing colon with no port",
+			// net.SplitHostPort accepts this and returns an empty port, which
+			// would dial an invalid address.
+			in:          "example.com:",
+			wantAddress: "example.com:443",
+			wantHost:    "example.com",
+		},
+		{
 			name: "bracketed IPv6 with no port",
 			// The brackets belong to the address syntax, not the host. Kept,
 			// they are sent as the SNI name and JoinHostPort double-wraps them.
@@ -512,5 +520,45 @@ func TestStartTLSIMAP_UntaggedResponses(t *testing.T) {
 				t.Fatal("startTLSIMAP hung")
 			}
 		})
+	}
+}
+
+// TestFetchChain_ContextCancelDuringStartTLS checks that cancelling the context
+// while the STARTTLS negotiation is blocked on a read returns promptly rather
+// than waiting out the deadline.
+func TestFetchChain_ContextCancelDuringStartTLS(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+
+	// Accept and then go silent, so the SMTP greeting read blocks.
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		_, _ = conn.Read(make([]byte, 1))
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		cancel()
+	}()
+
+	start := time.Now()
+	// A long timeout: if cancellation is not honoured, the read waits this out.
+	_, err = FetchChain(ctx, listener.Addr().String(), ConnectOptions{
+		StartTLS: "smtp",
+		Timeout:  30 * time.Second,
+	})
+	if err == nil {
+		t.Fatal("expected an error from the cancelled context")
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Errorf("took %v; the cancellation was not honoured during STARTTLS", elapsed)
 	}
 }
