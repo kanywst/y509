@@ -3,6 +3,7 @@ package certificate
 import (
 	"crypto/x509"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -100,6 +101,18 @@ func (r *ChainReport) OK() bool { return len(r.Findings) == 0 }
 // people run it from. Asking "what did you send me?" cannot be fooled.
 func AnalyzeChain(certs []*x509.Certificate) *ChainReport {
 	report := &ChainReport{Sent: certs}
+
+	// This is exported, so it does not get to assume a clean slice. Drop nil
+	// entries up front; everything below dereferences a certificate.
+	if slices.Contains(certs, nil) {
+		compact := make([]*x509.Certificate, 0, len(certs))
+		for _, cert := range certs {
+			if cert != nil {
+				compact = append(compact, cert)
+			}
+		}
+		certs = compact
+	}
 	if len(certs) == 0 {
 		return report
 	}
@@ -222,15 +235,30 @@ func chainTerminus(sorted []*x509.Certificate) *x509.Certificate {
 // unrelatedIn returns the certificates that neither issued nor were issued by
 // anything else in the bundle. A single self-signed certificate on its own is
 // not unrelated -- it is the whole chain.
+//
+// Duplicates are collapsed first. Two copies of the same certificate are not
+// each other's issuer, so without this a duplicated leaf would be reported as
+// unrelated -- which it is not; it is a duplicate, and reported as one already.
 func unrelatedIn(certs []*x509.Certificate) []*x509.Certificate {
-	if len(certs) < 2 {
+	unique := make([]*x509.Certificate, 0, len(certs))
+	seen := make(map[string]bool, len(certs))
+	for _, cert := range certs {
+		fingerprint := FormatFingerprint(cert)
+		if seen[fingerprint] {
+			continue
+		}
+		seen[fingerprint] = true
+		unique = append(unique, cert)
+	}
+
+	if len(unique) < 2 {
 		return nil
 	}
 
 	var unrelated []*x509.Certificate
-	for i, cert := range certs {
+	for i, cert := range unique {
 		connected := false
-		for j, other := range certs {
+		for j, other := range unique {
 			if i == j {
 				continue
 			}
