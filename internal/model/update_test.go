@@ -300,3 +300,39 @@ func TestLateSplashDoneDoesNotClosePopup(t *testing.T) {
 		t.Errorf("the typed query was lost, textInput = %q", got)
 	}
 }
+
+// TestExportFormAbortClosesPopup checks that an aborted export form tears the
+// popup down instead of leaving it on screen, unresponsive.
+func TestExportFormAbortClosesPopup(t *testing.T) {
+	cfg := loadTestConfig(t)
+	m := *NewModel(createTestCertificates(1), cfg)
+	m = pump(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
+	m.viewMode = ViewNormal
+
+	m = pump(t, m, keyPress('e'))
+	if !m.exportFormOpen() {
+		t.Fatal("e did not open the export form")
+	}
+
+	// Abort via the form's own quit binding (ctrl+c). It reaches the form here
+	// because this drives updateExportForm directly, past the Update-level
+	// interception.
+	m = m.updateExportFormModel(t, tea.KeyPressMsg(tea.Key{Code: 'c', Mod: tea.ModCtrl}))
+
+	if m.exportForm != nil {
+		t.Errorf("aborted form was not cleared (state=%v)", m.exportForm.State)
+	}
+	if m.viewMode != ViewNormal || m.popupType != PopupNone {
+		t.Errorf("aborted form left the popup open: viewMode=%v popupType=%v", m.viewMode, m.popupType)
+	}
+}
+
+// updateExportFormModel is a tiny test shim that runs updateExportForm and
+// settles the resulting command, returning the concrete model.
+func (m Model) updateExportFormModel(t *testing.T, msg tea.Msg) Model {
+	t.Helper()
+	next, cmd := m.updateExportForm(msg)
+	out := next.(Model)
+	settle(cmd)
+	return out
+}

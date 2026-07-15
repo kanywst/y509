@@ -107,6 +107,17 @@ func (m Model) updateExportForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	m.exportForm = updated
 
+	// huh sets StateAborted when the form's own quit binding fires. y509
+	// intercepts ctrl+c before it reaches the form, so today that state comes
+	// only from huh's internals, but if the form ever aborts we must tear the
+	// popup down rather than leaving it on screen, unresponsive.
+	if m.exportForm.State == huh.StateAborted {
+		m.exportForm = nil
+		m.viewMode = ViewNormal
+		m.popupType = PopupNone
+		return m, cmd
+	}
+
 	if m.exportForm.State != huh.StateCompleted {
 		return m, cmd
 	}
