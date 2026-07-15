@@ -215,14 +215,15 @@ func TestFetchChain_Timeout(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = listener.Close() })
 
-	// Accept, then say nothing at all.
+	// Accept, then say nothing at all -- block on a read until the client hangs
+	// up, rather than sleeping, so the goroutine does not outlive the test.
 	go func() {
 		conn, err := listener.Accept()
 		if err != nil {
 			return
 		}
-		<-time.After(30 * time.Second)
-		_ = conn.Close()
+		defer func() { _ = conn.Close() }()
+		_, _ = conn.Read(make([]byte, 1))
 	}()
 
 	start := time.Now()

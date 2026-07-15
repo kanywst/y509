@@ -42,3 +42,26 @@ func TestCommandStructure(t *testing.T) {
 		}
 	}
 }
+
+func TestLooksLikeHost(t *testing.T) {
+	tests := []struct {
+		in   string
+		want bool
+	}{
+		{"example.com", true},
+		{"example.com:443", true},
+		{"https://example.com", true},
+		{"localhost", true},      // bare word, but the obvious local target
+		{"localhost:8443", true}, // covered by the colon anyway
+		{"certs", false},         // a bare word is likelier a mistyped file
+		{"./chain.pem", false},   // path-shaped, even though it has a dot
+		{"/etc/ssl/cert.pem", false},
+		{"chain.pem", true}, // a dot with no separator still reads as host-ish; opens as file only if it exists
+		{"", false},
+	}
+	for _, tt := range tests {
+		if got := looksLikeHost(tt.in); got != tt.want {
+			t.Errorf("looksLikeHost(%q) = %v, want %v", tt.in, got, tt.want)
+		}
+	}
+}
