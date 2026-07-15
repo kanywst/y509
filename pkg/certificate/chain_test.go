@@ -200,3 +200,46 @@ func TestAnalyzeChain_CarriesSortedChain(t *testing.T) {
 			report.Sent[0].Subject.CommonName)
 	}
 }
+
+// TestAnalyzeChain_DuplicateIsNotUnrelated is a regression: two copies of the
+// same certificate are not each other's issuer, so unrelatedIn used to flag a
+// duplicated leaf as unrelated -- twice -- on top of the duplicate finding.
+func TestAnalyzeChain_DuplicateIsNotUnrelated(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	report := AnalyzeChain([]*x509.Certificate{leaf, leaf})
+
+	if !hasProblem(report, ProblemDuplicate) {
+		t.Errorf("a duplicated leaf should be reported as a duplicate; findings: %v", problemNames(report))
+	}
+	if hasProblem(report, ProblemUnrelated) {
+		t.Errorf("a duplicated leaf must not also be reported as unrelated; findings: %v", problemNames(report))
+	}
+}
+
+// TestAnalyzeChain_NilEntries checks the exported entry point survives nil
+// certificates in the slice rather than panicking on the first dereference.
+func TestAnalyzeChain_NilEntries(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	t.Run("nil among real certs", func(t *testing.T) {
+		// Dropping the nil leaves a well-formed leaf+intermediate pair, so the
+		// point is simply that it is analyzed without panicking and the nil is
+		// not itself mistaken for a certificate.
+		report := AnalyzeChain([]*x509.Certificate{leaf, nil, intermediate})
+		if !report.OK() {
+			t.Errorf("the leaf+intermediate pair should analyze clean, got %v", problemNames(report))
+		}
+	})
+
+	t.Run("all nil", func(t *testing.T) {
+		report := AnalyzeChain([]*x509.Certificate{nil, nil})
+		if !report.OK() {
+			t.Errorf("a slice of only nils should produce no findings, got %v", problemNames(report))
+		}
+	})
+}
