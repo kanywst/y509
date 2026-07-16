@@ -303,3 +303,51 @@ func TestAnalyzeChain_DisjointSecondChainIsUnrelated(t *testing.T) {
 		t.Error("the primary chain must not be reported as unrelated")
 	}
 }
+
+// TestAnalyzeChain_LoneSelfSignedIsNotRedundant is a regression: a single
+// self-signed certificate is the leaf the server presents, not a redundant
+// root, so it must produce no findings.
+func TestAnalyzeChain_LoneSelfSignedIsNotRedundant(t *testing.T) {
+	selfSigned, _ := issue(t, "self-signed.example.com", true, nil, nil)
+
+	report := AnalyzeChain([]*x509.Certificate{selfSigned})
+	if !report.OK() {
+		t.Errorf("a lone self-signed certificate should be clean, got %v", problemNames(report))
+	}
+}
+
+// TestAnalyzeChain_SelfSignedSentTwiceIsOnlyDuplicate checks that a self-signed
+// certificate sent twice is a duplicate, not a redundant root: there is still
+// only one distinct certificate, and it is the leaf.
+func TestAnalyzeChain_SelfSignedSentTwiceIsOnlyDuplicate(t *testing.T) {
+	selfSigned, _ := issue(t, "self-signed.example.com", true, nil, nil)
+
+	report := AnalyzeChain([]*x509.Certificate{selfSigned, selfSigned})
+	if !hasProblem(report, ProblemDuplicate) {
+		t.Errorf("the repeat should be reported as a duplicate; findings: %v", problemNames(report))
+	}
+	if hasProblem(report, ProblemRedundantRoot) {
+		t.Errorf("a self-signed leaf sent twice is not a redundant root; findings: %v", problemNames(report))
+	}
+}
+
+// TestAnalyzeChain_CrossSignedSameSubjectTerminus checks that a decoy sharing a
+// subject name with the real issuer does not derail the terminus walk. The walk
+// used to key its cycle detection on the subject string, so a second
+// certificate with the same subject looked like a loop and stopped it early.
+func TestAnalyzeChain_CrossSignedSameSubjectTerminus(t *testing.T) {
+	root, rootKey := issue(t, "Root CA", true, nil, nil)
+	intermediate, intermediateKey := issue(t, "Issuing CA", true, root, rootKey)
+	leaf, _ := issue(t, "leaf.example.com", false, intermediate, intermediateKey)
+
+	// A self-signed decoy that shares the root's subject name but signed nothing
+	// in this chain. Keying cycle detection on the subject name would trip over
+	// it. The real terminus is the intermediate, which is a CA -> no finding.
+	decoy, _ := issue(t, "Root CA", true, nil, nil)
+
+	report := AnalyzeChain([]*x509.Certificate{leaf, intermediate, decoy})
+	if hasProblem(report, ProblemMissingIssuer) {
+		t.Errorf("the intermediate is a CA, so no missing issuer should be reported; findings: %v",
+			problemNames(report))
+	}
+}
