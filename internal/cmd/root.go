@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -208,7 +209,7 @@ func looksLikeHost(target string) bool {
 	// still opens as a file. A stat error that is not "no such file" -- a
 	// permission problem, say -- means something is there, and the user meant
 	// it; let the file path report the real error.
-	if _, err := os.Stat(target); !os.IsNotExist(err) {
+	if _, err := os.Stat(target); !errors.Is(err, os.ErrNotExist) {
 		return false
 	}
 
