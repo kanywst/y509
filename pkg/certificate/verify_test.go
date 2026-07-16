@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 )
@@ -271,5 +272,46 @@ func TestVerifyChain_SelfSignedLeafIsSelfAnchored(t *testing.T) {
 	if result.Level != TrustSelfAnchored {
 		t.Errorf("Level = %v, want %v (a self-signed leaf anchors its own chain)",
 			result.Level, TrustSelfAnchored)
+	}
+}
+
+// TestVerifyChain_BrokenReportsStructuralError checks that when a chain has a
+// self-signed anchor but still fails to build, the reported error is the
+// structural reason (here, expiry) rather than the "unknown authority" from the
+// trust-store pass, which would hide why it is actually broken.
+func TestVerifyChain_BrokenReportsStructuralError(t *testing.T) {
+	root, rootKey := issue(t, "Untrusted Root", true, nil, nil)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: randomSerial(t),
+		Subject:      pkix.Name{CommonName: "expired.leaf"},
+		NotBefore:    time.Now().Add(-48 * time.Hour),
+		NotAfter:     time.Now().Add(-24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, root, &key.PublicKey, rootKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expired, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The root is present but not trusted, so the trust pass fails with
+	// "unknown authority"; the self-anchored retry fails on expiry.
+	result, err := VerifyChain([]*x509.Certificate{expired, root}, VerifyOptions{})
+	if err != nil {
+		t.Fatalf("VerifyChain returned an error: %v", err)
+	}
+	if result.Level != TrustBroken {
+		t.Fatalf("Level = %v, want %v", result.Level, TrustBroken)
+	}
+	if result.Err == nil || !strings.Contains(result.Err.Error(), "expired") {
+		t.Errorf("Err = %v, want the expiry reason, not the trust-store error", result.Err)
 	}
 }

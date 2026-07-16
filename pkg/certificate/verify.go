@@ -127,7 +127,11 @@ func VerifyChain(certs []*x509.Certificate, opts VerifyOptions) (*VerifyResult, 
 	verifyOpts.Roots = selfAnchors
 	chains, selfErr := leaf.Verify(verifyOpts)
 	if selfErr != nil {
-		return &VerifyResult{Level: TrustBroken, Err: trustErr}, nil
+		// The chain has a self-signed anchor, so it should have built. That it
+		// still failed means a structural fault -- expiry, a bad signature, a
+		// name constraint -- and selfErr names it. trustErr would only say
+		// "unknown authority", which is not why this is broken.
+		return &VerifyResult{Level: TrustBroken, Err: selfErr}, nil
 	}
 
 	return &VerifyResult{Level: TrustSelfAnchored, Anchor: anchorName(chains), Err: trustErr}, nil
@@ -198,13 +202,16 @@ func selfSignedFrom(certs []*x509.Certificate) *x509.CertPool {
 }
 
 // anchorName returns the common name of the root that the first verified chain
-// terminates at.
+// terminates at, falling back to the full subject when it has no common name.
 func anchorName(chains [][]*x509.Certificate) string {
 	if len(chains) == 0 || len(chains[0]) == 0 {
 		return ""
 	}
 	last := chains[0][len(chains[0])-1]
-	return last.Subject.CommonName
+	if last.Subject.CommonName != "" {
+		return last.Subject.CommonName
+	}
+	return last.Subject.String()
 }
 
 // FormatVerifyResult renders a verification result for the terminal.
