@@ -100,10 +100,10 @@ func (r *ChainReport) OK() bool { return len(r.Findings) == 0 }
 // "did it verify?" would make the check quietly useless on the platform most
 // people run it from. Asking "what did you send me?" cannot be fooled.
 func AnalyzeChain(certs []*x509.Certificate) *ChainReport {
-	report := &ChainReport{Sent: certs}
-
 	// This is exported, so it does not get to assume a clean slice. Drop nil
-	// entries up front; everything below dereferences a certificate.
+	// entries before anything, including Sent, holds a reference: everything
+	// below -- and every caller reading report.Sent -- dereferences a
+	// certificate.
 	if slices.Contains(certs, nil) {
 		compact := make([]*x509.Certificate, 0, len(certs))
 		for _, cert := range certs {
@@ -113,6 +113,8 @@ func AnalyzeChain(certs []*x509.Certificate) *ChainReport {
 		}
 		certs = compact
 	}
+
+	report := &ChainReport{Sent: certs}
 	if len(certs) == 0 {
 		return report
 	}

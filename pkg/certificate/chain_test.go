@@ -242,6 +242,19 @@ func TestAnalyzeChain_NilEntries(t *testing.T) {
 			t.Errorf("a slice of only nils should produce no findings, got %v", problemNames(report))
 		}
 	})
+
+	t.Run("Sent carries no nils", func(t *testing.T) {
+		// A caller reading report.Sent must not meet a nil the analysis stripped.
+		report := AnalyzeChain([]*x509.Certificate{leaf, nil, intermediate})
+		for i, cert := range report.Sent {
+			if cert == nil {
+				t.Fatalf("report.Sent[%d] is nil", i)
+			}
+		}
+		if len(report.Sent) != 2 {
+			t.Errorf("report.Sent holds %d certificates, want 2", len(report.Sent))
+		}
+	})
 }
 
 // TestAnalyzeChain_LeafNotFlaggedUnrelated is a regression: when the
