@@ -233,6 +233,24 @@ func TestParseCertificates_Errors(t *testing.T) {
 			want:  "could not be parsed as a certificate",
 		},
 		{
+			name: "a cert-shaped SEQUENCE that x509 rejects",
+			// A SEQUENCE whose first element is itself a SEQUENCE looks like a
+			// certificate (tbsCertificate first), not a PKCS container. It must
+			// not be mislabelled one just because x509 could not parse it.
+			input: func() []byte {
+				type inner struct{ A int }
+				der, err := asn1.Marshal(struct {
+					TBS inner
+					N   int
+				}{inner{1}, 2})
+				if err != nil {
+					t.Fatal(err)
+				}
+				return der
+			}(),
+			want: "could not be parsed as a certificate",
+		},
+		{
 			name:  "plain garbage",
 			input: []byte("hello, this is not a certificate"),
 			want:  "not PEM, and not valid DER",

@@ -390,10 +390,10 @@ func parseDERCertificates(data []byte) ([]*Info, error) {
 		logger.Debug("input did not parse as DER certificates", zap.Error(err))
 
 		switch {
-		case isCompleteDERSequence(data):
-			// A well-formed ASN.1 SEQUENCE that is not a certificate is almost
-			// always a container y509 cannot open yet. Testing the first byte
-			// alone would misfire on any text starting with '0' (0x30).
+		case isPKCSContainer(data):
+			// A DER SEQUENCE whose first element is an OID or INTEGER is a PKCS
+			// container, not a certificate. Testing the first byte alone would
+			// misfire on any text starting with '0' (0x30).
 			return nil, fmt.Errorf("input is a DER structure but not a certificate "+
 				"(PKCS#7 and PKCS#12 bundles are not supported): %w", err)
 		case len(data) > 0 && data[0] == derSequenceTag:
@@ -427,15 +427,30 @@ func parseDERCertificates(data []byte) ([]*Info, error) {
 // DER-encoded certificate, PKCS#7 blob or PKCS#12 bundle.
 const derSequenceTag = 0x30
 
-// isCompleteDERSequence reports whether data is exactly one DER-encoded ASN.1
-// SEQUENCE with no trailing bytes. That is the shape of a certificate, a PKCS#7
-// blob or a PKCS#12 bundle, and -- unlike testing the first byte -- text that
-// merely happens to start with '0' (0x30) does not satisfy it.
-func isCompleteDERSequence(data []byte) bool {
-	var raw asn1.RawValue
-	rest, err := asn1.Unmarshal(data, &raw)
-	return err == nil && len(rest) == 0 &&
-		raw.Class == asn1.ClassUniversal && raw.Tag == asn1.TagSequence
+// isPKCSContainer reports whether data looks like a PKCS#7 or PKCS#12 bundle,
+// as opposed to a certificate that merely failed to parse.
+//
+// All three are a single DER SEQUENCE, so the outer shape does not tell them
+// apart; the first element does. A certificate opens with the tbsCertificate
+// SEQUENCE, PKCS#7 with a contentType OID, and PKCS#12 with a version INTEGER.
+// Keying on that keeps a valid certificate that x509 rejected -- an unsupported
+// signature algorithm, say -- from being mislabelled a container.
+func isPKCSContainer(data []byte) bool {
+	var outer asn1.RawValue
+	rest, err := asn1.Unmarshal(data, &outer)
+	if err != nil || len(rest) > 0 ||
+		outer.Class != asn1.ClassUniversal || outer.Tag != asn1.TagSequence {
+		return false
+	}
+
+	var first asn1.RawValue
+	if _, err := asn1.Unmarshal(outer.Bytes, &first); err != nil {
+		return false
+	}
+	if first.Class != asn1.ClassUniversal {
+		return false
+	}
+	return first.Tag == asn1.TagOID || first.Tag == asn1.TagInteger
 }
 
 // generateCertificateLabel creates a display label for the certificate
