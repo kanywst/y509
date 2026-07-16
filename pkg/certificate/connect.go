@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -112,10 +113,11 @@ func FetchChain(ctx context.Context, addr string, opts ConnectOptions) (*Connect
 		return nil, fmt.Errorf("failed to connect to %s: %w", address, err)
 	}
 	defer func() {
-		// When the context is done, the watcher below has already closed the
-		// connection, so this second close returns "use of closed network
-		// connection". That is expected, not worth warning about.
-		if closeErr := conn.Close(); closeErr != nil && ctx.Err() == nil {
+		// An already-closed connection is expected here: the watcher below
+		// closes it on context cancellation, and a failed handshake or a remote
+		// hang-up can close it too. net.ErrClosed covers all of those, so warn
+		// only on some other, genuinely unexpected close error.
+		if closeErr := conn.Close(); closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
 			logger.Warn("failed to close connection", zap.Error(closeErr))
 		}
 	}()
