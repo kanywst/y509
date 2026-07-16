@@ -1,2 +1,2 @@
 tap "kanywst/tap"
-brew "y509"
+cask "y509"
