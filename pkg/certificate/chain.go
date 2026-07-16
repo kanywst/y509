@@ -121,6 +121,8 @@ func AnalyzeChain(certs []*x509.Certificate) *ChainReport {
 	report.Sorted = sorted
 	report.SortErr = sortErr
 
+	distinct := countDistinct(certs)
+
 	seen := make(map[string]bool, len(certs))
 	for _, cert := range certs {
 		fingerprint := FormatFingerprint(cert)
@@ -134,7 +136,11 @@ func AnalyzeChain(certs []*x509.Certificate) *ChainReport {
 		}
 		seen[fingerprint] = true
 
-		if cert.Issuer.String() == cert.Subject.String() {
+		// A self-signed certificate is only a redundant root when it sits on top
+		// of a chain. On its own it is the leaf -- a self-signed server
+		// certificate the client has to receive to connect -- and flagging it
+		// would be a false positive.
+		if cert.Issuer.String() == cert.Subject.String() && distinct > 1 {
 			report.Findings = append(report.Findings, ChainFinding{
 				Problem: ProblemRedundantRoot,
 				Subject: displayName(cert),
@@ -204,19 +210,25 @@ func chainTerminus(sorted []*x509.Certificate) *x509.Certificate {
 		return nil
 	}
 
-	subjects := make(map[string]*x509.Certificate, len(sorted))
+	// Index by subject as a list, not a single entry: a cross-signed CA appears
+	// twice under the same subject name, and last-writer-wins would drop one.
+	bySubject := make(map[string][]*x509.Certificate, len(sorted))
 	for _, cert := range sorted {
-		subjects[cert.Subject.String()] = cert
+		subject := cert.Subject.String()
+		bySubject[subject] = append(bySubject[subject], cert)
 	}
 
 	current := sorted[0]
+	// Track visits by fingerprint, not subject name. Keying on the name would
+	// see two distinct certificates that share a subject as a cycle and give up
+	// early, masking a missing issuer further up.
 	visited := make(map[string]bool, len(sorted))
 	for {
-		if visited[current.Subject.String()] {
-			// Cyclic; there is no terminus to speak of.
-			return nil
+		fingerprint := FormatFingerprint(current)
+		if visited[fingerprint] {
+			return nil // genuinely cyclic
 		}
-		visited[current.Subject.String()] = true
+		visited[fingerprint] = true
 
 		if current.Issuer.String() == current.Subject.String() {
 			// Self-signed: the chain ends here, and it is already reported as a
@@ -224,12 +236,38 @@ func chainTerminus(sorted []*x509.Certificate) *x509.Certificate {
 			return nil
 		}
 
-		parent, ok := subjects[current.Issuer.String()]
-		if !ok {
+		parent := findIssuer(current, bySubject[current.Issuer.String()])
+		if parent == nil {
 			return current
 		}
 		current = parent
 	}
+}
+
+// findIssuer picks, from the certificates whose subject matches the child's
+// issuer name, the one that actually signed the child. Name matching alone
+// would follow the wrong link through a cross-signed CA; the signature is the
+// real relationship. It falls back to the first name match so a bundle whose
+// signatures do not verify still terminates rather than looping.
+func findIssuer(child *x509.Certificate, candidates []*x509.Certificate) *x509.Certificate {
+	if len(candidates) == 0 {
+		return nil
+	}
+	for _, candidate := range candidates {
+		if child.CheckSignatureFrom(candidate) == nil {
+			return candidate
+		}
+	}
+	return candidates[0]
+}
+
+// countDistinct counts the certificates with distinct fingerprints.
+func countDistinct(certs []*x509.Certificate) int {
+	seen := make(map[string]bool, len(certs))
+	for _, cert := range certs {
+		seen[FormatFingerprint(cert)] = true
+	}
+	return len(seen)
 }
 
 // unrelatedIn returns the certificates that do not belong to the chain the
