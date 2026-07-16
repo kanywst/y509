@@ -11,6 +11,18 @@ import (
 	"time"
 )
 
+// randomSerial returns a random 128-bit serial. time.Now().UnixNano() collides
+// when certificates are minted in quick succession -- likely in a tight test
+// loop, and worse on low-resolution clocks (Windows, virtualized CI).
+func randomSerial(t *testing.T) *big.Int {
+	t.Helper()
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return serial
+}
+
 // issue mints a certificate signed by parent, or a self-signed one when parent
 // is nil.
 func issue(t *testing.T, cn string, isCA bool, parent *x509.Certificate, parentKey *ecdsa.PrivateKey) (*x509.Certificate, *ecdsa.PrivateKey) {
@@ -22,7 +34,7 @@ func issue(t *testing.T, cn string, isCA bool, parent *x509.Certificate, parentK
 	}
 
 	template := &x509.Certificate{
-		SerialNumber:          big.NewInt(time.Now().UnixNano()),
+		SerialNumber:          randomSerial(t),
 		Subject:               pkix.Name{CommonName: cn},
 		NotBefore:             time.Now().Add(-time.Hour),
 		NotAfter:              time.Now().Add(24 * time.Hour),
@@ -243,4 +255,21 @@ func TestVerifyChain_NilCertificates(t *testing.T) {
 			t.Errorf("Level = %v (%v), want %v", result.Level, result.Err, TrustAnchored)
 		}
 	})
+}
+
+// TestVerifyChain_SelfSignedLeafIsSelfAnchored guards the choice of
+// CheckSignature over CheckSignatureFrom in selfSignedFrom. A self-signed
+// non-CA certificate -- a development server certificate -- must still anchor
+// its own chain, so the result is self-anchored rather than broken.
+func TestVerifyChain_SelfSignedLeafIsSelfAnchored(t *testing.T) {
+	leaf, _ := issue(t, "selfsigned.local", false, nil, nil) // isCA == false
+
+	result, err := VerifyChain([]*x509.Certificate{leaf}, VerifyOptions{})
+	if err != nil {
+		t.Fatalf("VerifyChain returned an error: %v", err)
+	}
+	if result.Level != TrustSelfAnchored {
+		t.Errorf("Level = %v, want %v (a self-signed leaf anchors its own chain)",
+			result.Level, TrustSelfAnchored)
+	}
 }

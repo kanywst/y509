@@ -179,6 +179,11 @@ func selfSignedFrom(certs []*x509.Certificate) *x509.CertPool {
 		if cert.Issuer.String() != cert.Subject.String() {
 			continue
 		}
+		// Verify the self-signature with CheckSignature, not CheckSignatureFrom.
+		// The latter also enforces the CA basic constraint, which would reject a
+		// self-signed *leaf* -- a dev server certificate is exactly that, and it
+		// still needs to anchor its own one-cert chain so the result is
+		// self-anchored rather than broken.
 		if err := cert.CheckSignature(cert.SignatureAlgorithm, cert.RawTBSCertificate, cert.Signature); err != nil {
 			continue
 		}
