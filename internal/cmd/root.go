@@ -142,6 +142,12 @@ func loadInput(cmd *cobra.Command, args []string) (*input, error) {
 	}
 	explicitConnect := target != ""
 
+	// Both would name a source, and --connect would silently win. Rather than
+	// quietly ignore the argument, say they conflict.
+	if explicitConnect && len(args) > 0 {
+		return nil, fmt.Errorf("give either --connect or a file/host argument, not both")
+	}
+
 	if target == "" && len(args) > 0 {
 		target = args[0]
 	}
