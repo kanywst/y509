@@ -112,7 +112,10 @@ func FetchChain(ctx context.Context, addr string, opts ConnectOptions) (*Connect
 		return nil, fmt.Errorf("failed to connect to %s: %w", address, err)
 	}
 	defer func() {
-		if closeErr := conn.Close(); closeErr != nil {
+		// When the context is done, the watcher below has already closed the
+		// connection, so this second close returns "use of closed network
+		// connection". That is expected, not worth warning about.
+		if closeErr := conn.Close(); closeErr != nil && ctx.Err() == nil {
 			logger.Warn("failed to close connection", zap.Error(closeErr))
 		}
 	}()

@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"bytes"
+	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestRootCommandHelp(t *testing.T) {
@@ -66,5 +69,27 @@ func TestLooksLikeHost(t *testing.T) {
 		if got := looksLikeHost(tt.in); got != tt.want {
 			t.Errorf("looksLikeHost(%q) = %v, want %v", tt.in, got, tt.want)
 		}
+	}
+}
+
+// TestLoadInputRejectsConnectPlusArg checks that supplying both --connect and a
+// positional argument is an error rather than silently ignoring the argument.
+func TestLoadInputRejectsConnectPlusArg(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("connect", "", "")
+	cmd.Flags().String("input", "", "")
+	cmd.Flags().String("servername", "", "")
+	cmd.Flags().String("starttls", "", "")
+	cmd.Flags().Duration("timeout", 0, "")
+	if err := cmd.Flags().Set("connect", "example.com:443"); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := loadInput(cmd, []string{"chain.pem"})
+	if err == nil {
+		t.Fatal("expected an error when both --connect and an argument are given")
+	}
+	if !strings.Contains(err.Error(), "not both") {
+		t.Errorf("error = %q, want it to explain the conflict", err)
 	}
 }
