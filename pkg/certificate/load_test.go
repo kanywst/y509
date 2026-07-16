@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -212,9 +213,24 @@ func TestParseCertificates_Errors(t *testing.T) {
 			want:  "no CERTIFICATE blocks",
 		},
 		{
-			name:  "a DER container that is not a certificate",
-			input: []byte{0x30, 0x82, 0x01, 0x02, 0x00, 0x01},
-			want:  "PKCS#7 and PKCS#12",
+			name: "a complete DER SEQUENCE that is not a certificate",
+			// A real, well-formed ASN.1 SEQUENCE that x509 rejects -- standing
+			// in for a PKCS#7 / PKCS#12 container.
+			input: func() []byte {
+				der, err := asn1.Marshal([]int{1, 2, 3})
+				if err != nil {
+					t.Fatal(err)
+				}
+				return der
+			}(),
+			want: "PKCS#7 and PKCS#12",
+		},
+		{
+			name: "text that merely starts with 0x30",
+			// '0' is 0x30, the SEQUENCE tag. The old first-byte test called this
+			// a PKCS container; it is just text.
+			input: []byte("0000 this is plain text, not a certificate at all"),
+			want:  "could not be parsed as a certificate",
 		},
 		{
 			name:  "plain garbage",
@@ -254,6 +270,10 @@ func TestParseCertificates_Errors(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), tt.want) {
 				t.Errorf("error = %q, want it to mention %q", err, tt.want)
+			}
+			// Only a genuine complete SEQUENCE may be called a PKCS container.
+			if tt.want != "PKCS#7 and PKCS#12" && strings.Contains(err.Error(), "PKCS") {
+				t.Errorf("error = %q wrongly claims a PKCS container", err)
 			}
 		})
 	}

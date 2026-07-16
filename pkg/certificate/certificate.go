@@ -27,6 +27,7 @@ type safeLogger struct {
 	l atomic.Pointer[zap.Logger]
 }
 
+func (s *safeLogger) Debug(msg string, fields ...zap.Field) { s.l.Load().Debug(msg, fields...) }
 func (s *safeLogger) Info(msg string, fields ...zap.Field)  { s.l.Load().Info(msg, fields...) }
 func (s *safeLogger) Warn(msg string, fields ...zap.Field)  { s.l.Load().Warn(msg, fields...) }
 func (s *safeLogger) Error(msg string, fields ...zap.Field) { s.l.Load().Error(msg, fields...) }
@@ -383,16 +384,25 @@ func parsePEMCertificates(data []byte) (certs []*Info, sawPEM bool, err error) {
 func parseDERCertificates(data []byte) ([]*Info, error) {
 	parsed, err := x509.ParseCertificates(data)
 	if err != nil {
-		logger.Error("Failed to parse DER input", zap.Error(err))
+		// Failing to parse is the ordinary outcome for anything that is not a
+		// certificate, so log it at debug rather than spamming the log on every
+		// bad input.
+		logger.Debug("input did not parse as DER certificates", zap.Error(err))
 
-		// The input is a DER structure of some sort but not a certificate. It
-		// is usually a container y509 cannot open yet -- though it may simply
-		// be a corrupt certificate, so do not claim to know which.
-		if len(data) > 0 && data[0] == derSequenceTag {
-			return nil, fmt.Errorf("input is DER but could not be parsed as a certificate "+
+		switch {
+		case isCompleteDERSequence(data):
+			// A well-formed ASN.1 SEQUENCE that is not a certificate is almost
+			// always a container y509 cannot open yet. Testing the first byte
+			// alone would misfire on any text starting with '0' (0x30).
+			return nil, fmt.Errorf("input is a DER structure but not a certificate "+
 				"(PKCS#7 and PKCS#12 bundles are not supported): %w", err)
+		case len(data) > 0 && data[0] == derSequenceTag:
+			// Begins like DER but does not form a complete SEQUENCE: a
+			// truncated or corrupt certificate rather than a container.
+			return nil, fmt.Errorf("input could not be parsed as a certificate: %w", err)
+		default:
+			return nil, fmt.Errorf("no certificates found in input: not PEM, and not valid DER")
 		}
-		return nil, fmt.Errorf("no certificates found in input: not PEM, and not valid DER")
 	}
 
 	// x509.ParseCertificates accepts empty input and returns no certificates
@@ -416,6 +426,17 @@ func parseDERCertificates(data []byte) ([]*Info, error) {
 // derSequenceTag is the ASN.1 universal SEQUENCE tag, the first byte of any
 // DER-encoded certificate, PKCS#7 blob or PKCS#12 bundle.
 const derSequenceTag = 0x30
+
+// isCompleteDERSequence reports whether data is exactly one DER-encoded ASN.1
+// SEQUENCE with no trailing bytes. That is the shape of a certificate, a PKCS#7
+// blob or a PKCS#12 bundle, and -- unlike testing the first byte -- text that
+// merely happens to start with '0' (0x30) does not satisfy it.
+func isCompleteDERSequence(data []byte) bool {
+	var raw asn1.RawValue
+	rest, err := asn1.Unmarshal(data, &raw)
+	return err == nil && len(rest) == 0 &&
+		raw.Class == asn1.ClassUniversal && raw.Tag == asn1.TagSequence
+}
 
 // generateCertificateLabel creates a display label for the certificate
 func generateCertificateLabel(cert *x509.Certificate, index int) string {
