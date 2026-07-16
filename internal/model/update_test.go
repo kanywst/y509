@@ -111,23 +111,29 @@ func pump(t *testing.T, m Model, msg tea.Msg) Model {
 
 		updated, cmd := m.Update(next)
 		m = updated.(Model)
-		if cmd == nil {
-			continue
-		}
 
-		switch produced := settle(cmd).(type) {
-		case nil:
-		case tea.BatchMsg:
-			for _, batched := range produced {
-				if out := settle(batched); out != nil {
-					queue = append(queue, out)
-				}
-			}
-		default:
-			queue = append(queue, produced)
-		}
+		queue = append(queue, flatten(settle(cmd))...)
 	}
 	return m
+}
+
+// flatten reduces a produced message to the concrete messages that should be
+// delivered to Update, expanding batches to any depth. Update does not itself
+// understand a tea.BatchMsg, so a nested batch left un-expanded would simply be
+// dropped.
+func flatten(msg tea.Msg) []tea.Msg {
+	switch m := msg.(type) {
+	case nil:
+		return nil
+	case tea.BatchMsg:
+		var out []tea.Msg
+		for _, cmd := range m {
+			out = append(out, flatten(settle(cmd))...)
+		}
+		return out
+	default:
+		return []tea.Msg{m}
+	}
 }
 
 // settle runs a command and returns the message it produced, giving up on any
