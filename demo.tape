@@ -25,7 +25,7 @@ Wait+Screen@300s /TAPE_DL/
 Type `go run scripts/gen_demo_certs.go && echo "TAPE""_GEN"`
 Enter
 Wait+Screen@120s /TAPE_GEN/
-Type `go build -o y509 ./cmd/y509 && export PATH=$PWD:$PATH && echo "TAPE""_BUILD"`
+Type `go build -o y509 ./cmd/y509 && export PATH="$PWD:$PATH" && echo "TAPE""_BUILD"`
 Enter
 Wait+Screen@120s /TAPE_BUILD/
 Ctrl+L
