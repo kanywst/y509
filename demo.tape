@@ -10,14 +10,24 @@ Set WindowBar Colorful
 Set WindowBarSize 40
 Set BorderRadius 10
 
-# Generate fresh certificates
+# Build and generate fresh certificates, all hidden. Each step waits for an
+# explicit marker rather than a fixed sleep: on a cold module cache the first go
+# command downloads every dependency, which took far longer than the old Sleeps
+# and spilled the download log into the visible recording. The generous
+# timeouts cover a cold cache without assuming anything about how long it takes.
+# The marker is split with quotes ("TAPE""_x") so the string only appears in the
+# command's output, never in the typed command line -- otherwise Wait would
+# match the moment it was typed, before the command had run.
 Hide
-Type "go run scripts/gen_demo_certs.go"
+Type `go mod download && echo "TAPE""_DL"`
 Enter
-Sleep 1s
-Type "go build -o y509 ./cmd/y509 && export PATH=$PWD:$PATH"
+Wait+Screen@300s /TAPE_DL/
+Type `go run scripts/gen_demo_certs.go && echo "TAPE""_GEN"`
 Enter
-Sleep 2s
+Wait+Screen@120s /TAPE_GEN/
+Type `go build -o y509 ./cmd/y509 && export PATH=$PWD:$PATH && echo "TAPE""_BUILD"`
+Enter
+Wait+Screen@120s /TAPE_BUILD/
 Ctrl+L
 Show
 
