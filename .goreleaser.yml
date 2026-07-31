@@ -30,6 +30,10 @@ archives:
 # 自動的にシェル補完スクリプトを生成
 release:
   prerelease: auto
+  # Lets a partially-failed release be re-run. Without this, re-uploading an
+  # asset that is already on the release fails with a 422 and goreleaser aborts
+  # before it gets to the Homebrew step.
+  replace_existing_artifacts: true
 
 checksum:
   name_template: "{{ .ProjectName }}-{{ .Version }}-checksums.txt"
