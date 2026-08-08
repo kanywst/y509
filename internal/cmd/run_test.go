@@ -232,6 +232,11 @@ func TestCompletionSubcommandEmitsAScript(t *testing.T) {
 
 // startTLSServer serves the test chain on 127.0.0.1 and returns host:port. It
 // keeps the connect path hermetic: no DNS, no outbound traffic.
+//
+// The server deliberately presents leaf and root. A correctly configured server
+// would omit the root, but shipping it is a common misconfiguration and one of
+// the things y509 exists to show, so the fetch path should be exercised against
+// a chain that has it rather than only against a tidy one.
 func startTLSServer(t *testing.T, chain *testChain) string {
 	t.Helper()
 

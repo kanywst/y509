@@ -99,11 +99,11 @@ func TestRenderTwoPanesFillsTheWidth(t *testing.T) {
 		t.Fatal("renderTwoPanes produced nothing")
 	}
 	// The panes are joined horizontally, so each line has to carry both.
-	// The panes are joined horizontally, so the result must be at least as wide
-	// as the left pane alone would be.
-	if w := lipgloss.Width(got); w < m.GetWidth()/2 {
-		t.Errorf("rendered width %d is well under the model's %d; the panes did not join",
-			w, m.GetWidth())
+	// The two panes are sized to divide the viewport exactly, so anything other
+	// than the full width means one of them was dropped or mis-sized. A
+	// less-than check would let a missing right pane through.
+	if w := lipgloss.Width(got); w != m.GetWidth() {
+		t.Errorf("rendered width = %d, want the full %d", w, m.GetWidth())
 	}
 }
 
