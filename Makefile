@@ -51,16 +51,27 @@ COVERAGE_THRESHOLD ?= 80.0
 .PHONY: test-coverage
 test-coverage: demo-certs
 	go test -coverprofile=coverage.out -covermode=atomic ./...
-	@go tool cover -func=coverage.out | tail -1
-	@go tool cover -func=coverage.out | awk -v min=$(COVERAGE_THRESHOLD) '\
-		/^total:/ { \
-			total = $$3; sub(/%$$/, "", total); \
-			if (total + 0 < min + 0) { \
-				printf "coverage %.1f%% is below the %.1f%% threshold\n", total, min; \
-				exit 1 \
-			} \
-			printf "coverage %.1f%% meets the %.1f%% threshold\n", total, min \
-		}'
+	@$(MAKE) --no-print-directory check-coverage
+
+# Split out so the gate can be re-run against an existing profile, and so every
+# way of not knowing the coverage is an error. A gate that fails open is worse
+# than no gate: it reads as protection while providing none.
+.PHONY: check-coverage
+check-coverage:
+	@case '$(COVERAGE_THRESHOLD)' in \
+		''|*[!0-9.]*|*.*.*) \
+			echo "COVERAGE_THRESHOLD must be a number, got '$(COVERAGE_THRESHOLD)'" >&2; exit 1 ;; \
+	esac; \
+	summary=$$(go tool cover -func=coverage.out) || { \
+		echo "go tool cover failed to read coverage.out" >&2; exit 1; }; \
+	total=$$(printf '%s\n' "$$summary" | awk '/^total:/ { sub(/%$$/, "", $$3); print $$3 }'); \
+	if [ -z "$$total" ]; then \
+		echo "no total line in the coverage summary" >&2; exit 1; \
+	fi; \
+	if awk -v total="$$total" -v min='$(COVERAGE_THRESHOLD)' 'BEGIN { exit !(total + 0 < min + 0) }'; then \
+		echo "coverage $$total% is below the $(COVERAGE_THRESHOLD)% threshold" >&2; exit 1; \
+	fi; \
+	echo "coverage $$total% meets the $(COVERAGE_THRESHOLD)% threshold"
 
 # Clean build artifacts
 .PHONY: clean
