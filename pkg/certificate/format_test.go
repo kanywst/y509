@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestTrustLevelString(t *testing.T) {
@@ -183,17 +185,31 @@ func TestTLSVersionName(t *testing.T) {
 	}
 }
 
-func TestSetLoggerAcceptsNil(t *testing.T) {
+func TestSetLoggerRoutesAndResets(t *testing.T) {
 	t.Cleanup(func() { SetLogger(nil) })
 
-	// Passing nil must leave a usable no-op logger rather than a nil pointer the
-	// package would later dereference.
-	SetLogger(zap.NewNop())
-	SetLogger(nil)
+	core, logs := observer.New(zapcore.DebugLevel)
+	SetLogger(zap.New(core))
 
-	// Any call that logs proves the logger is still usable.
+	// LoadCertificates logs when it cannot open the file, so a failed load is
+	// enough to prove diagnostics reach the logger that was installed.
 	if _, err := LoadCertificates("this-path-does-not-exist.pem"); err == nil {
-		t.Error("expected an error for a missing file")
+		t.Fatal("expected an error for a missing file")
+	}
+	installed := logs.Len()
+	if installed == 0 {
+		t.Fatal("nothing was recorded; SetLogger did not route the package diagnostics")
+	}
+
+	// Passing nil must leave a usable no-op logger rather than a nil pointer the
+	// package would later dereference, and nothing more may reach the old one.
+	SetLogger(nil)
+	if _, err := LoadCertificates("this-path-does-not-exist.pem"); err == nil {
+		t.Fatal("expected an error for a missing file")
+	}
+	if logs.Len() != installed {
+		t.Errorf("the replaced logger recorded %d more entries after SetLogger(nil)",
+			logs.Len()-installed)
 	}
 }
 

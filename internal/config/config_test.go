@@ -75,7 +75,7 @@ func TestLoadConfigReadsHomeConfig(t *testing.T) {
 	}
 }
 
-func TestLoadConfigPrefersWorkingDirectoryOverHome(t *testing.T) {
+func TestLoadConfigPrefersHomeOverWorkingDirectory(t *testing.T) {
 	home := isolate(t)
 	writeConfig(t, home, "theme:\n  text: \"#111111\"\n")
 
