@@ -33,6 +33,9 @@ jobs:
     - name: Run tests
       run: make test-json > test-report.json
 
+    - name: Coverage threshold
+      run: make test-coverage
+
     - name: Annotate tests
       if: always()
       uses: guyarb/golang-test-annotations@v0.9.0

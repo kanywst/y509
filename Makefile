@@ -44,10 +44,23 @@ test: demo-certs
 test-json: demo-certs
 	@go test -v -json $(GOTEST_ARGS) ./...
 
-# Run tests with coverage
+# Run tests with coverage and fail if it slips below the threshold. Without a
+# gate the number only ever drifts down, one untested branch at a time.
+COVERAGE_THRESHOLD ?= 80.0
+
 .PHONY: test-coverage
 test-coverage: demo-certs
-	go test -cover ./...
+	go test -coverprofile=coverage.out -covermode=atomic ./...
+	@go tool cover -func=coverage.out | tail -1
+	@go tool cover -func=coverage.out | awk -v min=$(COVERAGE_THRESHOLD) '\
+		/^total:/ { \
+			total = $$3; sub(/%$$/, "", total); \
+			if (total + 0 < min + 0) { \
+				printf "coverage %.1f%% is below the %.1f%% threshold\n", total, min; \
+				exit 1 \
+			} \
+			printf "coverage %.1f%% meets the %.1f%% threshold\n", total, min \
+		}'
 
 # Clean build artifacts
 .PHONY: clean

@@ -1,3 +1,5 @@
+//go:build ignore
+
 // Package main provides a utility script to generate demo certificates.
 package main
 
