@@ -59,9 +59,13 @@ test-coverage: demo-certs
 .PHONY: check-coverage
 check-coverage:
 	@case '$(COVERAGE_THRESHOLD)' in \
-		''|*[!0-9.]*|*.*.*) \
-			echo "COVERAGE_THRESHOLD must be a number, got '$(COVERAGE_THRESHOLD)'" >&2; exit 1 ;; \
+		''|*[!0-9.]*|*.*.*) bad=1 ;; \
+		*[0-9]*) bad= ;; \
+		*) bad=1 ;; \
 	esac; \
+	if [ -n "$$bad" ]; then \
+		echo "COVERAGE_THRESHOLD must be a number, got '$(COVERAGE_THRESHOLD)'" >&2; exit 1; \
+	fi; \
 	summary=$$(go tool cover -func=coverage.out) || { \
 		echo "go tool cover failed to read coverage.out" >&2; exit 1; }; \
 	total=$$(printf '%s\n' "$$summary" | awk '/^total:/ { sub(/%$$/, "", $$3); print $$3 }'); \
