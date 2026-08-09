@@ -27,10 +27,14 @@ concurrency:
 jobs:
   review:
     # A pull request from a fork gets no secrets, so the job would fail on
-    # authentication rather than say anything useful. Drafts are skipped until
-    # they are marked ready, which is what the ready_for_review trigger is for.
+    # authentication rather than say anything useful. Dependabot is same-repo but
+    # is handed dependabot secrets rather than the repository's, so it would fail
+    # the token check and paint every dependency bump red; the type check keeps
+    # every bot out for the same reason. Drafts are skipped until they are marked
+    # ready, which is what the ready_for_review trigger is for.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.type == 'User' &&
       github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -101,7 +105,10 @@ jobs:
                because committed certificates expire and noticing expiry is the job.
 
             Post findings as inline comments on the lines they concern. Use one
-            top-level comment for the summary. Be specific and cite
+            top-level comment for the summary, posted with
+            `gh pr comment --edit-last --create-if-none` so that a re-review
+            replaces the previous summary rather than stacking another one
+            underneath it. Be specific and cite
             `file:line`. If the diff is clean against all of the above, say so
             in one line rather than manufacturing nits.
 
