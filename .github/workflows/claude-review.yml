@@ -11,7 +11,10 @@ name: Claude review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    # converted_to_draft is here to cancel, not to run. The job skips drafts, so
+    # the run this starts exists only to take over the concurrency group and stop
+    # a review of a pull request its author has just pulled back.
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
 
 permissions: {}
 
@@ -40,6 +43,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          # Nothing here pushes, and the action authenticates through the GitHub
+          # App rather than this token. Leaving the token in the workspace git
+          # config only widens what the third-party action can reach.
+          persist-credentials: false
 
       # Without the secret the action exits successfully having reviewed
       # nothing, which is worse than failing: the check goes green and the
