@@ -42,6 +42,12 @@ homebrew_casks:
   - name: y509
     binaries:
       - y509
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/y509"]
+          end
     manpages:
       - man/man1/y509.1
     completions:
