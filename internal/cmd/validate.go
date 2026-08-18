@@ -3,7 +3,9 @@ package cmd
 
 import (
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/kanywst/y509/internal/logger"
 	"github.com/kanywst/y509/pkg/certificate"
@@ -20,7 +22,11 @@ var validateCmd = &cobra.Command{
 The chain is verified against the system trust store. A chain that links up but
 terminates at a root which is not trusted -- an internal PKI, or a bundle that
 is simply missing its root -- is reported as self-anchored rather than valid,
-and exits non-zero. Pass --roots to supply your own trust anchors.`,
+and exits non-zero. Pass --roots to supply your own trust anchors.
+
+--json writes the whole result to stdout as JSON, which is what a script wants:
+the exit code collapses "self-anchored" and "broken" into the same non-zero, and
+says nothing at all about how the chain was served.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		source, err := loadInput(cmd, args)
@@ -61,14 +67,28 @@ and exits non-zero. Pass --roots to supply your own trust anchors.`,
 			return err
 		}
 
-		fmt.Println(certificate.FormatVerifyResult(result))
+		asJSON, err := cmd.Flags().GetBool("json")
+		if err != nil {
+			return err
+		}
 
-		// How the chain was presented is a separate question from whether it
-		// verifies, and a chain can be perfectly trusted while still being
-		// mis-served. Report it either way.
-		if presentation := certificate.FormatChainReport(report); presentation != "" {
-			fmt.Println()
-			fmt.Println(presentation)
+		if asJSON {
+			// Nothing else may go to stdout in this mode: the whole point is
+			// that the stream parses. The non-zero exit below still reports the
+			// failure, and cobra prints that to stderr.
+			if err := writeJSONReport(cmd.OutOrStdout(), source.Host, report, result); err != nil {
+				return err
+			}
+		} else {
+			fmt.Println(certificate.FormatVerifyResult(result))
+
+			// How the chain was presented is a separate question from whether it
+			// verifies, and a chain can be perfectly trusted while still being
+			// mis-served. Report it either way.
+			if presentation := certificate.FormatChainReport(report); presentation != "" {
+				fmt.Println()
+				fmt.Println(presentation)
+			}
 		}
 
 		logger.Log.Info("Certificate chain validation result",
@@ -84,6 +104,24 @@ and exits non-zero. Pass --roots to supply your own trust anchors.`,
 		}
 		return nil
 	},
+}
+
+// writeJSONReport renders the machine-readable report.
+//
+// It is indented and newline-terminated because the overwhelmingly likely
+// consumer is a human reading a CI log or piping into jq, and neither is served
+// by one long line.
+func writeJSONReport(w io.Writer, host string, report *certificate.ChainReport, result *certificate.VerifyResult) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	// Certificate subjects and SANs are attacker-controlled strings, and Go's
+	// default HTML escaping would mangle them into < sequences for no
+	// benefit outside a browser.
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(certificate.NewJSONReport(host, report, result)); err != nil {
+		return fmt.Errorf("failed to write JSON report: %w", err)
+	}
+	return nil
 }
 
 // verifyOptionsFromFlags builds the verification options from the trust flags.
@@ -127,5 +165,6 @@ func init() {
 	validateCmd.Flags().String("roots", "", "PEM file of additional trust anchors")
 	validateCmd.Flags().Bool("no-system-roots", false, "Do not trust the system store; use only --roots")
 	validateCmd.Flags().String("host", "", "Also check that the leaf is valid for this hostname")
+	validateCmd.Flags().Bool("json", false, "Emit the result as JSON instead of text")
 	RootCmd.AddCommand(validateCmd)
 }

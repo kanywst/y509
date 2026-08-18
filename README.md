@@ -95,6 +95,57 @@ is the whole point: the check is structural, so it cannot be papered over.
 It also reports a redundant root (a root the server should not be sending),
 certificates sent out of order, duplicates, and strangers in the bundle.
 
+### Machine-readable output
+
+`--json` writes the whole result to stdout, and nothing else does. The text
+report is replaced rather than added to, and the failure message goes to stderr,
+so the stream parses even when the check fails. The exit codes are unchanged.
+
+```bash
+y509 validate example.com:443 --json | jq .
+```
+
+```json
+{
+  "host": "example.com",
+  "trust": {
+    "level": "self-anchored",
+    "trusted": false,
+    "anchor": "Internal Root CA",
+    "error": "x509: certificate signed by unknown authority"
+  },
+  "presentation": {
+    "ok": false,
+    "findings": [
+      {
+        "problem": "missing issuer",
+        "subject": "*.example.com",
+        "detail": "the chain stops at a certificate that is not a CA; its issuer \"R13\" was never sent, so a client that does not chase AIA (curl, Go, Java) cannot build a chain",
+        "fetchUrls": ["http://r13.i.lencr.org/"]
+      }
+    ]
+  },
+  "chain": [{ "index": 0, "commonName": "*.example.com", "daysUntilExpiry": 43, "…": "…" }]
+}
+```
+
+This exists because the exit code cannot carry the answer. It collapses
+`self-anchored` and `broken` into the same non-zero, so a script cannot tell an
+internal PKI from a chain that does not link up — and it says nothing at all
+about how the chain was served, which is the finding you most likely came for:
+
+```bash
+# Fail the build on a chain that verifies but is mis-served.
+y509 validate example.com:443 --json | jq -e '.presentation.ok'
+
+# Warn 30 days out, without parsing prose.
+y509 validate example.com:443 --json | jq '.chain[0].daysUntilExpiry < 30'
+```
+
+`chain` is in the order the certificates were **presented**, not sorted, because
+sorting is what destroys the evidence `presentation` reports on. `level` and
+`problem` are strings, and `findings` is always an array, never `null`.
+
 ## Keybindings
 
 |     Key     | Action                                         |
