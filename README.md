@@ -211,6 +211,26 @@ build provenance. Verify provenance with the GitHub CLI:
 gh attestation verify y509-<version>-<os>-<arch>.tar.gz -R kanywst/y509
 ```
 
+The checksum file is signed keyless via GitHub OIDC. Signature and certificate
+travel together in one Sigstore bundle, `y509-<version>-checksums.txt.sigstore.json`:
+
+```bash
+TAG=v<version>
+gh release download "$TAG" -R kanywst/y509 -p '*-checksums.txt*'
+
+cosign verify-blob \
+  --bundle "y509-${TAG#v}-checksums.txt.sigstore.json" \
+  --certificate-identity-regexp 'https://github.com/kanywst/y509/.github/workflows/release.yml@refs/tags/' \
+  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+  "y509-${TAG#v}-checksums.txt"
+
+sha256sum -c "y509-${TAG#v}-checksums.txt" --ignore-missing
+```
+
+Releases up to and including v1.0.2 predate the bundle format and ship a `.sig`
+plus a `.pem` instead. Verify those with `--signature` and `--certificate`, and
+with a cosign 2.x binary, since cosign 3.x dropped both flags.
+
 ## License
 
 Apache License 2.0

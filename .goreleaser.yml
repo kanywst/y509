@@ -71,13 +71,15 @@ sboms:
   - artifacts: archive
 
 # Keyless signing of checksums and SBOMs via Sigstore cosign + GitHub OIDC
+# cosign 3.x removed --output-certificate and --output-signature outright and
+# writes a Sigstore bundle instead, so the signature and the certificate ship
+# together in one .sigstore.json rather than a separate .sig + .pem pair.
 signs:
   - cmd: cosign
-    certificate: "${artifact}.pem"
+    signature: "${artifact}.sigstore.json"
     args:
       - "sign-blob"
-      - "--output-certificate=${certificate}"
-      - "--output-signature=${signature}"
+      - "--bundle=${signature}"
       - "${artifact}"
       - "--yes"
     artifacts: checksum
