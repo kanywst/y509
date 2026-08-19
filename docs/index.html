@@ -1,0 +1,1569 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>y509 Certificate Inspector</title>
+<meta name="description" content="A terminal UI for X.509 certificate chains. Reads a chain from a file, a live TLS handshake, or stdin, and reports both whether it verifies and whether it was served correctly.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+/* ------------------------------------------------------------------ *
+ * y509 — tokens
+ * Dark is the default world: the tool ships Catppuccin Mocha, so the
+ * page wears it. The light theme is Catppuccin Latte, the same
+ * project's counterpart, rather than an inversion of Mocha.
+ * ------------------------------------------------------------------ */
+:root {
+  --bg:        #0d0d15;
+  --bg-2:      #12121d;
+  --surface:   #181825;
+  --line:      #2b2c3e;
+  --line-soft: #1e1f2e;
+  --text:      #cdd6f4;
+  --text-dim:  #a6adc8;   /* Mocha subtext0 */
+  --text-mute: #7f849c;   /* Mocha overlay1 — the dimmest tone still above 4.5:1 */
+  --accent:    #89b4fa;
+  --accent-2:  #b4befe;
+  --ok:        #a6e3a1;
+  --warn:      #f9e2af;
+  --bad:       #f38ba8;
+  --shadow:    0 24px 70px -30px rgba(0,0,0,.9);
+
+  --radius: 10px;   /* matches BorderRadius 10 in demo.tape */
+
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body:    "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* The terminal is a screenshot of a terminal. It does not change
+     with the page theme, in either direction. Each token is the theme key
+     the app actually resolves for that element (internal/model/model.go):
+     --t-key is DetailKey, which is what Styles.Dimmed renders with, and
+     --t-line is Border, which is what ProgressEmpty renders with. */
+  --t-bg:     #1e1e2e;
+  --t-crust:  #181825;
+  --t-alt:    #181825;   /* list_row_alt */
+  --t-text:   #cdd6f4;
+  --t-key:    #9399b2;   /* detail_key — also Dimmed and inactive tabs */
+  --t-line:   #45475a;   /* border — also the progress trough */
+  --t-chrome: #7f849c;   /* the window bar, which belongs to the terminal, not the app */
+  --t-blue:   #89b4fa;
+  --t-lav:    #b4befe;
+  --t-sky:    #89dceb;
+  --t-green:  #a6e3a1;
+  --t-yellow: #f9e2af;
+  --t-red:    #f38ba8;
+  --t-crust2: #11111b;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg:        #eff1f5;
+    --bg-2:      #e6e9ef;
+    --surface:   #ffffff;
+    --line:      #ccd0da;
+    --line-soft: #dfe3ec;
+    --text:      #4c4f69;
+    --text-dim:  #5c5f77;   /* Latte subtext1 */
+    --text-mute: #64677e;   /* between Latte subtext1 and subtext0: overlay2 only reached 3.5:1 */
+    --accent:    #1e66f5;
+    --accent-2:  #7287fd;
+    --ok:        #40a02b;
+    --warn:      #df8e1d;
+    --bad:       #d20f39;
+    --shadow:    0 24px 60px -34px rgba(76,79,105,.45);
+  }
+}
+
+:root[data-theme="light"] {
+  --bg:        #eff1f5;
+  --bg-2:      #e6e9ef;
+  --surface:   #ffffff;
+  --line:      #ccd0da;
+  --line-soft: #dfe3ec;
+  --text:      #4c4f69;
+  --text-dim:  #5c5f77;   /* Latte subtext1 */
+  --text-mute: #64677e;   /* between Latte subtext1 and subtext0: overlay2 only reached 3.5:1 */
+  --accent:    #1e66f5;
+  --accent-2:  #7287fd;
+  --ok:        #40a02b;
+  --warn:      #df8e1d;
+  --bad:       #d20f39;
+  --shadow:    0 24px 60px -34px rgba(76,79,105,.45);
+}
+
+/* ------------------------------------------------------------------ *
+ * base
+ * ------------------------------------------------------------------ */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a { color: inherit; }
+
+::selection { background: var(--accent); color: var(--bg); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 112;
+  text-wrap: balance;
+  margin: 0;
+  line-height: 1.04;
+  letter-spacing: -.018em;
+}
+
+p { margin: 0; }
+
+/* ------------------------------------------------------------------ *
+ * layout — a fixed measured column with hairline rules at its edges,
+ * the way a pane border reads in the app itself
+ * ------------------------------------------------------------------ */
+.wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 32px;
+  position: relative;
+}
+
+/* The nav is sticky, so an in-page jump has to stop short of it or the
+   section heading lands underneath. */
+html { scroll-padding-top: 84px; }
+
+/* The measured column is ruled on both edges, band by band, so the line
+   runs the whole page without a band background ever covering it. */
+.band {
+  border-bottom: 1px solid var(--line-soft);
+  position: relative;
+}
+.band::before, .band::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: var(--line-soft);
+  pointer-events: none;
+}
+.band::before { left: max(32px, calc(50% - 548px)); }
+.band::after { right: max(32px, calc(50% - 548px)); }
+@media (max-width: 700px) { .band::before, .band::after { display: none; } }
+
+.band--alt { background: var(--bg-2); }
+
+/* Vertical only — .wrap owns the horizontal padding, and a shorthand
+   here would silently reset it and push content past the edge rules. */
+.sect { padding-block: 104px; }
+.sect--tight { padding-block: 72px; }
+
+/* ------------------------------------------------------------------ *
+ * micro-typography
+ * ------------------------------------------------------------------ */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.eyebrow::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+  max-width: 200px;
+}
+
+.lede {
+  font-size: 18px;
+  color: var(--text-dim);
+  max-width: 62ch;
+}
+
+code, kbd, samp, pre { font-family: var(--font-mono); }
+
+p code, li code, td code {
+  font-size: .88em;
+  color: var(--accent-2);
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+  padding: .1em .38em;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ *
+ * nav
+ * ------------------------------------------------------------------ */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in oklab, var(--bg) 86%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.nav__in {
+  height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+.brand {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -.02em;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.brand b { color: var(--accent); font-weight: 700; }
+.tag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.nav__links { margin-left: auto; display: flex; align-items: center; gap: 22px; }
+.nav__links a {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: color .15s;
+}
+.nav__links a:hover { color: var(--text); }
+.nav__links a.gh { color: var(--text); }
+@media (max-width: 760px) { .nav__links .hide-sm { display: none; } }
+
+/* ------------------------------------------------------------------ *
+ * hero
+ * ------------------------------------------------------------------ */
+.hero { padding-block: 92px 0; }
+
+.hero h1 {
+  font-size: clamp(36px, 5.6vw, 68px);
+  font-weight: 700;
+  font-variation-settings: "wdth" 118;
+  max-width: 17ch;
+  margin: 22px 0 0;
+  letter-spacing: -.026em;
+}
+.hero h1 em {
+  font-style: normal;
+  color: var(--accent);
+}
+.hero .lede { margin-top: 26px; font-size: 18.5px; }
+
+.hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 620px) auto;
+  justify-content: start;
+  gap: 24px 46px;
+  align-items: end;
+  margin-top: 44px;
+}
+.hero__grid .install { min-width: 0; max-width: 620px; }
+@media (max-width: 980px) { .hero__grid { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+
+/* install box */
+.install {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.install__row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--line-soft);
+}
+.install__row:last-child { border-bottom: 0; }
+.install__cmd {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  white-space: nowrap;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.install__cmd .p { color: var(--accent); user-select: none; }
+.copy {
+  flex: none;
+  width: 46px;
+  border: 0;
+  border-left: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--text-mute);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  transition: color .15s, background .15s;
+}
+.copy:hover { color: var(--accent); background: color-mix(in oklab, var(--accent) 8%, transparent); }
+.copy.done { color: var(--ok); }
+
+.install__note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  padding: 9px 16px;
+  background: color-mix(in oklab, var(--line-soft) 60%, transparent);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hero__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+.hero__meta span { display: flex; align-items: center; gap: 7px; }
+.hero__meta i { font-style: normal; color: var(--accent-2); }
+
+/* ------------------------------------------------------------------ *
+ * terminal replica
+ * ------------------------------------------------------------------ */
+.stage { padding-block: 60px 96px; }
+
+/* A terminal has a width. Below the point where the two panes stop making
+   sense, the replica keeps its columns and scrolls sideways inside its own
+   box rather than collapsing into something the app never renders. */
+.term-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
+@media (max-width: 860px) { .term-scroll > .term { width: 760px; } }
+
+.term {
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--t-bg);
+  border: 1px solid var(--t-line);
+  box-shadow: var(--shadow);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--t-text);
+}
+.term:focus-visible { outline: 2px solid var(--t-blue); outline-offset: 4px; }
+
+.term__bar {
+  height: 34px;
+  background: var(--t-crust);
+  border-bottom: 1px solid var(--t-crust2);
+  display: flex;
+  align-items: center;
+  padding: 0 13px;
+  gap: 8px;
+  position: relative;
+}
+.dot { width: 11px; height: 11px; border-radius: 50%; }
+.dot.r { background: #f38ba8; }
+.dot.y { background: #f9e2af; }
+.dot.g { background: #a6e3a1; }
+.term__title {
+  position: absolute;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--t-chrome);
+  pointer-events: none;
+}
+
+.term__screen {
+  height: 452px;
+  padding: 12px 14px;
+  position: relative;
+  background: var(--t-bg);
+  overflow: hidden;
+}
+
+/* boot */
+.boot { position: absolute; inset: 12px 14px; }
+.boot .p { color: var(--t-green); }
+.caret {
+  display: inline-block;
+  width: 7px;
+  height: 1.05em;
+  background: var(--t-text);
+  vertical-align: -.18em;
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+.splash {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  opacity: 0;
+}
+.splash pre {
+  margin: 0;
+  color: var(--t-sky);
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.12;
+}
+.splash small { color: var(--t-key); font-size: 11px; letter-spacing: .04em; }
+
+/* tui */
+.tui {
+  position: absolute;
+  inset: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+}
+.tui__head { display: flex; align-items: center; gap: 10px; flex: none; min-width: 0; overflow: hidden; white-space: nowrap; }
+.tui__head .t { color: var(--t-sky); font-weight: 700; }
+.tui__head .crumb { color: var(--t-key); }
+.tui__head .cn { color: var(--t-text); }
+.tui__rule { color: var(--t-line); flex: none; overflow: hidden; white-space: nowrap; height: 1.55em; }
+
+.panes { flex: 1; display: flex; min-height: 0; margin-top: 2px; }
+
+.pane {
+  border: 1px solid var(--t-line);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pane--l {
+  width: 40%;
+  border-right: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+.pane--r {
+  flex: 1;
+  min-width: 0;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  border-left-color: var(--t-line);
+}
+.pane.on { border-color: var(--t-blue); }
+.pane--l.on + .pane--r { border-left-color: var(--t-blue); }
+
+.lhead {
+  display: flex;
+  padding: 3px 8px 2px;
+  color: var(--t-key);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  flex: none;
+}
+.lhead .s { width: 22px; }
+/* Six bar cells plus a space plus up to four digits and a "d": at 12.5px
+   JetBrains Mono that is 11 cells, so the column has to be 11 × .6em wide
+   or a four-digit row spills over the pane border. */
+.lhead .e { width: 92px; text-align: left; }
+
+.rows { flex: 1; min-height: 0; overflow: hidden; }
+.row {
+  display: flex;
+  align-items: center;
+  padding: 1px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.row:nth-child(even) { background: var(--t-alt); }
+.row .s { width: 22px; flex: none; }
+.row .cn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.row .e { width: 92px; flex: none; text-align: left; letter-spacing: -.02em; }
+.row.sel { background: var(--t-blue); color: var(--t-bg); }
+.row.sel .s, .row.sel .barf, .row.sel .bart { color: var(--t-bg); }
+.row .bart { color: var(--t-key); }
+
+.tabs { display: flex; padding: 0 4px; flex: none; overflow: hidden; }
+.tab {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--t-key);
+  padding: 3px 9px 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.tab .ul { display: block; height: 2px; width: 100%; background: transparent; }
+.tab:hover { color: var(--t-text); }
+.tab.on { color: var(--t-sky); font-weight: 700; }
+.tab.on .ul { background: var(--t-sky); }
+
+.detail {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px 14px 0;
+}
+.kvs { margin: 0; }
+.kv { display: flex; gap: 8px; }
+.kv dt { color: var(--t-key); width: 108px; flex: none; }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.stitle { color: var(--t-lav); margin-top: 10px; }
+.badge { display: inline-block; padding: 0 8px; border-radius: 3px; font-weight: 700; margin-top: 8px; }
+.badge.ok   { background: color-mix(in oklab, var(--t-green) 22%, transparent); color: var(--t-green); }
+.badge.warn { background: color-mix(in oklab, var(--t-yellow) 22%, transparent); color: var(--t-yellow); }
+.badge.bad  { background: color-mix(in oklab, var(--t-red) 22%, transparent); color: var(--t-red); }
+.bar { letter-spacing: -.06em; }
+.chain { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.chain th {
+  text-align: left;
+  color: var(--t-key);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: .07em;
+  border-bottom: 1px solid var(--t-line);
+  padding: 0 8px 1px;
+}
+.chain td { color: var(--t-key); padding: 0 8px; }
+.chain tr.here td { color: var(--t-sky); font-weight: 700; }
+.chain td.m { color: var(--t-blue); width: 14px; padding-right: 0; }
+
+.scrollf { text-align: right; color: var(--t-key); padding: 0 14px 2px; flex: none; }
+
+.statusbar { display: flex; align-items: center; flex: none; background: var(--t-crust); }
+.statusbar .n { background: var(--t-blue); color: var(--t-bg); font-weight: 700; padding: 0 8px; flex: none; white-space: nowrap; }
+.statusbar .hints {
+  margin-left: auto;
+  padding-right: 8px;
+  color: var(--t-key);
+  overflow: hidden;
+  white-space: nowrap;
+  min-width: 0;          /* without this the flex item refuses to shrink */
+  text-overflow: ellipsis;
+}
+.statusbar .hints b { color: var(--t-text); }
+.statusbar .hints .sep { color: var(--t-line); padding: 0 6px; }
+
+.stage__hint {
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+kbd {
+  text-transform: none;
+  letter-spacing: 0;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--surface);
+}
+
+/* ------------------------------------------------------------------ *
+ * verdict — the thesis section
+ * ------------------------------------------------------------------ */
+.verdict { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 60px; align-items: start; }
+@media (max-width: 940px) { .verdict { grid-template-columns: minmax(0, 1fr); gap: 40px; } }
+
+.h2 { font-size: clamp(28px, 3.4vw, 42px); font-weight: 700; margin-top: 20px; }
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 56px;
+}
+@media (max-width: 760px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+.pair__item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  background: var(--surface);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  align-items: baseline;
+}
+.pair__q {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  grid-column: 1 / -1;
+  color: var(--text-mute);
+}
+.pair__item h3 { font-size: 19px; grid-column: 1 / -1; }
+.pair__item p { grid-column: 1 / -1; color: var(--text-dim); font-size: 14.5px; }
+.pair__item .mark { grid-column: 1 / -1; font-family: var(--font-mono); font-size: 12.5px; }
+.pair__item.good .mark { color: var(--ok); }
+.pair__item.bad .mark { color: var(--bad); }
+
+/* output block */
+.out {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.out__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+.out__head .live { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.out { min-width: 0; }
+.out pre {
+  margin: 0;
+  padding: 16px 18px;
+  overflow-x: auto;
+  font-size: 12.7px;
+  line-height: 1.72;
+  color: var(--text-dim);
+  tab-size: 2;
+}
+.out pre b { color: var(--text); font-weight: 500; }
+.out pre .p  { color: var(--accent); }
+.out pre .ok { color: var(--ok); }
+.out pre .no { color: var(--bad); }
+.out pre .wa { color: var(--warn); }
+.out pre .k  { color: var(--accent-2); }
+.out pre .s  { color: var(--ok); }
+.out pre .c  { color: var(--text-mute); }
+.out pre .n  { color: var(--warn); }
+
+.annot {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 12px;
+  color: var(--text-dim);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.chip.ok  { border-color: color-mix(in oklab, var(--ok) 45%, var(--line)); color: var(--ok); }
+.chip.bad { border-color: color-mix(in oklab, var(--bad) 45%, var(--line)); color: var(--bad); }
+
+/* ------------------------------------------------------------------ *
+ * capability grid — a spec sheet, not cards
+ * ------------------------------------------------------------------ */
+.spec {
+  margin-top: 46px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--line-soft);
+  gap: 1px;
+}
+@media (max-width: 900px) { .spec { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .spec { grid-template-columns: minmax(0, 1fr); } }
+
+.spec__cell { background: var(--bg); padding: 26px 24px 28px; }
+.band--alt .spec__cell { background: var(--bg-2); }
+.spec__key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.spec__cell h3 { font-size: 18px; margin: 12px 0 8px; }
+.spec__cell p { color: var(--text-dim); font-size: 14.5px; }
+.spec__cell ul {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-mute);
+  display: grid;
+  gap: 3px;
+}
+.spec__cell li::before { content: "› "; color: var(--accent-2); }
+
+/* ------------------------------------------------------------------ *
+ * two-column content
+ * ------------------------------------------------------------------ */
+.cols { display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); gap: 60px; align-items: start; }
+@media (max-width: 940px) { .cols { grid-template-columns: minmax(0, 1fr); gap: 36px; } }
+.cols--flip { grid-template-columns: minmax(0, 1.18fr) minmax(0, .82fr); }
+@media (max-width: 940px) { .cols--flip { grid-template-columns: minmax(0, 1fr); } }
+
+/* exit table */
+.tbl-wrap { overflow-x: auto; margin-top: 34px; }
+table.exit { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 560px; }
+table.exit td:first-child, table.exit th:first-child { width: 190px; }
+table.exit td.code, table.exit th:nth-child(2) { width: 90px; }
+table.exit th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  font-weight: 500;
+  padding: 0 16px 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+table.exit td { padding: 14px 16px 14px 0; border-bottom: 1px solid var(--line-soft); color: var(--text-dim); vertical-align: top; }
+table.exit td:first-child { font-family: var(--font-mono); color: var(--text); white-space: nowrap; }
+table.exit td.code { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: center; width: 1%; }
+table.exit tr.t0 td.code { color: var(--ok); }
+table.exit tr.t1 td.code { color: var(--warn); }
+table.exit tr.t2 td.code { color: var(--bad); }
+table.exit tr.t0 td:first-child { color: var(--ok); }
+table.exit tr.t1 td:first-child { color: var(--warn); }
+table.exit tr.t2 td:first-child { color: var(--bad); }
+
+/* keys */
+.keys {
+  margin-top: 40px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1px;
+  background: var(--line-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.key {
+  background: var(--bg);
+  padding: 15px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.band--alt .key { background: var(--bg-2); }
+.key__k { display: flex; gap: 4px; flex: none; }
+.key__k kbd { font-family: var(--font-mono); }
+.key__d { color: var(--text-dim); font-size: 14px; }
+
+/* install section */
+.get { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 44px; }
+@media (max-width: 820px) { .get { grid-template-columns: minmax(0, 1fr); } }
+.get__card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 24px;
+}
+.get__card h3 { font-size: 17px; }
+.get__card p { color: var(--text-dim); font-size: 14px; margin-top: 8px; }
+.get__card .install { margin-top: 16px; background: var(--bg); }
+.band--alt .get__card .install { background: var(--bg-2); }
+
+/* cta */
+.cta { text-align: center; padding-block: 108px; }
+.cta h2 { font-size: clamp(30px, 4.6vw, 56px); font-weight: 800; font-variation-settings: "wdth" 106; }
+.cta .lede { margin: 20px auto 0; text-align: center; }
+.cta__row { margin-top: 34px; display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.btn {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 13px 26px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  transition: background .16s, border-color .16s, color .16s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn--fill { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 700; }
+.btn--fill:hover { background: var(--accent-2); border-color: var(--accent-2); color: var(--bg); }
+
+/* footer */
+footer { padding-block: 44px 60px; color: var(--text-mute); font-size: 13.5px; }
+.foot { display: flex; flex-wrap: wrap; gap: 18px 32px; align-items: center; }
+.foot a { color: var(--text-dim); text-decoration: none; }
+.foot a:hover { color: var(--accent); }
+.foot__sp { margin-left: auto; font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; }
+
+/* ------------------------------------------------------------------ *
+ * motion
+ * ------------------------------------------------------------------ */
+.reveal { opacity: 0; transform: translateY(14px); }
+.reveal.in { opacity: 1; transform: none; transition: opacity .6s ease, transform .6s cubic-bezier(.2,.7,.3,1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal.in { opacity: 1; transform: none; transition: none; }
+  .caret { animation: none; }
+  * { scroll-behavior: auto !important; }
+}
+</style>
+
+<noscript><style>
+  .reveal { opacity: 1; transform: none; }
+  .boot, .splash { display: none; }
+  .tui { opacity: 1; }
+</style></noscript>
+
+<nav class="nav">
+  <div class="wrap nav__in">
+    <a class="brand" href="#top">🔐 <span>y<b>509</b></span></a>
+    <span class="tag">Apache&nbsp;2.0</span>
+    <div class="nav__links">
+      <a class="hide-sm" href="#verdict">Verdicts</a>
+      <a class="hide-sm" href="#where">Sources</a>
+      <a class="hide-sm" href="#ci">CI</a>
+      <a href="#install">Install</a>
+      <a class="gh" href="https://github.com/kanywst/y509">GitHub&nbsp;↗</a>
+    </div>
+  </div>
+</nav>
+
+<main id="top">
+
+  <!-- ============================ HERO ============================ -->
+  <div class="band">
+  <section class="wrap hero">
+    <p class="eyebrow">X.509 chain inspector · terminal-native</p>
+    <h1>Read the chain the server <em>actually sent</em>.</h1>
+    <p class="lede">
+      y509 opens a certificate chain from a file, a live TLS handshake, or stdin — then
+      answers the question an exit code can't carry: not just whether the chain verifies,
+      but whether it was <strong>served correctly</strong>.
+    </p>
+
+    <div class="hero__grid">
+      <div class="install">
+        <div class="install__row">
+          <div class="install__cmd"><span class="p">$</span><span data-cmd>brew install kanywst/tap/y509</span></div>
+          <button class="copy" type="button" aria-label="Copy Homebrew install command">copy</button>
+        </div>
+        <div class="install__row">
+          <div class="install__cmd"><span class="p">$</span><span data-cmd>go install github.com/kanywst/y509/cmd/y509@latest</span></div>
+          <button class="copy" type="button" aria-label="Copy go install command">copy</button>
+        </div>
+        <div class="install__note"><span>macOS · Linux · Windows</span><span>·</span><span>Go 1.26+</span></div>
+      </div>
+
+      <div class="hero__meta">
+        <span><i>◈</i> single static binary</span>
+        <span><i>◈</i> cosign + SBOM + SLSA</span>
+        <span><i>◈</i> no telemetry, no phone home</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= TERMINAL ========================== -->
+  <section class="wrap stage">
+    <div class="term-scroll">
+    <div class="term" id="term" tabindex="0" role="application"
+         aria-label="Interactive replica of the y509 terminal interface">
+      <div class="term__bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="term__title">y509 — testdata/demo/certs.pem</span>
+      </div>
+      <div class="term__screen">
+
+        <div class="boot" id="boot"><span class="p">$</span> <span id="typed"></span><span class="caret"></span></div>
+
+        <div class="splash" id="splash">
+          <pre>██    ██ ███████  ██████   █████
+ ██  ██  ██      ██    ██ ██   ██
+  ████   ███████ ██    ██  █████
+   ██         ██ ██    ██      ██
+   ██    ███████  ██████   █████ </pre>
+          <small>🔐  Certificate Chain TUI Viewer</small>
+        </div>
+
+        <div class="tui" id="tui">
+          <div class="tui__head">
+            <span class="t">🔐 y509</span>
+            <span class="crumb">5 certs</span><span class="crumb">›</span>
+            <span class="cn" id="crumb">valid.y509.demo</span>
+          </div>
+          <div class="tui__rule" id="rule">────────────</div>
+
+          <div class="panes">
+            <div class="pane pane--l on" id="paneL">
+              <div class="lhead"><span class="s"></span><span style="flex:1">SUBJECT</span><span class="e">EXPIRES</span></div>
+              <div class="rows" id="rows" role="listbox" aria-label="Certificate chain"></div>
+            </div>
+            <div class="pane pane--r" id="paneR">
+              <div class="tabs" id="tabs"></div>
+              <div class="detail" id="detail"></div>
+              <div class="scrollf" id="scrollf">&nbsp;</div>
+            </div>
+          </div>
+
+          <div class="statusbar">
+            <span class="n">&nbsp;5 certs&nbsp;</span>
+            <span class="hints">
+              <b>↑↓</b> nav<span class="sep">│</span><b>←→</b> pane<span class="sep">│</span><b>tab</b> tabs<span class="sep">│</span><b>/</b> search<span class="sep">│</span><b>f</b> filter<span class="sep">│</span><b>v</b> validate<span class="sep">│</span><b>e</b> export<span class="sep">│</span><b>y</b> copy<span class="sep">│</span><b>q</b> quit<span class="sep">│</span><b>?</b> help
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    </div>
+    <p class="stage__hint">
+      <span>Live, not a recording —</span>
+      <kbd>j</kbd><kbd>k</kbd> <span>select a certificate,</span>
+      <kbd>tab</kbd> <span>step through detail tabs,</span>
+      <kbd>esc</kbd> <span>release focus</span>
+    </p>
+  </section>
+  </div>
+
+  <!-- ========================= VERDICT ============================ -->
+  <section class="band band--alt" id="verdict">
+    <div class="wrap sect reveal">
+     <div class="verdict">
+      <div>
+        <p class="eyebrow">The thesis</p>
+        <h2 class="h2">Verifying a chain and serving it correctly are two different questions.</h2>
+        <p class="lede" style="margin-top:22px">
+          A server can present a chain your browser accepts and <code>curl</code> refuses.
+          Browsers chase the AIA URL to fetch a missing intermediate; curl, Go and Java do not.
+          y509 answers both questions separately, and reports the second one from what was
+          actually on the wire.
+        </p>
+        <p class="lede" style="margin-top:20px">
+          The chain below <em>verified</em> — on macOS the platform verifier fetched the missing
+          intermediate over the network — and it is still misconfigured. That gap is the whole
+          point: the check is structural, so it cannot be papered over.
+        </p>
+      </div>
+
+      <div>
+        <div class="out">
+          <div class="out__head"><span class="live"></span> real output · incomplete-chain.badssl.com</div>
+<pre><span class="p">$</span> <b>y509 validate incomplete-chain.badssl.com:443</b>
+<span class="ok">✅ Certificate chain is valid.</span>
+Trust anchor: <b>ISRG Root X1</b>
+
+Chain as presented:
+  <span class="no">• missing issuer: *.badssl.com</span>
+    the chain stops at a certificate that is not a CA;
+    its issuer <b>"R13"</b> was never sent, so a client that
+    does not chase AIA (curl, Go, Java) cannot build
+    a chain
+    fetch from: http://r13.i.lencr.org/</pre>
+        </div>
+        <div class="annot">
+          <span class="chip ok">TRUST ✅ verifies</span>
+          <span class="chip bad">PRESENTATION ✖ misconfigured</span>
+          <span class="chip">exit 0</span>
+        </div>
+      </div>
+     </div>
+
+      <div class="pair">
+        <div class="pair__item good">
+          <span class="pair__q">Question one</span>
+          <h3>Does it verify?</h3>
+          <p>Checked against the system trust store, or your own roots with <code>--roots</code>. Hostname included when you point it at a live server.</p>
+          <span class="mark">✅ trusted · anchor: ISRG Root X1</span>
+        </div>
+        <div class="pair__item bad">
+          <span class="pair__q">Question two</span>
+          <h3>Was it served correctly?</h3>
+          <p>Missing intermediate, redundant root, wrong order, duplicates, strangers in the bundle — structural findings that verification papers over.</p>
+          <span class="mark">✖ missing issuer · *.badssl.com</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= SOURCES ============================ -->
+  <section class="band" id="where">
+    <div class="wrap sect reveal">
+      <p class="eyebrow">Where the chain comes from</p>
+      <h2 class="h2" style="max-width:20ch">Four ways in. One reader.</h2>
+
+      <div class="cols" style="margin-top:34px">
+        <div>
+          <p class="lede">
+            An argument naming an existing file is always read as a file; anything else is treated
+            as an address. Pass <code>--connect</code> to force it. The handshake deliberately
+            verifies nothing — a chain that fails to verify is usually the reason you came.
+          </p>
+          <p class="lede" style="margin-top:18px">
+            Certificates come back <strong>in the order the server sent them</strong>, which is not
+            necessarily a valid chain. A server shipping its root, or omitting an intermediate, is
+            the classic "works in the browser, breaks in curl" bug.
+          </p>
+        </div>
+        <div class="out">
+          <div class="out__head">reading a chain</div>
+<pre><span class="c"># a file (PEM or DER)</span>
+<span class="p">$</span> <b>y509 cert-chain.pem</b>
+
+<span class="c"># a live server</span>
+<span class="p">$</span> <b>y509 example.com:443</b>
+
+<span class="c"># ...behind STARTTLS (smtp, imap, postgres)</span>
+<span class="p">$</span> <b>y509 smtp.example.com:587 --starttls smtp</b>
+
+<span class="c"># an internal host with a different SNI</span>
+<span class="p">$</span> <b>y509 --connect 10.0.0.1:8443 --servername api.internal</b>
+
+<span class="c"># stdin</span>
+<span class="p">$</span> <b>cat chain.pem | y509</b></pre>
+        </div>
+      </div>
+
+      <div class="spec">
+        <div class="spec__cell">
+          <span class="spec__key">tui</span>
+          <h3>Two panes, five tabs</h3>
+          <p>The chain on the left with live expiry bars, the selected certificate on the right.</p>
+          <ul><li>Subject · Issuer · Validity · SANs · Misc</li><li>search and filter</li><li>chain position table</li></ul>
+        </div>
+        <div class="spec__cell">
+          <span class="spec__key">net</span>
+          <h3>Live handshake</h3>
+          <p>TLS straight to the port, or through a STARTTLS upgrade, with SNI you control.</p>
+          <ul><li>--connect · --servername</li><li>--starttls smtp / imap / postgres</li><li>verifies nothing on purpose</li></ul>
+        </div>
+        <div class="spec__cell">
+          <span class="spec__key">audit</span>
+          <h3>Presentation findings</h3>
+          <p>What the server sent, judged as a bundle rather than as a proof.</p>
+          <ul><li>missing issuer</li><li>redundant root</li><li>out of order · duplicates · strangers</li></ul>
+        </div>
+        <div class="spec__cell">
+          <span class="spec__key">json</span>
+          <h3>Machine-readable</h3>
+          <p>A deliberate translation layer, not struct tags. Every value crossing it is a string, a timestamp or a bool.</p>
+          <ul><li>--json owns stdout</li><li>errors go to stderr</li><li>slices marshal as [], never null</li></ul>
+        </div>
+        <div class="spec__cell">
+          <span class="spec__key">io</span>
+          <h3>Export and copy</h3>
+          <p>Pull a single certificate out of a bundle without reaching for openssl.</p>
+          <ul><li>export to PEM / DER / text</li><li>yank as PEM over OSC52</li><li>works over SSH</li></ul>
+        </div>
+        <div class="spec__cell">
+          <span class="spec__key">theme</span>
+          <h3>Yours to recolour</h3>
+          <p>Catppuccin Mocha by default. Every colour on screen comes from one config file.</p>
+          <ul><li>~/.y509.yaml</li><li>expiry_warning_days</li><li>19 theme keys</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================== CI =============================== -->
+  <section class="band band--alt" id="ci">
+    <div class="wrap sect reveal">
+      <p class="eyebrow">In a pipeline</p>
+      <h2 class="h2" style="max-width:22ch">Gate the build on the finding, not the prose.</h2>
+      <p class="lede" style="margin-top:22px">
+        <code>validate</code> verifies against the system trust store and exits non-zero on
+        anything a TLS client would reject, so it can gate CI on its own. But the exit code
+        collapses two different failures into one number.
+      </p>
+
+      <div class="tbl-wrap">
+        <table class="exit">
+          <thead><tr><th>Outcome</th><th style="text-align:center">Exit</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr class="t0"><td>trusted</td><td class="code">0</td><td>verifies against the trust anchors</td></tr>
+            <tr class="t1"><td>self-anchored</td><td class="code">1</td><td>links up, but its root is not trusted — an internal PKI, or a missing root</td></tr>
+            <tr class="t2"><td>broken</td><td class="code">1</td><td>does not link up: expired, bad signature, missing issuer, wrong hostname</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="cols cols--flip" style="margin-top:56px">
+        <div>
+          <div class="out">
+            <div class="out__head">y509 validate example.com:443 --json</div>
+<pre>{
+  <span class="k">"host"</span>: <span class="s">"example.com"</span>,
+  <span class="k">"trust"</span>: {
+    <span class="k">"level"</span>: <span class="s">"self-anchored"</span>,
+    <span class="k">"trusted"</span>: <span class="n">false</span>,
+    <span class="k">"anchor"</span>: <span class="s">"Internal Root CA"</span>,
+    <span class="k">"error"</span>: <span class="s">"x509: certificate signed by unknown authority"</span>
+  },
+  <span class="k">"presentation"</span>: {
+    <span class="k">"ok"</span>: <span class="n">false</span>,
+    <span class="k">"findings"</span>: [
+      {
+        <span class="k">"problem"</span>: <span class="s">"missing issuer"</span>,
+        <span class="k">"subject"</span>: <span class="s">"*.example.com"</span>,
+        <span class="k">"fetchUrls"</span>: [<span class="s">"http://r13.i.lencr.org/"</span>]
+      }
+    ]
+  },
+  <span class="k">"chain"</span>: [{ <span class="k">"index"</span>: <span class="n">0</span>, <span class="k">"daysUntilExpiry"</span>: <span class="n">43</span>, <span class="k">"…"</span>: <span class="s">"…"</span> }]
+}</pre>
+          </div>
+          <div class="out" style="margin-top:22px">
+            <div class="out__head">two checks worth wiring up</div>
+<pre><span class="c"># Fail the build on a chain that verifies but is mis-served.</span>
+<span class="p">$</span> <b>y509 validate example.com:443 --json | jq -e '.presentation.ok'</b>
+
+<span class="c"># Warn 30 days out, without parsing prose.</span>
+<span class="p">$</span> <b>y509 validate example.com:443 --json | jq '.chain[0].daysUntilExpiry &lt; 30'</b></pre>
+          </div>
+        </div>
+
+        <div>
+          <p class="lede">
+            <code>--json</code> exists because that number cannot carry the answer. A script reading
+            only the exit code cannot tell an internal PKI from a chain that does not link up — and
+            it learns nothing at all about how the chain was served, which is the finding you most
+            likely came for.
+          </p>
+          <p class="lede" style="margin-top:18px">
+            <code>chain</code> is in the order the certificates were <strong>presented</strong>, not
+            sorted, because sorting is what destroys the evidence <code>presentation</code> reports on.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================== KEYS ============================== -->
+  <section class="band">
+    <div class="wrap sect reveal">
+      <p class="eyebrow">Under your fingers</p>
+      <h2 class="h2" style="max-width:20ch">Every binding, one source.</h2>
+      <p class="lede" style="margin-top:20px">
+        The <kbd>?</kbd> overlay is generated from the same key map the app dispatches on, so the
+        help can never drift from the behaviour.
+      </p>
+
+      <div class="keys">
+        <div class="key"><span class="key__k"><kbd>↑</kbd><kbd>k</kbd><kbd>↓</kbd><kbd>j</kbd></span><span class="key__d">Move through the chain</span></div>
+        <div class="key"><span class="key__k"><kbd>←</kbd><kbd>h</kbd></span><span class="key__d">Focus the list</span></div>
+        <div class="key"><span class="key__k"><kbd>→</kbd><kbd>l</kbd></span><span class="key__d">Focus the details</span></div>
+        <div class="key"><span class="key__k"><kbd>tab</kbd></span><span class="key__d">Cycle detail tabs</span></div>
+        <div class="key"><span class="key__k"><kbd>/</kbd></span><span class="key__d">Search by common name</span></div>
+        <div class="key"><span class="key__k"><kbd>f</kbd></span><span class="key__d">Filter: expired, expiring, valid, self-signed</span></div>
+        <div class="key"><span class="key__k"><kbd>v</kbd></span><span class="key__d">Validate this certificate</span></div>
+        <div class="key"><span class="key__k"><kbd>e</kbd></span><span class="key__d">Export — filename and format</span></div>
+        <div class="key"><span class="key__k"><kbd>y</kbd></span><span class="key__d">Copy as PEM over OSC52</span></div>
+        <div class="key"><span class="key__k"><kbd>esc</kbd></span><span class="key__d">Clear the filter, close the popup</span></div>
+        <div class="key"><span class="key__k"><kbd>?</kbd></span><span class="key__d">Help</span></div>
+        <div class="key"><span class="key__k"><kbd>q</kbd><kbd>^c</kbd></span><span class="key__d">Quit</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= INSTALL ============================ -->
+  <section class="band band--alt" id="install">
+    <div class="wrap sect reveal">
+      <p class="eyebrow">Get it</p>
+      <h2 class="h2" style="max-width:18ch">One binary, signed.</h2>
+
+      <div class="get">
+        <div class="get__card">
+          <h3>Homebrew</h3>
+          <p>macOS and Linux, from the tap.</p>
+          <div class="install">
+            <div class="install__row">
+              <div class="install__cmd"><span class="p">$</span><span data-cmd>brew install kanywst/tap/y509</span></div>
+              <button class="copy" type="button" aria-label="Copy Homebrew install command">copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="get__card">
+          <h3>Go</h3>
+          <p>Straight from source, Go 1.26 or newer.</p>
+          <div class="install">
+            <div class="install__row">
+              <div class="install__cmd"><span class="p">$</span><span data-cmd>go install github.com/kanywst/y509/cmd/y509@latest</span></div>
+              <button class="copy" type="button" aria-label="Copy go install command">copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="get__card">
+          <h3>Release archives</h3>
+          <p>Every release attaches binaries for macOS and Linux, plus <code>.deb</code> and <code>.rpm</code> packages, with checksums, cosign signatures and a CycloneDX SBOM.</p>
+          <p style="margin-top:14px"><a class="btn" href="https://github.com/kanywst/y509/releases">Releases ↗</a></p>
+        </div>
+
+        <div class="get__card">
+          <h3>Verify what you downloaded</h3>
+          <p>Archives carry SLSA build provenance. Check it before you run it.</p>
+          <div class="install">
+            <div class="install__row">
+              <div class="install__cmd"><span class="p">$</span><span data-cmd>gh attestation verify y509-*.tar.gz -R kanywst/y509</span></div>
+              <button class="copy" type="button" aria-label="Copy attestation verify command">copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cols" style="margin-top:56px">
+        <div>
+          <p class="eyebrow">Configuration</p>
+          <h3 style="font-family:var(--font-mono);font-size:21px;font-weight:700;margin-top:16px;letter-spacing:-.03em">~/.y509.yaml</h3>
+          <p class="lede" style="margin-top:14px">
+            Catppuccin Mocha ships as the default. Lower <code>expiry_warning_days</code> as
+            CA/Browser Forum maximum lifetimes shrink — 200 days in 2026.
+          </p>
+        </div>
+        <div class="out">
+          <div class="out__head">~/.y509.yaml</div>
+<pre><span class="k">expiry_warning_days</span>: <span class="n">30</span>
+
+<span class="k">theme</span>:
+  <span class="k">text</span>: <span class="s">"#cdd6f4"</span>
+  <span class="k">border_focus</span>: <span class="s">"#89b4fa"</span>
+  <span class="k">status_valid</span>: <span class="s">"#a6e3a1"</span>
+  <span class="k">status_warning</span>: <span class="s">"#f9e2af"</span>
+  <span class="k">status_expired</span>: <span class="s">"#f38ba8"</span>
+  <span class="c"># ...14 more keys</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================== CTA ============================== -->
+  <section class="band">
+    <div class="wrap cta reveal">
+      <h2>Point it at a host.<br>See what it really sends.</h2>
+      <p class="lede">Built on the Charm v2 stack — Bubble Tea, Lip Gloss, Bubbles and huh. Apache 2.0.</p>
+      <div class="cta__row">
+        <a class="btn btn--fill" href="https://github.com/kanywst/y509">github.com/kanywst/y509</a>
+        <a class="btn" href="https://github.com/kanywst/y509/releases">Download</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <div class="foot">
+    <span>© 2026 kanywst · Apache License 2.0</span>
+    <a href="https://github.com/kanywst/y509">Source</a>
+    <a href="https://github.com/kanywst/y509/issues">Issues</a>
+    <a href="https://charm.land">Charm</a>
+    <span class="foot__sp">made in the terminal</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  /* The document element belongs to the host page, so only claim it when
+     nobody else has: served straight from GitHub Pages this file has no
+     <html> tag to carry the attribute. */
+  if (!document.documentElement.lang) document.documentElement.lang = "en";
+
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------------- copy buttons ---------------- */
+  document.querySelectorAll(".copy").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const cmd = btn.closest(".install__row").querySelector("[data-cmd]").textContent;
+      try { await navigator.clipboard.writeText(cmd); }
+      catch {
+        const ta = document.createElement("textarea");
+        ta.value = cmd; document.body.appendChild(ta); ta.select();
+        try { document.execCommand("copy"); } catch {}
+        ta.remove();
+      }
+      btn.textContent = "ok"; btn.classList.add("done");
+      setTimeout(() => { btn.textContent = "copy"; btn.classList.remove("done"); }, 1400);
+    });
+  });
+
+  /* ---------------- scroll reveal ---------------- */
+  const io = new IntersectionObserver(es => {
+    es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+  }, { rootMargin: "-8% 0px -8% 0px" });
+  document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+
+  /* ================= terminal replica ================= *
+   * The five certificates are the ones scripts/gen_demo_certs.go
+   * writes, in the order it writes them: leaf, expired leaf,
+   * expiring leaf, intermediate, root.
+   * ==================================================== */
+  /* The bar fills with the fraction of the lifetime left; its colour comes
+     from the warning window, not from the fill, exactly as the app does it. */
+  const bar = (filled, tone = "green", total = 6) =>
+    `<span class="barf" style="color:var(--t-${tone})">${"█".repeat(filled)}</span>` +
+    `<span class="bart">${"░".repeat(total - filled)}</span>`;
+
+  const CERTS = [
+    {
+      cn: "valid.y509.demo", icon: "●", tone: "green", expires: bar(6) + " 365d",
+      subject: [["CN", "valid.y509.demo"], ["Organization", "Y509 Demo Org"]],
+      issuer:  [["CN", "Y509 Demo Intermediate"], ["Organization", "Y509 Demo Org"]],
+      validity: { nb: "2026-08-18 09:12:04 UTC", na: "2027-08-19 09:12:04 UTC", life: "366 days total",
+                  badge: ["ok", "● Valid · 365 days left"], cab: true, pct: 100 },
+      sans: [["DNS", "valid.y509.demo"], ["DNS", "internal.demo"]],
+      misc: { serial: "3", fp: "9c:31:af:0e:5d:7b:c4:12:88:a0:6f:33:e1:9d:52:b7:0c:41:aa:38:6e:d2:57:90:1b:f4:c8:23:76:5e:09:ad", sig: "ECDSA-SHA256" }
+    },
+    {
+      cn: "expired.y509.demo", icon: "✖", tone: "red", expires: `<span class="barf" style="color:var(--t-red)">Expired</span>`,
+      subject: [["CN", "expired.y509.demo"], ["Organization", "Y509 Demo Org"]],
+      issuer:  [["CN", "Y509 Demo Intermediate"], ["Organization", "Y509 Demo Org"]],
+      validity: { nb: "2025-08-09 09:12:04 UTC", na: "2026-08-09 09:12:04 UTC", life: "365 days total",
+                  badge: ["bad", "✖ EXPIRED"], cab: true, pct: 0 },
+      sans: [["DNS", "expired.y509.demo"], ["DNS", "internal.demo"]],
+      misc: { serial: "4", fp: "44:e8:1c:7a:90:35:d6:be:21:07:f9:4c:83:2b:15:6d:ee:70:98:31:c5:0a:47:b2:59:d3:66:1f:8e:04:72:ba", sig: "ECDSA-SHA256" }
+    },
+    {
+      cn: "expiring.y509.demo", icon: "▲", tone: "yellow", expires: bar(4, "yellow") + " &nbsp;&nbsp;5d",
+      subject: [["CN", "expiring.y509.demo"], ["Organization", "Y509 Demo Org"]],
+      issuer:  [["CN", "Y509 Demo Intermediate"], ["Organization", "Y509 Demo Org"]],
+      validity: { nb: "2026-08-18 09:12:04 UTC", na: "2026-08-24 09:12:04 UTC", life: "6 days total",
+                  badge: ["warn", "▲ 5 days left"], cab: false, pct: 83 },
+      sans: [["DNS", "expiring.y509.demo"], ["DNS", "internal.demo"]],
+      misc: { serial: "5", fp: "1f:6b:d0:24:97:ae:53:88:0c:e2:71:35:4a:cf:19:60:b8:7d:2e:a3:44:15:9c:e7:30:6a:d1:5b:82:f0:c6:39", sig: "ECDSA-SHA256" }
+    },
+    {
+      cn: "Y509 Demo Intermediate", icon: "●", tone: "green", expires: bar(3) + " 1826d",
+      subject: [["CN", "Y509 Demo Intermediate"], ["Organization", "Y509 Demo Org"]],
+      issuer:  [["CN", "Y509 Demo Root CA"], ["Organization", "Y509 Demo Org"]],
+      validity: { nb: "2021-08-19 09:12:04 UTC", na: "2031-08-19 09:12:04 UTC", life: "3653 days total",
+                  badge: ["ok", "● Valid · 1826 days left"], cab: false, pct: 50 },
+      sans: null,
+      misc: { serial: "2", fp: "7a:03:be:51:cd:16:42:9f:e8:35:0b:77:a4:d9:6c:20:31:88:ff:5e:12:c7:64:0a:9b:38:e5:71:2d:46:83:1c", sig: "ECDSA-SHA256" }
+    },
+    {
+      cn: "Y509 Demo Root CA", icon: "●", tone: "green", expires: bar(3) + " 3652d",
+      subject: [["CN", "Y509 Demo Root CA"], ["Organization", "Y509 Demo Org"]],
+      issuer:  [["CN", "Y509 Demo Root CA"], ["Organization", "Y509 Demo Org"]],
+      validity: { nb: "2016-08-19 09:12:04 UTC", na: "2036-08-19 09:12:04 UTC", life: "7305 days total",
+                  badge: ["ok", "● Valid · 3652 days left"], cab: false, pct: 50 },
+      sans: null,
+      misc: { serial: "1", fp: "c8:14:5f:29:70:ab:3d:66:91:0e:d4:52:7f:38:b1:0c:e6:47:9a:23:58:fd:81:36:2b:70:c9:14:af:6d:e0:55", sig: "ECDSA-SHA256" }
+    }
+  ];
+
+  const TABS = ["Subject", "Issuer", "Validity", "SANs", "Misc"];
+  const ROLE = ["Leaf", "Leaf", "Leaf", "Intermediate", "Root"];
+
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const toneVar = t => `var(--t-${t})`;
+
+  let sel = 0, tab = 0;
+
+  const $rows = document.getElementById("rows");
+  const $tabs = document.getElementById("tabs");
+  const $detail = document.getElementById("detail");
+  const $crumb = document.getElementById("crumb");
+  const $scrollf = document.getElementById("scrollf");
+  const $paneL = document.getElementById("paneL");
+  const $paneR = document.getElementById("paneR");
+  const $term = document.getElementById("term");
+
+  /* One key/value row. dt and dd are only valid inside a dl, so the rows are
+     wrapped by kvs() rather than each sitting in a bare div. */
+  const kv = (k, v) => `<div class="kv"><dt>${esc(k)}</dt><dd>${v}</dd></div>`;
+  const kvs = rows => `<dl class="kvs">${rows}</dl>`;
+
+  function renderRows() {
+    $rows.innerHTML = CERTS.map((c, i) => `
+      <div class="row${i === sel ? " sel" : ""}" data-i="${i}"
+           role="option" aria-selected="${i === sel}" tabindex="-1">
+        <span class="s" style="color:${toneVar(c.tone)}">${c.icon}</span>
+        <span class="cn">${esc(c.cn)}</span>
+        <span class="e">${c.expires}</span>
+      </div>`).join("");
+  }
+
+  function renderTabs() {
+    $tabs.innerHTML = TABS.map((t, i) =>
+      `<button class="tab${i === tab ? " on" : ""}" data-t="${i}" type="button"` +
+      ` aria-pressed="${i === tab}">${t}<span class="ul"></span></button>`).join("");
+  }
+
+  function renderDetail() {
+    const c = CERTS[sel];
+    let html = "", scroll = "&nbsp;";
+
+    if (tab === 0) html = kvs(c.subject.map(([k, v]) => kv(k, esc(v))).join(""));
+    else if (tab === 1) html = kvs(c.issuer.map(([k, v]) => kv(k, esc(v))).join(""));
+    else if (tab === 2) {
+      const v = c.validity;
+      const filled = Math.round(v.pct / 100 * 24);
+      html = kvs(kv("Not Before", esc(v.nb)) + kv("Not After", esc(v.na)) + kv("Lifetime", esc(v.life))) +
+        `<div><span class="badge ${v.badge[0]}">&nbsp;${esc(v.badge[1])}&nbsp;</span></div>` +
+        (v.cab ? `<div><span class="badge warn">&nbsp;⚠ Exceeds CA/B max lifetime (200 days)&nbsp;</span></div>` : "") +
+        `<div style="margin-top:6px" class="bar"><span style="color:var(--t-green)">${"█".repeat(filled)}</span><span style="color:var(--t-line)">${"░".repeat(24 - filled)}</span> <span style="color:var(--t-key)">${v.pct}% left</span></div>`;
+    }
+    else if (tab === 3) {
+      html = c.sans
+        ? kvs(c.sans.map(([k, v]) => kv(k, esc(v))).join(""))
+        : `<span style="color:var(--t-key)">&nbsp;&nbsp;No SANs present</span>`;
+    }
+    else {
+      const m = c.misc;
+      html = kvs(kv("Serial", esc(m.serial)) + kv("SHA256", esc(m.fp)) + kv("Sig Algo", esc(m.sig))) +
+        `<div class="stitle">Public Key</div>` +
+        kvs(kv("Algorithm", "ECDSA") + kv("Type", "ECDSA") + kv("Curve", "P-256") +
+            kv("Key Size", "256 bits") + kv("Standard", "NIST P-256")) +
+        `<div class="stitle">Chain Position</div>
+         <table class="chain">
+           <thead><tr><th></th><th>#</th><th>Type</th><th>Subject</th></tr></thead>
+           <tbody>${CERTS.map((x, i) => `
+             <tr class="${i === sel ? "here" : ""}">
+               <td class="m">${i === sel ? "►" : ""}</td><td>${i + 1}</td>
+               <td>${ROLE[i]}</td><td>${esc(x.cn)}</td>
+             </tr>`).join("")}</tbody>
+         </table>`;
+      scroll = "▲ ▼&nbsp;&nbsp; 62%";
+    }
+
+    $detail.innerHTML = html;
+    $scrollf.innerHTML = scroll;
+    $crumb.textContent = c.cn;
+  }
+
+  function paint() { renderRows(); renderTabs(); renderDetail(); }
+
+  function setFocus(f) {
+    focus = f;
+    $paneL.classList.toggle("on", f === "L");
+    $paneR.classList.toggle("on", f === "R");
+  }
+
+  paint();
+
+  $rows.addEventListener("click", e => {
+    const row = e.target.closest(".row");
+    if (!row) return;
+    sel = +row.dataset.i; setFocus("L"); paint(); $term.focus();
+  });
+  $tabs.addEventListener("click", e => {
+    const t = e.target.closest(".tab");
+    if (!t) return;
+    tab = +t.dataset.t; setFocus("R"); paint(); $term.focus();
+  });
+
+  $term.addEventListener("keydown", e => {
+    const k = e.key;
+    if (k === "Escape") { $term.blur(); return; }
+
+    /* Tab advances through the detail tabs, but stops swallowing the key on
+       the last one so keyboard focus can always leave the widget going
+       forward. Shift+Tab is never intercepted, so it can always leave going
+       back. Without this the replica is a focus trap. */
+    if (k === "Tab") {
+      if (e.shiftKey || tab === TABS.length - 1) return;
+      e.preventDefault();
+      tab += 1;
+      setFocus("R");
+      paint();
+      return;
+    }
+
+    let hit = true;
+    if (k === "j" || k === "ArrowDown") sel = Math.min(sel + 1, CERTS.length - 1);
+    else if (k === "k" || k === "ArrowUp") sel = Math.max(sel - 1, 0);
+    else if (k === "l" || k === "ArrowRight") setFocus("R");
+    else if (k === "h" || k === "ArrowLeft") setFocus("L");
+    else hit = false;
+    if (hit) { e.preventDefault(); paint(); }
+  });
+
+  /* ---------------- boot sequence ---------------- */
+  const $boot = document.getElementById("boot");
+  const $typed = document.getElementById("typed");
+  const $splash = document.getElementById("splash");
+  const $tui = document.getElementById("tui");
+  const $rule = document.getElementById("rule");
+
+  const fitRule = () => {
+    const w = $rule.clientWidth || 800;
+    const cw = 7.5;
+    $rule.textContent = "─".repeat(Math.max(10, Math.floor(w / cw)));
+  };
+  fitRule();
+  addEventListener("resize", fitRule);
+
+  const show = el => { el.style.transition = "opacity .35s"; el.style.opacity = "1"; };
+  const hide = el => { el.style.transition = "opacity .25s"; el.style.opacity = "0"; };
+
+  function boot() {
+    if (reduce) {
+      $boot.style.display = "none";
+      $splash.style.display = "none";
+      $tui.style.opacity = "1";
+      return;
+    }
+    const cmd = "y509 testdata/demo/certs.pem";
+    let i = 0;
+    const type = () => {
+      $typed.textContent = cmd.slice(0, ++i);
+      if (i < cmd.length) setTimeout(type, 42);
+      else setTimeout(() => {
+        hide($boot);
+        show($splash);
+        setTimeout(() => { hide($splash); show($tui); }, 900);
+      }, 380);
+    };
+    setTimeout(type, 500);
+  }
+
+  if ("IntersectionObserver" in window) {
+    const bio = new IntersectionObserver(es => {
+      if (es.some(e => e.isIntersecting)) { bio.disconnect(); boot(); }
+    }, { threshold: .25 });
+    bio.observe($term);
+  } else boot();
+})();
+</script>
