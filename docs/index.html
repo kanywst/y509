@@ -1522,8 +1522,11 @@ Chain as presented:
 
   function paint() { renderRows(); renderTabs(); renderDetail(); }
 
+  /* The focused pane is held in the class list, not in a variable: an
+     undeclared `focus =` here resolves to window.focus and quietly replaces
+     the native method, because strict mode still allows assigning to an
+     existing global property. */
   function setFocus(f) {
-    focus = f;
     $paneL.classList.toggle("on", f === "L");
     $paneR.classList.toggle("on", f === "R");
   }
