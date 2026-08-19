@@ -1335,66 +1335,113 @@ Chain as presented:
   document.querySelectorAll(".reveal").forEach(el => io.observe(el));
 
   /* ================= terminal replica ================= *
-   * The five certificates are the ones scripts/gen_demo_certs.go
-   * writes, in the order it writes them: leaf, expired leaf,
-   * expiring leaf, intermediate, root.
+   * The five certificates are the ones scripts/gen_demo_certs.go writes,
+   * listed here in the order the TUI shows them rather than the order they
+   * are written: NewModel runs the bundle through certificate.SortChain
+   * first, which walks each leaf up to its root, so the two extra leaves
+   * land after the valid.../intermediate/root chain instead of next to it.
+   *
+   * Nothing time-dependent is hardcoded. gen_demo_certs.go dates every
+   * certificate relative to the moment it runs, so a fixed "365d" goes
+   * stale the day after it is written. The offsets below are that script's,
+   * and every day count, bar and badge is derived from them with the same
+   * arithmetic the app uses (renderExpiryWithBar, ValidityPeriodDays,
+   * IsExpiringSoonWithin, ExceedsCABMaxLifetime).
    * ==================================================== */
-  /* The bar fills with the fraction of the lifetime left; its colour comes
-     from the warning window, not from the fill, exactly as the app does it. */
-  const bar = (filled, tone = "green", total = 6) =>
+  const DAY = 86400e3;
+  const NOW = Date.now();
+  /* gen_demo_certs.go runs, then y509 opens what it wrote. The gap matters:
+     a certificate dated exactly now + 365d has slightly under 365 days left
+     by the time int(time.Until(NotAfter).Hours()/24) truncates it, which is
+     why the real tool shows 364d and not 365d on a bundle it just made. */
+  const GEN = NOW - 1000;
+  const EXPIRY_WARNING_DAYS = 30;      // the shipped default
+  const CAB_MAX_SUBSCRIBER_DAYS = 200; // certificate.CABMaxSubscriberValidityDays
+
+  const addYears = (t, y) => { const d = new Date(t); d.setFullYear(d.getFullYear() + y); return d.getTime(); };
+  const addDays = (t, d) => t + d * DAY;
+
+  const ORG = "Y509 Demo Org";
+  const leafSans = cn => [["DNS", cn], ["DNS", "internal.demo"]];
+  const expiredNotAfter = addDays(GEN, -10);
+
+  const SPEC = [
+    { cn: "valid.y509.demo", role: "Leaf", isCA: false, serial: "3",
+      issuerCN: "Y509 Demo Intermediate",
+      nb: addDays(GEN, -1), na: addDays(GEN, 365),
+      fp: "9c:31:af:0e:5d:7b:c4:12:88:a0:6f:33:e1:9d:52:b7:0c:41:aa:38:6e:d2:57:90:1b:f4:c8:23:76:5e:09:ad" },
+    { cn: "Y509 Demo Intermediate", role: "Intermediate", isCA: true, serial: "2",
+      issuerCN: "Y509 Demo Root CA",
+      nb: addYears(GEN, -5), na: addYears(GEN, 5),
+      fp: "7a:03:be:51:cd:16:42:9f:e8:35:0b:77:a4:d9:6c:20:31:88:ff:5e:12:c7:64:0a:9b:38:e5:71:2d:46:83:1c" },
+    { cn: "Y509 Demo Root CA", role: "Root", isCA: true, serial: "1",
+      issuerCN: "Y509 Demo Root CA",
+      nb: addYears(GEN, -10), na: addYears(GEN, 10),
+      fp: "c8:14:5f:29:70:ab:3d:66:91:0e:d4:52:7f:38:b1:0c:e6:47:9a:23:58:fd:81:36:2b:70:c9:14:af:6d:e0:55" },
+    /* renderChainPosition calls anything that is neither index 0 nor
+       self-issued an "Intermediate", so that is what the app prints for
+       these two even though they are leaves. */
+    { cn: "expired.y509.demo", role: "Intermediate", isCA: false, serial: "4",
+      issuerCN: "Y509 Demo Intermediate",
+      nb: addYears(expiredNotAfter, -1), na: expiredNotAfter,
+      fp: "44:e8:1c:7a:90:35:d6:be:21:07:f9:4c:83:2b:15:6d:ee:70:98:31:c5:0a:47:b2:59:d3:66:1f:8e:04:72:ba" },
+    { cn: "expiring.y509.demo", role: "Intermediate", isCA: false, serial: "5",
+      issuerCN: "Y509 Demo Intermediate",
+      nb: addDays(GEN, -1), na: addDays(GEN, 5),
+      fp: "1f:6b:d0:24:97:ae:53:88:0c:e2:71:35:4a:cf:19:60:b8:7d:2e:a3:44:15:9c:e7:30:6a:d1:5b:82:f0:c6:39" },
+  ];
+
+  const stamp = t => new Date(t).toISOString().replace("T", " ").slice(0, 19) + " UTC";
+  const clamp01 = r => r > 1 ? 1 : r < 0 ? 0 : r;
+
+  const bar = (filled, tone, total) =>
     `<span class="barf" style="color:var(--t-${tone})">${"█".repeat(filled)}</span>` +
     `<span class="bart">${"░".repeat(total - filled)}</span>`;
 
-  const CERTS = [
-    {
-      cn: "valid.y509.demo", icon: "●", tone: "green", expires: bar(6) + " 365d",
-      subject: [["CN", "valid.y509.demo"], ["Organization", "Y509 Demo Org"]],
-      issuer:  [["CN", "Y509 Demo Intermediate"], ["Organization", "Y509 Demo Org"]],
-      validity: { nb: "2026-08-18 09:12:04 UTC", na: "2027-08-19 09:12:04 UTC", life: "366 days total",
-                  badge: ["ok", "● Valid · 365 days left"], cab: true, pct: 100 },
-      sans: [["DNS", "valid.y509.demo"], ["DNS", "internal.demo"]],
-      misc: { serial: "3", fp: "9c:31:af:0e:5d:7b:c4:12:88:a0:6f:33:e1:9d:52:b7:0c:41:aa:38:6e:d2:57:90:1b:f4:c8:23:76:5e:09:ad", sig: "ECDSA-SHA256" }
-    },
-    {
-      cn: "expired.y509.demo", icon: "✖", tone: "red", expires: `<span class="barf" style="color:var(--t-red)">Expired</span>`,
-      subject: [["CN", "expired.y509.demo"], ["Organization", "Y509 Demo Org"]],
-      issuer:  [["CN", "Y509 Demo Intermediate"], ["Organization", "Y509 Demo Org"]],
-      validity: { nb: "2025-08-09 09:12:04 UTC", na: "2026-08-09 09:12:04 UTC", life: "365 days total",
-                  badge: ["bad", "✖ EXPIRED"], cab: true, pct: 0 },
-      sans: [["DNS", "expired.y509.demo"], ["DNS", "internal.demo"]],
-      misc: { serial: "4", fp: "44:e8:1c:7a:90:35:d6:be:21:07:f9:4c:83:2b:15:6d:ee:70:98:31:c5:0a:47:b2:59:d3:66:1f:8e:04:72:ba", sig: "ECDSA-SHA256" }
-    },
-    {
-      cn: "expiring.y509.demo", icon: "▲", tone: "yellow", expires: bar(4, "yellow") + " &nbsp;&nbsp;5d",
-      subject: [["CN", "expiring.y509.demo"], ["Organization", "Y509 Demo Org"]],
-      issuer:  [["CN", "Y509 Demo Intermediate"], ["Organization", "Y509 Demo Org"]],
-      validity: { nb: "2026-08-18 09:12:04 UTC", na: "2026-08-24 09:12:04 UTC", life: "6 days total",
-                  badge: ["warn", "▲ 5 days left"], cab: false, pct: 83 },
-      sans: [["DNS", "expiring.y509.demo"], ["DNS", "internal.demo"]],
-      misc: { serial: "5", fp: "1f:6b:d0:24:97:ae:53:88:0c:e2:71:35:4a:cf:19:60:b8:7d:2e:a3:44:15:9c:e7:30:6a:d1:5b:82:f0:c6:39", sig: "ECDSA-SHA256" }
-    },
-    {
-      cn: "Y509 Demo Intermediate", icon: "●", tone: "green", expires: bar(3) + " 1826d",
-      subject: [["CN", "Y509 Demo Intermediate"], ["Organization", "Y509 Demo Org"]],
-      issuer:  [["CN", "Y509 Demo Root CA"], ["Organization", "Y509 Demo Org"]],
-      validity: { nb: "2021-08-19 09:12:04 UTC", na: "2031-08-19 09:12:04 UTC", life: "3653 days total",
-                  badge: ["ok", "● Valid · 1826 days left"], cab: false, pct: 50 },
-      sans: null,
-      misc: { serial: "2", fp: "7a:03:be:51:cd:16:42:9f:e8:35:0b:77:a4:d9:6c:20:31:88:ff:5e:12:c7:64:0a:9b:38:e5:71:2d:46:83:1c", sig: "ECDSA-SHA256" }
-    },
-    {
-      cn: "Y509 Demo Root CA", icon: "●", tone: "green", expires: bar(3) + " 3652d",
-      subject: [["CN", "Y509 Demo Root CA"], ["Organization", "Y509 Demo Org"]],
-      issuer:  [["CN", "Y509 Demo Root CA"], ["Organization", "Y509 Demo Org"]],
-      validity: { nb: "2016-08-19 09:12:04 UTC", na: "2036-08-19 09:12:04 UTC", life: "7305 days total",
-                  badge: ["ok", "● Valid · 3652 days left"], cab: false, pct: 50 },
-      sans: null,
-      misc: { serial: "1", fp: "c8:14:5f:29:70:ab:3d:66:91:0e:d4:52:7f:38:b1:0c:e6:47:9a:23:58:fd:81:36:2b:70:c9:14:af:6d:e0:55", sig: "ECDSA-SHA256" }
-    }
-  ];
+  const CERTS = SPEC.map(c => {
+    const remaining = c.na - NOW;
+    const expired = remaining < 0;
+    // int(time.Until(NotAfter).Hours() / 24)
+    const days = Math.trunc(remaining / DAY);
+    // (secs + secsPerDay/2) / secsPerDay — rounded to the nearest day
+    const lifetime = Math.round((c.na - c.nb) / DAY);
+    const soon = c.na < NOW + EXPIRY_WARNING_DAYS * DAY;
+    const ratio = clamp01(remaining / (c.na - c.nb));
+
+    // renderExpiryWithBar: six cells, coloured by the warning window rather
+    // than by the fill, with at least one cell while the cert is still live.
+    let filled = Math.trunc(ratio * 6);
+    if (filled === 0 && days > 0) filled = 1;
+    const tone = soon ? "yellow" : "green";
+    const expires = expired
+      ? `<span class="barf" style="color:var(--t-red)">Expired</span>`
+      : bar(filled, tone, 6) + " " + `${days}d`.padStart(4, " ");
+
+    const badge = expired ? ["bad", "✖ EXPIRED"]
+      : soon ? ["warn", `▲ ${days} days left`]
+      : ["ok", `● Valid · ${days} days left`];
+
+    return {
+      cn: c.cn, role: c.role,
+      icon: expired ? "✖" : soon ? "▲" : "●",
+      tone: expired ? "red" : soon ? "yellow" : "green",
+      expires,
+      subject: [["CN", c.cn], ["Organization", ORG]],
+      issuer: [["CN", c.issuerCN], ["Organization", ORG]],
+      validity: {
+        nb: stamp(c.nb), na: stamp(c.na),
+        life: `${lifetime} days total`,
+        badge,
+        cab: !c.isCA && lifetime > CAB_MAX_SUBSCRIBER_DAYS,
+        ratio,
+        pct: Math.round(ratio * 100),
+      },
+      sans: c.isCA ? null : leafSans(c.cn),
+      misc: { serial: c.serial, fp: c.fp, sig: "ECDSA-SHA256" },
+    };
+  });
 
   const TABS = ["Subject", "Issuer", "Validity", "SANs", "Misc"];
-  const ROLE = ["Leaf", "Leaf", "Leaf", "Intermediate", "Root"];
 
   const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
   const toneVar = t => `var(--t-${t})`;
@@ -1439,7 +1486,7 @@ Chain as presented:
     else if (tab === 1) html = kvs(c.issuer.map(([k, v]) => kv(k, esc(v))).join(""));
     else if (tab === 2) {
       const v = c.validity;
-      const filled = Math.round(v.pct / 100 * 24);
+      const filled = Math.trunc(v.ratio * 24); // int(ratio * barWidth), as in renderTabContent
       html = kvs(kv("Not Before", esc(v.nb)) + kv("Not After", esc(v.na)) + kv("Lifetime", esc(v.life))) +
         `<div><span class="badge ${v.badge[0]}">&nbsp;${esc(v.badge[1])}&nbsp;</span></div>` +
         (v.cab ? `<div><span class="badge warn">&nbsp;⚠ Exceeds CA/B max lifetime (200 days)&nbsp;</span></div>` : "") +
@@ -1462,7 +1509,7 @@ Chain as presented:
            <tbody>${CERTS.map((x, i) => `
              <tr class="${i === sel ? "here" : ""}">
                <td class="m">${i === sel ? "►" : ""}</td><td>${i + 1}</td>
-               <td>${ROLE[i]}</td><td>${esc(x.cn)}</td>
+               <td>${x.role}</td><td>${esc(x.cn)}</td>
              </tr>`).join("")}</tbody>
          </table>`;
       scroll = "▲ ▼&nbsp;&nbsp; 62%";
