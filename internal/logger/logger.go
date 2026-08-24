@@ -2,6 +2,7 @@
 package logger
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -9,15 +10,41 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const (
+	logFileName = "y509.log"
+	logDirName  = "y509"
+	logDirPerm  = 0o700
+)
+
 var (
 	// Log is the global logger instance, initialized with a no-op logger by default
 	Log = zap.NewNop()
 )
 
+// DefaultLogFile reports where Init writes when --log-file is not given, or ""
+// when this user has no private directory to write to. os.TempDir() is not an
+// option: every account on the host shares it, and can prepare whatever y509
+// opens there.
+func DefaultLogFile() string {
+	dir, err := os.UserCacheDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, logDirName, logFileName)
+}
+
 // Init initializes the logger with the specified configuration
 func Init(logFile string, debug bool) error {
 	if logFile == "" {
-		logFile = filepath.Join(os.TempDir(), "y509.log")
+		logFile = DefaultLogFile()
+		if logFile == "" {
+			// Nowhere private to log, so log nowhere.
+			Log = zap.NewNop()
+			return nil
+		}
+		if err := os.MkdirAll(filepath.Dir(logFile), logDirPerm); err != nil {
+			return fmt.Errorf("creating the log directory: %w", err)
+		}
 	}
 
 	config := zap.NewProductionConfig()
