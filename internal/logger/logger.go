@@ -11,14 +11,9 @@ import (
 )
 
 const (
-	// logFileName is the basename of the default log file.
 	logFileName = "y509.log"
-	// logDirName is the per-application directory the default log lives in.
-	logDirName = "y509"
-	// logDirPerm keeps the default log directory readable by its owner alone.
-	// The log records which files were opened and which hosts were dialled,
-	// which on a shared machine is nobody else's business.
-	logDirPerm = 0o700
+	logDirName  = "y509"
+	logDirPerm  = 0o700
 )
 
 var (
@@ -26,45 +21,63 @@ var (
 	Log = zap.NewNop()
 )
 
-// DefaultLogFile reports the path Init writes to when --log-file is not given.
+// DefaultLogFile reports where Init writes when --log-file is not given.
 //
-// It deliberately avoids a fixed name directly in os.TempDir(). /tmp is shared
-// and world-writable, so every account on a host would append to the same
-// /tmp/y509.log: interleaved lines, a file whose owner is whoever ran y509
-// first (so the next user's run fails outright), and an obvious place for
-// someone else to pre-plant a symlink that y509 then writes through.
+// A fixed name in os.TempDir() would be one world-writable path shared by every
+// account on the host: interleaved lines, a file owned by whoever ran y509
+// first, and a place to pre-plant a symlink that y509 then writes through.
 func DefaultLogFile() string {
-	// UserCacheDir is per-user by construction: $XDG_CACHE_HOME or ~/.cache on
-	// Linux, ~/Library/Caches on macOS, %LocalAppData% on Windows.
-	if dir, err := os.UserCacheDir(); err == nil {
-		return filepath.Join(dir, logDirName, logFileName)
-	}
-
-	// It only fails when the environment names no home at all -- a daemon, a
-	// stripped cron env. Fall back to os.TempDir(), still scoped so that two
-	// accounts never meet in the same file.
-	return filepath.Join(os.TempDir(), tempLogDirName(), logFileName)
+	path, _ := defaultLogFile()
+	return path
 }
 
-// tempLogDirName names the fallback directory after the current user.
+// defaultLogFile also reports whether the path landed in a directory other
+// users can write to.
+func defaultLogFile() (path string, shared bool) {
+	// $XDG_CACHE_HOME or ~/.cache, ~/Library/Caches, %LocalAppData%.
+	if dir, err := os.UserCacheDir(); err == nil {
+		return filepath.Join(dir, logDirName, logFileName), false
+	}
+	// Only when the environment names no home at all: a daemon, a stripped
+	// cron env. Back in the shared directory, so scope the name to the user.
+	return filepath.Join(os.TempDir(), tempLogDirName(), logFileName), true
+}
+
 func tempLogDirName() string {
-	// Getuid returns -1 on Windows, where TempDir is already per-user.
+	// Getuid is -1 on Windows, where TempDir is already per-user.
 	if uid := os.Getuid(); uid >= 0 {
 		return fmt.Sprintf("%s-%d", logDirName, uid)
 	}
 	return logDirName
 }
 
+// ensureLogDir creates the log directory, readable by its owner alone.
+func ensureLogDir(dir string, shared bool) error {
+	if err := os.MkdirAll(dir, logDirPerm); err != nil {
+		return err
+	}
+	if !shared {
+		return nil
+	}
+	// MkdirAll is content with a symlink that is already in place. In the
+	// user's own cache directory that link can only be their own doing, but in
+	// the shared one it can be anybody's, pointing anywhere.
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a directory", dir)
+	}
+	return nil
+}
+
 // Init initializes the logger with the specified configuration
 func Init(logFile string, debug bool) error {
 	if logFile == "" {
-		logFile = DefaultLogFile()
-
-		// The default path lives in a directory y509 owns and may have to
-		// create. 0700 is the part that matters: it is what keeps the other
-		// accounts on the host out of the log, and what stops them from
-		// planting the file before this process gets there.
-		if err := os.MkdirAll(filepath.Dir(logFile), logDirPerm); err != nil {
+		var shared bool
+		logFile, shared = defaultLogFile()
+		if err := ensureLogDir(filepath.Dir(logFile), shared); err != nil {
 			return fmt.Errorf("creating the log directory: %w", err)
 		}
 	}

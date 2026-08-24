@@ -74,13 +74,20 @@ func TestInitWithoutDebugDropsDebugLines(t *testing.T) {
 	}
 }
 
-// privateCacheDir points the user cache directory at a scratch directory, so a
-// test exercising the default log path never touches the real one.
-func privateCacheDir(t *testing.T) string {
+// skipOnWindows skips tests that drive os.UserCacheDir through $HOME, which
+// Windows does not read.
+func skipOnWindows(t *testing.T) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
-		t.Skip("the cache directory is resolved from %LocalAppData% on Windows")
+		t.Skip("os.UserCacheDir() reads %LocalAppData% on Windows")
 	}
+}
+
+// privateCacheDir points the user cache directory at a scratch directory, so a
+// test of the default log path never touches the real one.
+func privateCacheDir(t *testing.T) string {
+	t.Helper()
+	skipOnWindows(t)
 
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -103,21 +110,17 @@ func TestDefaultLogFileIsUnderTheUserCacheDir(t *testing.T) {
 }
 
 func TestDefaultLogFileIsNotSharedInTempDir(t *testing.T) {
-	// No home of any kind, so the cache directory cannot be resolved and the
-	// fallback kicks in. It may live in os.TempDir(), but never as a fixed name
-	// straight in it -- that is the collision the fallback exists to avoid.
-	if runtime.GOOS == "windows" {
-		t.Skip("os.UserCacheDir() reads %LocalAppData% on Windows, not $HOME")
-	}
+	// No home of any kind, so the fallback answers instead.
+	skipOnWindows(t)
 	t.Setenv("HOME", "")
 	t.Setenv("XDG_CACHE_HOME", "")
 
 	got := DefaultLogFile()
 	if dir := filepath.Dir(got); dir == os.TempDir() {
-		t.Errorf("DefaultLogFile() = %q, which is a fixed name in the shared %s", got, os.TempDir())
+		t.Errorf("DefaultLogFile() = %q, a fixed name in the shared %s", got, os.TempDir())
 	}
 	if want := fmt.Sprintf("y509-%d", os.Getuid()); filepath.Base(filepath.Dir(got)) != want {
-		t.Errorf("DefaultLogFile() = %q, want the parent directory scoped to the user as %q", got, want)
+		t.Errorf("DefaultLogFile() = %q, want a parent directory scoped to the user as %q", got, want)
 	}
 }
 
@@ -142,6 +145,53 @@ func TestInitDefaultsToAPrivateUserDirectory(t *testing.T) {
 	}
 	if perm := info.Mode().Perm(); perm != 0o700 {
 		t.Errorf("log directory mode = %#o, want %#o so no other user can read it", perm, 0o700)
+	}
+}
+
+func TestInitRefusesASymlinkPlantedInTheSharedDirectory(t *testing.T) {
+	restoreLog(t)
+	skipOnWindows(t)
+	elsewhere := t.TempDir()
+
+	// No home, so the log falls back to the shared directory -- where another
+	// user can get there first with a link pointing at a file of their choice.
+	t.Setenv("HOME", "")
+	t.Setenv("XDG_CACHE_HOME", "")
+	t.Setenv("TMPDIR", t.TempDir())
+	if err := os.Symlink(elsewhere, filepath.Dir(DefaultLogFile())); err != nil {
+		t.Fatalf("seeding the symlink: %v", err)
+	}
+
+	if err := Init("", false); err == nil {
+		t.Error("Init() returned nil for a log directory that is a symlink")
+	}
+	if _, err := os.Stat(filepath.Join(elsewhere, "y509.log")); err == nil {
+		t.Errorf("Init() wrote through the symlink into %s", elsewhere)
+	}
+}
+
+func TestInitAllowsASymlinkedCacheDirectory(t *testing.T) {
+	restoreLog(t)
+	cache := privateCacheDir(t)
+
+	// Only the user can plant this one, and pointing a cache directory at
+	// another disk is a thing people do on purpose.
+	elsewhere := t.TempDir()
+	if err := os.MkdirAll(cache, 0o700); err != nil {
+		t.Fatalf("seeding the cache directory: %v", err)
+	}
+	if err := os.Symlink(elsewhere, filepath.Join(cache, "y509")); err != nil {
+		t.Fatalf("seeding the symlink: %v", err)
+	}
+
+	if err := Init("", false); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	Log.Info("through the link")
+	_ = Log.Sync()
+
+	if _, err := os.Stat(filepath.Join(elsewhere, "y509.log")); err != nil {
+		t.Errorf("expected the log at the far end of the link: %v", err)
 	}
 }
 
