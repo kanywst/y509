@@ -1,8 +1,10 @@
 package logger
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -72,12 +74,56 @@ func TestInitWithoutDebugDropsDebugLines(t *testing.T) {
 	}
 }
 
-func TestInitDefaultsToTempDir(t *testing.T) {
+// privateCacheDir points the user cache directory at a scratch directory, so a
+// test exercising the default log path never touches the real one.
+func privateCacheDir(t *testing.T) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the cache directory is resolved from %LocalAppData% on Windows")
+	}
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
+
+	dir, err := os.UserCacheDir()
+	if err != nil {
+		t.Fatalf("os.UserCacheDir() error = %v", err)
+	}
+	return dir
+}
+
+func TestDefaultLogFileIsUnderTheUserCacheDir(t *testing.T) {
+	cache := privateCacheDir(t)
+
+	want := filepath.Join(cache, "y509", "y509.log")
+	if got := DefaultLogFile(); got != want {
+		t.Errorf("DefaultLogFile() = %q, want %q", got, want)
+	}
+}
+
+func TestDefaultLogFileIsNotSharedInTempDir(t *testing.T) {
+	// No home of any kind, so the cache directory cannot be resolved and the
+	// fallback kicks in. It may live in os.TempDir(), but never as a fixed name
+	// straight in it -- that is the collision the fallback exists to avoid.
+	if runtime.GOOS == "windows" {
+		t.Skip("os.UserCacheDir() reads %LocalAppData% on Windows, not $HOME")
+	}
+	t.Setenv("HOME", "")
+	t.Setenv("XDG_CACHE_HOME", "")
+
+	got := DefaultLogFile()
+	if dir := filepath.Dir(got); dir == os.TempDir() {
+		t.Errorf("DefaultLogFile() = %q, which is a fixed name in the shared %s", got, os.TempDir())
+	}
+	if want := fmt.Sprintf("y509-%d", os.Getuid()); filepath.Base(filepath.Dir(got)) != want {
+		t.Errorf("DefaultLogFile() = %q, want the parent directory scoped to the user as %q", got, want)
+	}
+}
+
+func TestInitDefaultsToAPrivateUserDirectory(t *testing.T) {
 	restoreLog(t)
-	// The default path is shared with any other y509 on the machine, so point
-	// TMPDIR somewhere private for the duration of the test.
-	tmp := t.TempDir()
-	t.Setenv("TMPDIR", tmp)
+	privateCacheDir(t)
 
 	if err := Init("", false); err != nil {
 		t.Fatalf("Init() error = %v", err)
@@ -85,8 +131,17 @@ func TestInitDefaultsToTempDir(t *testing.T) {
 	Log.Info("default path")
 	_ = Log.Sync()
 
-	if _, err := os.Stat(filepath.Join(os.TempDir(), "y509.log")); err != nil {
-		t.Errorf("expected y509.log in %s: %v", os.TempDir(), err)
+	logFile := DefaultLogFile()
+	if _, err := os.Stat(logFile); err != nil {
+		t.Fatalf("expected the log at %s: %v", logFile, err)
+	}
+
+	info, err := os.Stat(filepath.Dir(logFile))
+	if err != nil {
+		t.Fatalf("stat of the log directory: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o700 {
+		t.Errorf("log directory mode = %#o, want %#o so no other user can read it", perm, 0o700)
 	}
 }
 

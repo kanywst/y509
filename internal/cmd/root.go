@@ -80,7 +80,8 @@ func Execute() {
 func init() {
 	// Add flags
 	RootCmd.PersistentFlags().StringP("input", "i", "", "Input file containing certificates (default: stdin)")
-	RootCmd.PersistentFlags().String("log-file", "", "Path to the log file")
+	RootCmd.PersistentFlags().String("log-file", "",
+		"Path to the log file (default "+logger.DefaultLogFile()+")")
 	RootCmd.PersistentFlags().Bool("debug", false, "Enable debug logging")
 
 	// Persistent, so `validate` and `export` can read from a live server too.
