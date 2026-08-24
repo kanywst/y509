@@ -21,63 +21,28 @@ var (
 	Log = zap.NewNop()
 )
 
-// DefaultLogFile reports where Init writes when --log-file is not given.
-//
-// A fixed name in os.TempDir() would be one world-writable path shared by every
-// account on the host: interleaved lines, a file owned by whoever ran y509
-// first, and a place to pre-plant a symlink that y509 then writes through.
+// DefaultLogFile reports where Init writes when --log-file is not given, or ""
+// when this user has no private directory to write to. os.TempDir() is not an
+// option: every account on the host shares it, and can prepare whatever y509
+// opens there.
 func DefaultLogFile() string {
-	path, _ := defaultLogFile()
-	return path
-}
-
-// defaultLogFile also reports whether the path landed in a directory other
-// users can write to.
-func defaultLogFile() (path string, shared bool) {
-	// $XDG_CACHE_HOME or ~/.cache, ~/Library/Caches, %LocalAppData%.
-	if dir, err := os.UserCacheDir(); err == nil {
-		return filepath.Join(dir, logDirName, logFileName), false
-	}
-	// Only when the environment names no home at all: a daemon, a stripped
-	// cron env. Back in the shared directory, so scope the name to the user.
-	return filepath.Join(os.TempDir(), tempLogDirName(), logFileName), true
-}
-
-func tempLogDirName() string {
-	// Getuid is -1 on Windows, where TempDir is already per-user.
-	if uid := os.Getuid(); uid >= 0 {
-		return fmt.Sprintf("%s-%d", logDirName, uid)
-	}
-	return logDirName
-}
-
-// ensureLogDir creates the log directory, readable by its owner alone.
-func ensureLogDir(dir string, shared bool) error {
-	if err := os.MkdirAll(dir, logDirPerm); err != nil {
-		return err
-	}
-	if !shared {
-		return nil
-	}
-	// MkdirAll is content with a symlink that is already in place. In the
-	// user's own cache directory that link can only be their own doing, but in
-	// the shared one it can be anybody's, pointing anywhere.
-	info, err := os.Lstat(dir)
+	dir, err := os.UserCacheDir()
 	if err != nil {
-		return err
+		return ""
 	}
-	if !info.IsDir() {
-		return fmt.Errorf("%s is not a directory", dir)
-	}
-	return nil
+	return filepath.Join(dir, logDirName, logFileName)
 }
 
 // Init initializes the logger with the specified configuration
 func Init(logFile string, debug bool) error {
 	if logFile == "" {
-		var shared bool
-		logFile, shared = defaultLogFile()
-		if err := ensureLogDir(filepath.Dir(logFile), shared); err != nil {
+		logFile = DefaultLogFile()
+		if logFile == "" {
+			// Nowhere private to log, so log nowhere.
+			Log = zap.NewNop()
+			return nil
+		}
+		if err := os.MkdirAll(filepath.Dir(logFile), logDirPerm); err != nil {
 			return fmt.Errorf("creating the log directory: %w", err)
 		}
 	}

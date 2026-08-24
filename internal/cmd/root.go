@@ -80,8 +80,7 @@ func Execute() {
 func init() {
 	// Add flags
 	RootCmd.PersistentFlags().StringP("input", "i", "", "Input file containing certificates (default: stdin)")
-	RootCmd.PersistentFlags().String("log-file", "",
-		"Path to the log file (default "+logger.DefaultLogFile()+")")
+	RootCmd.PersistentFlags().String("log-file", "", logFileUsage())
 	RootCmd.PersistentFlags().Bool("debug", false, "Enable debug logging")
 
 	// Persistent, so `validate` and `export` can read from a live server too.
@@ -126,6 +125,13 @@ func init() {
 
 		return nil
 	}
+}
+
+func logFileUsage() string {
+	if def := logger.DefaultLogFile(); def != "" {
+		return "Path to the log file (default " + def + ")"
+	}
+	return "Path to the log file (no default without a user cache directory)"
 }
 
 // input is where a command's certificates came from.
