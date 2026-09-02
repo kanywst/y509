@@ -4,7 +4,9 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Built with Bubble Tea](https://img.shields.io/badge/Built%20with-Bubble%20Tea-B7A0E8.svg)](https://github.com/charmbracelet/bubbletea)
 
-A TUI for analyzing and validating X.509 certificate chains. Built on the [Charm](https://charm.sh) v2 stack — [Bubble Tea](https://charm.land/bubbletea/v2), [Lip Gloss](https://charm.land/lipgloss/v2), [Bubbles](https://charm.land/bubbles/v2), and [huh](https://charm.land/huh/v2).
+A TUI for X.509 certificate chains. It verifies a chain against the system trust store, and — separately — reports how the chain was actually *served*: the missing intermediate, the redundant root, the wrong order. That second question is the one behind "works in the browser, breaks in `curl`", and the one `openssl s_client` leaves you to answer by eye.
+
+Built on the [Charm](https://charm.sh) v2 stack — [Bubble Tea](https://charm.land/bubbletea/v2), [Lip Gloss](https://charm.land/lipgloss/v2), [Bubbles](https://charm.land/bubbles/v2), and [huh](https://charm.land/huh/v2).
 
 ![y509 Demo](demo.gif?v=2)
 
@@ -14,6 +16,9 @@ A TUI for analyzing and validating X.509 certificate chains. Built on the [Charm
 # Homebrew (macOS)
 brew install kanywst/tap/y509
 
+# FreeBSD
+pkg install y509
+
 # Go 1.26+
 go install github.com/kanywst/y509/cmd/y509@latest
 ```
@@ -21,6 +26,11 @@ go install github.com/kanywst/y509/cmd/y509@latest
 Every [release](https://github.com/kanywst/y509/releases) attaches binaries for
 macOS and Linux, plus `.deb` and `.rpm` packages for Linux, with checksums,
 cosign signatures and an SBOM.
+
+On FreeBSD, y509 is [`security/y509`](https://www.freshports.org/security/y509/)
+in the ports tree, packaged and maintained there rather than here. Until the
+binary package reaches your repository, build it with
+`make -C /usr/ports/security/y509 install clean`.
 
 ## Usage
 
