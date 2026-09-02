@@ -1,89 +1,188 @@
-.TH Y509 1 "June 2025" "y509 manual" "User Commands"
+.TH Y509 1 "2026-09-03" "y509 manual" "User Commands"
 .SH NAME
-y509 \- Certificate Chain TUI Viewer
+y509 \- inspect and validate X.509 certificate chains
 .SH SYNOPSIS
 .B y509
-[\fIOPTIONS\fR] [\fIFILE\fR]
+[\fIOPTIONS\fR] [\fIFILE\fR | \fIHOST\fR:\fIPORT\fR]
+.br
+.B y509 validate
+[\fIOPTIONS\fR] [\fIFILE\fR | \fIHOST\fR:\fIPORT\fR]
+.br
+.B y509 export
+[\fIINDEX\fR] [\fIFORMAT\fR] [\fIFILENAME\fR]
+.br
+.B y509 completion
+\fISHELL\fR
+.br
+.B y509 version
 .SH DESCRIPTION
 .B y509
-is a terminal-based (TUI) certificate chain viewer written in Go. It provides an
-interactive way to examine and validate X.509 certificate chains with a user-friendly
-interface that adapts to the terminal size.
+opens a certificate chain in a terminal UI. The chain can come from a PEM or DER
+file, from standard input, or from a live server, including one behind STARTTLS.
+.PP
+An argument that names an existing file is always read as a file. Anything else
+is treated as an address; pass
+.B \-\-connect
+to force that reading.
+.PP
+The interactive handshake deliberately verifies nothing, because a chain that
+fails to verify is usually the reason you came. Certificates are listed in the
+order the server sent them, which is not necessarily a valid chain.
+.B y509 validate
+is the entry point that verifies.
+.SH COMMANDS
+.TP
+.B validate
+Verify the chain against the system trust store and exit non-zero on anything a
+TLS client would reject. Reports separately on how the chain was
+.I served
+\(em a missing intermediate, a redundant root, certificates sent out of order,
+duplicates and strangers in the bundle \(em because a chain can verify in a
+browser and still be rejected by curl, Go or Java, which do not chase the AIA
+URL to fetch a missing intermediate.
+.TP
+.B export
+Write a certificate to a file. \fIFORMAT\fR is \fBpem\fR, \fBder\fR, \fBcrt\fR
+or \fBcert\fR; \fBcrt\fR and \fBcert\fR are written as PEM. Defaults to the
+selected certificate, \fBpem\fR, and a generated filename.
+.TP
+.B completion
+Write a shell completion script for \fBbash\fR, \fBzsh\fR, \fBfish\fR or
+\fBpowershell\fR to standard output.
+.TP
+.B version
+Print the version, and the commit and build date when the binary was stamped
+with them.
 .SH OPTIONS
+These apply to every command.
+.TP
+.BI \-\-connect " HOST[:PORT]"
+Fetch the chain from a live server rather than a file.
+.TP
+.BI \-i ", " \-\-input " FILE"
+Read certificates from \fIFILE\fR instead of standard input.
+.TP
+.BI \-\-servername " NAME"
+SNI server name to send. Defaults to the host being connected to.
+.TP
+.BI \-\-starttls " PROTOCOL"
+Upgrade a plaintext protocol before the handshake. One of \fBsmtp\fR, \fBimap\fR
+or \fBpostgres\fR.
+.TP
+.BI \-\-timeout " DURATION"
+Timeout for a live connection. Default 10s.
+.TP
+.BI \-\-log\-file " PATH"
+Write the log to \fIPATH\fR. Without it the log goes to the default destination
+described under FILES, and if that cannot be created, nowhere.
+.TP
+.B \-\-debug
+Enable debug logging.
 .TP
 .BR \-h ", " \-\-help
-Show help message and exit.
+Show help and exit.
 .TP
 .BR \-v ", " \-\-version
 Show version information and exit.
+.SH VALIDATE OPTIONS
+.TP
+.BI \-\-host " NAME"
+Also check that the leaf is valid for \fINAME\fR.
+.TP
+.BI \-\-roots " FILE"
+PEM file of additional trust anchors.
+.TP
+.B \-\-no\-system\-roots
+Do not trust the system store; use only the anchors given by \fB\-\-roots\fR.
+.TP
+.B \-\-json
+Emit the result as JSON on standard output instead of the text report. The text
+report is replaced rather than added to, and the failure message goes to
+standard error, so the stream parses even when the check fails.
+.SH EXIT STATUS
+.B y509 validate
+exits
+.B 0
+when the chain verifies against the trust anchors, and
+.B 1
+when it does not: either self-anchored, meaning it links up but terminates at a
+root that is not trusted, or broken, meaning it does not link up at all. The
+exit status is unchanged by
+.BR \-\-json .
+.SH KEY BINDINGS
+.TP
+.B \(ua/k, \(da/j
+Move through the certificate list, or scroll the details pane.
+.TP
+.B \(<-/h, \(->/l
+Focus the list or the details pane.
+.TP
+.B tab
+Cycle the detail tabs.
+.TP
+.B /
+Search by common name, organisation, DNS name or issuer.
+.TP
+.B f
+Filter by expired, expiring, valid or self-signed.
+.TP
+.B v
+Validate the chain.
+.TP
+.B e
+Export the selected certificate.
+.TP
+.B y
+Copy the selected certificate as PEM to the terminal clipboard (OSC 52).
+.TP
+.B esc
+Clear the filter, or close a popup.
+.TP
+.B ?
+Show the full key binding help.
+.TP
+.BR q ", " Ctrl\-C
+Quit.
+.SH FILES
+.TP
+.I .y509.yaml
+Configuration, searched for in the home directory and the working directory. It
+sets the colour theme and the number of days before expiry at which a
+certificate is flagged as expiring.
+.TP
+.I ~/.cache/y509/y509.log
+Default log destination, in a directory created with mode 0700. The exact
+location follows the platform user cache directory. When it cannot be created,
+y509 logs nowhere rather than failing.
 .SH EXAMPLES
 .TP
-View certificates from a file:
-.B y509 certificate.pem
+Open a chain from a file:
+.B y509 chain.pem
 .TP
-Read certificates from stdin:
-.B cat certificate.pem | y509
-.SH INTERACTIVE COMMANDS
-Once y509 is running, the following commands are available:
+Open the chain a server presents:
+.B y509 example.com:443
 .TP
-.B Navigation
-.RS
+Inspect a chain behind STARTTLS:
+.B y509 smtp.example.com:587 \-\-starttls smtp
 .TP
-\fB↑/↓\fR or \fBj/k\fR
-Navigate certificates (left pane) / Scroll details (right pane)
+Read from a pipe:
+.B openssl s_client \-connect example.com:443 \-showcerts | y509
 .TP
-\fB←/→\fR or \fBh/l\fR
-Switch between panes
+Gate CI on a chain that verifies:
+.B y509 validate example.com:443
 .TP
-\fBTab\fR
-Switch between panes
-.RE
+Fail the build on a chain that verifies but is mis-served:
+.B y509 validate example.com:443 \-\-json | jq \-e '.presentation.ok'
 .TP
-.B Command Mode (press :)
-.RS
-.TP
-\fBsubject\fR, \fBs\fR
-Show certificate subject
-.TP
-\fBissuer\fR, \fBi\fR
-Show certificate issuer
-.TP
-\fBvalidity\fR, \fBv\fR
-Show validity period
-.TP
-\fBsan\fR
-Show Subject Alternative Names
-.TP
-\fBfingerprint\fR, \fBfp\fR
-Show SHA256 fingerprint
-.TP
-\fBserial\fR
-Show serial number
-.TP
-\fBpubkey\fR, \fBpk\fR
-Show public key info
-.TP
-\fBvalidate\fR, \fBval\fR
-Validate certificate chain
-.TP
-\fBsearch\fR <query>
-Search certificates by CN, org, DNS, issuer
-.TP
-\fBfilter\fR expired|expiring|valid|self\-signed
-Filter certificates
-.TP
-\fBreset\fR
-Reset search/filter
-.TP
-\fBhelp\fR, \fBh\fR
-Show help
-.TP
-\fBquit\fR, \fBq\fR
-Quit application
-.RE
+Verify against an internal CA:
+.B y509 validate chain.pem \-\-roots internal\-ca.pem
 .SH AUTHOR
-Written by kanywst
+Written by kanywst.
 .SH REPORTING BUGS
-Report bugs to: https://github.com/kanywst/y509/issues
+Report bugs at https://github.com/kanywst/y509/issues.
+.PP
+Report suspected vulnerabilities privately through GitHub Security Advisories
+rather than a public issue. See the security policy at
+https://github.com/kanywst/y509/security/policy.
 .SH COPYRIGHT
-Copyright © 2023-2025 kanywst. License MIT.
+Copyright \(co 2025 y509. Licensed under the Apache License, Version 2.0.
