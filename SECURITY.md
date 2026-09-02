@@ -1,6 +1,6 @@
 # Security Policy
 
-y509 reads X.509 certificates from files, from stdin, and from whatever a remote server chooses to send during a TLS handshake. All of that is untrusted input, and `y509 validate` is meant to gate CI. Bugs in either of those are worth reporting privately.
+y509 reads X.509 certificates from files, from stdin, and from whatever a remote server chooses to send during a TLS handshake. All of that is untrusted input, and `y509 validate` is built to gate CI on its exit code.
 
 ## Supported versions
 
@@ -15,7 +15,7 @@ Fixes ship as a new release. There are no backport branches.
 
 Report privately through GitHub: **[open a draft advisory](https://github.com/kanywst/y509/security/advisories/new)**. That is the only channel; please do not open a public issue for a suspected vulnerability.
 
-Useful things to include, if you have them:
+Please include what you have of:
 
 - The version (`y509 version`) and the OS
 - The certificate, chain, or host that triggers it — a minimal PEM is ideal
