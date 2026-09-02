@@ -33,9 +33,16 @@ func DefaultLogFile() string {
 	return filepath.Join(dir, logDirName, logFileName)
 }
 
-// Init initializes the logger with the specified configuration
+// Init initializes the logger with the specified configuration.
+//
+// A --log-file the caller named is opened or the error is returned: they asked
+// for that file, so silently not writing it would be worse than failing. The
+// default destination is best-effort. A read-only or absent HOME is ordinary in
+// containers, in CI and inside distribution build sandboxes, and logging is a
+// side channel there -- losing it must not take the command down with it.
 func Init(logFile string, debug bool) error {
-	if logFile == "" {
+	requested := logFile != ""
+	if !requested {
 		logFile = DefaultLogFile()
 		if logFile == "" {
 			// Nowhere private to log, so log nowhere.
@@ -43,7 +50,8 @@ func Init(logFile string, debug bool) error {
 			return nil
 		}
 		if err := os.MkdirAll(filepath.Dir(logFile), logDirPerm); err != nil {
-			return fmt.Errorf("creating the log directory: %w", err)
+			Log = zap.NewNop()
+			return nil
 		}
 	}
 
@@ -55,11 +63,17 @@ func Init(logFile string, debug bool) error {
 	config.OutputPaths = []string{logFile}
 	config.ErrorOutputPaths = []string{logFile}
 
-	var err error
-	Log, err = config.Build()
+	// Build returns a nil logger alongside the error, so assign through a local
+	// rather than leaving Log nil for a caller that carries on.
+	built, err := config.Build()
 	if err != nil {
-		return err
+		if !requested {
+			Log = zap.NewNop()
+			return nil
+		}
+		return fmt.Errorf("opening the log file: %w", err)
 	}
+	Log = built
 
 	return nil
 }

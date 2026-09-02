@@ -156,6 +156,32 @@ func TestInitDefaultsToAPrivateUserDirectory(t *testing.T) {
 	}
 }
 
+// A container, a CI runner or a distribution build sandbox can hand y509 a HOME
+// it cannot write to. Logging is a side channel there, so the whole command
+// must not exit: PersistentPreRun turns any error from Init into os.Exit(1),
+// which took down every subcommand, --help and completion included.
+func TestInitSurvivesAnUncreatableDefaultDirectory(t *testing.T) {
+	restoreLog(t)
+	skipOnWindows(t)
+
+	// A cache directory whose parent is a regular file can never be created.
+	blocked := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(blocked, []byte("x"), 0o600); err != nil {
+		t.Fatalf("seeding the file: %v", err)
+	}
+	t.Setenv("HOME", blocked)
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(blocked, ".cache"))
+
+	if err := Init("", false); err != nil {
+		t.Fatalf("Init() error = %v, want nil so the command still runs", err)
+	}
+	if Log == nil {
+		t.Fatal("Init() left Log nil, so the first log line panics")
+	}
+	Log.Info("nowhere to go")
+	_ = Log.Sync()
+}
+
 func TestInitReturnsErrorForUnwritablePath(t *testing.T) {
 	restoreLog(t)
 	// A path whose parent is a regular file can never be opened for writing.
