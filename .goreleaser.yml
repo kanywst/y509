@@ -11,6 +11,7 @@ builds:
     goos:
       - darwin
       - linux
+      - windows
     goarch:
       - amd64
       - arm64
@@ -20,6 +21,13 @@ builds:
 archives:
   - formats:
       - tar.gz
+    # Windows has no tar in the box before Windows 10 1803, and every Windows
+    # packaging tool (Scoop, WinGet) expects a zip. Shipping a .tar.gz there
+    # makes the download the hardest step of the install.
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
     name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
     files:
       - LICENSE
