@@ -156,6 +156,59 @@ y509 validate example.com:443 --json | jq '.chain[0].daysUntilExpiry < 30'
 sorting is what destroys the evidence `presentation` reports on. `level` and
 `problem` are strings, and `findings` is always an array, never `null`.
 
+### GitHub Actions
+
+The same check as a step. It downloads a release binary, verifies its checksum,
+and fails the job on whichever findings you name:
+
+```yaml
+- uses: kanywst/y509@v1
+  with:
+    target: example.com:443
+    fail-on: untrusted,mis-served,expiring
+    expiry-days: 30
+```
+
+The interesting gate is `mis-served`, which catches the chain that *verifies*
+and is still broken for `curl`, Go and Java. Nothing else in a normal CI run
+looks for it, because the exit code of every other tool says the chain is fine.
+
+| Input | Default | |
+| :--- | :--- | :--- |
+| `target` | — | host, `host:port`, or a PEM/DER path in the workspace |
+| `version` | `latest` | a release tag; pin it for a reproducible check |
+| `fail-on` | `untrusted,mis-served` | any of `untrusted`, `mis-served`, `expiring`, or `none` |
+| `expiry-days` | `30` | threshold for `expiring` |
+| `starttls` | — | `smtp`, `imap`, `ftp`, `ldap`, `mysql`, `postgres` |
+| `servername` | — | SNI name, when it differs from the host dialled |
+| `roots` | — | PEM file of extra trust anchors, for an internal PKI |
+| `no-system-roots` | `false` | trust only `roots` |
+| `summary` | `true` | write a report to the job summary |
+
+Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`,
+`problems`, and `report` (a path to the full JSON).
+
+Anything not listed under `fail-on` is still reported, as a warning rather than
+an error, so `fail-on: none` turns the step into a monitor:
+
+```yaml
+on:
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  certificates:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        host: [www.example.com, api.example.com, smtp.example.com:587]
+    steps:
+      - uses: kanywst/y509@v1
+        with:
+          target: ${{ matrix.host }}
+          fail-on: untrusted,mis-served,expiring
+```
+
 ## Keybindings
 
 |     Key     | Action                                         |
