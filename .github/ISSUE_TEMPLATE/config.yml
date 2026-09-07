@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/kanywst/y509/security/advisories/new
+    about: Report privately through a draft advisory, never a public issue.
+  - name: Question or idea
+    url: https://github.com/kanywst/y509/discussions
+    about: For anything that is not yet a bug or a concrete request.

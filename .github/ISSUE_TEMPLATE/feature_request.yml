@@ -1,0 +1,28 @@
+name: Feature request
+description: Something y509 should be able to do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >-
+        What were you trying to find out about a certificate when you hit this?
+        The situation matters more than the feature — it is usually what decides
+        whether the right answer is the one you had in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: If you have a shape for it, describe it. If not, leave this blank.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: How you handle it today
+      description: >-
+        The openssl incantation, the other tool, the manual step. Knowing what
+        it replaces is the clearest measure of whether it is worth adding.
