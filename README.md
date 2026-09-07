@@ -47,11 +47,14 @@ cat chain.pem | y509                      # stdin
 y509 example.com:443
 y509 --connect 10.0.0.1:8443 --servername api.internal
 y509 db.example.com:5432 --starttls postgres
+y509 ldap.example.com:389 --starttls ldap
+y509 db.example.com:3306 --starttls mysql
 ```
 
 An argument naming an existing file is always read as a file; anything else is
 treated as an address. Pass `--connect` to force it. `--starttls` understands
-`smtp`, `imap` and `postgres`.
+`smtp`, `imap`, `ftp`, `ldap`, `mysql` and `postgres` (`mariadb` and
+`postgresql` are accepted as aliases).
 
 The handshake deliberately verifies nothing, because a chain that fails to
 verify is usually the reason you came. Certificates come back **in the order the
