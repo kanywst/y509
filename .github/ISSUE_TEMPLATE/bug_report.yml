@@ -1,0 +1,69 @@
+name: Bug report
+description: Something y509 got wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        For a suspected vulnerability, do not use this form — open a
+        [private advisory](https://github.com/kanywst/y509/security/advisories/new)
+        instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: The command
+      description: The exact command line, and its output.
+      render: text
+      placeholder: |
+        $ y509 validate example.com:443
+        ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: chain
+    attributes:
+      label: The chain
+      description: >-
+        The certificate or chain that triggers it, which is worth more than a
+        description of it — `y509 export` will write one out. A chain a public
+        server presents is public data, so it is normally safe to paste. If it
+        is from an internal PKI and you would rather not, say what shape it is
+        instead: how many certificates, which one is missing, what the issuers
+        look like.
+      render: text
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The output of `y509 version`.
+      placeholder: "v1.0.4"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS and terminal
+      placeholder: "macOS 15.5, Ghostty 1.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: >-
+        Optional, and often decisive for anything involving a live connection:
+        `y509 --debug --log-file ./y509.log ...` and paste what it wrote.
+      render: text
