@@ -505,7 +505,10 @@ func readBERElement(reader *bufio.Reader) (berElement, error) {
 			length = length<<8 | int(b)
 		}
 	}
-	if length > maxBERLength {
+	// The comparison is signed: a four-octet length such as 0xffffffff wraps to
+	// -1 where int is 32 bits, slips past an upper bound on its own, and panics
+	// in make below.
+	if length < 0 || length > maxBERLength {
 		return berElement{}, fmt.Errorf("BER element of %d bytes is implausibly large", length)
 	}
 
@@ -536,7 +539,7 @@ func parseBERElement(buf []byte) (berElement, []byte, error) {
 		}
 		rest = rest[count:]
 	}
-	if length > len(rest) {
+	if length < 0 || length > len(rest) {
 		return berElement{}, nil, fmt.Errorf("element claims %d bytes, %d remain", length, len(rest))
 	}
 	return berElement{tag: tag, value: rest[:length]}, rest[length:], nil
@@ -585,6 +588,11 @@ func startTLSMySQL(conn net.Conn) error {
 	return nil
 }
 
+// maxMySQLGreeting caps what readMySQLPacket will allocate. A real initial
+// handshake is a couple of hundred bytes; the header alone can ask for 16 MiB,
+// and the allocation would happen before a single byte of it arrived.
+const maxMySQLGreeting = 64 << 10
+
 // readMySQLPacket reads one packet and returns its payload and sequence id.
 // Every MySQL packet is a three byte little-endian length, a sequence byte,
 // and that many bytes of payload.
@@ -594,6 +602,9 @@ func readMySQLPacket(reader *bufio.Reader) (payload []byte, sequence byte, err e
 		return nil, 0, err
 	}
 	length := int(header[0]) | int(header[1])<<8 | int(header[2])<<16
+	if length > maxMySQLGreeting {
+		return nil, 0, fmt.Errorf("greeting of %d bytes is implausibly large", length)
+	}
 
 	payload = make([]byte, length)
 	if _, err := io.ReadFull(reader, payload); err != nil {

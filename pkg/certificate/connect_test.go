@@ -789,3 +789,53 @@ func TestStartTLSMySQL(t *testing.T) {
 		})
 	}
 }
+
+// TestReadMySQLPacket_RejectsHugeLength checks that the length header alone
+// cannot dictate an allocation. A hostile server can claim the 16 MiB maximum
+// in four bytes and then send nothing.
+func TestReadMySQLPacket_RejectsHugeLength(t *testing.T) {
+	client, server := net.Pipe()
+	t.Cleanup(func() { _ = client.Close() })
+
+	go func() {
+		defer func() { _ = server.Close() }()
+		// Length 0xffffff, sequence 0, and no payload behind it.
+		_, _ = server.Write([]byte{0xff, 0xff, 0xff, 0})
+	}()
+
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := readMySQLPacket(bufio.NewReader(client))
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("expected the oversized length to be refused")
+		}
+		if !strings.Contains(err.Error(), "implausibly large") {
+			t.Errorf("expected a size complaint, got: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("readMySQLPacket hung, or waited for 16 MiB that never came")
+	}
+}
+
+// TestParseBERElement_RejectsOversizedLength feeds the largest four-octet
+// length a server can claim.
+//
+// Where int is 64 bits, as on every platform this is built for, 0xffffffff is
+// simply larger than the buffer and the size check catches it. Where int is 32
+// bits it wraps to -1, slips past that check, and panics at the slice; the
+// signed guard in parseBERElement is what stops that, and this test cannot
+// reach it on a 64-bit host. It is here so the input stays covered either way.
+func TestParseBERElement_RejectsOversizedLength(t *testing.T) {
+	// Tag, long form announcing four length octets, then 0xffffffff.
+	buf := []byte{0x04, 0x84, 0xff, 0xff, 0xff, 0xff, 0x00}
+
+	_, _, err := parseBERElement(buf)
+	if err == nil {
+		t.Fatal("expected a length of 0xffffffff to be refused")
+	}
+}
