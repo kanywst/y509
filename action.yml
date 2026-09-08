@@ -140,18 +140,34 @@ runs:
         )
 
         if [ "$archive" = "zip" ]; then
-          unzip -q -o "${workdir}/${asset}" -d "$workdir"
+          # Git Bash on the Windows runners does not always carry unzip, but
+          # the bsdtar shipped with Windows reads a zip perfectly well.
+          if command -v unzip >/dev/null 2>&1; then
+            unzip -q -o "${workdir}/${asset}" -d "$workdir"
+          else
+            tar -xf "${workdir}/${asset}" -C "$workdir"
+          fi
         else
           tar -xzf "${workdir}/${asset}" -C "$workdir"
         fi
 
-        install -d "${RUNNER_TEMP}/y509-bin"
+        mkdir -p "${RUNNER_TEMP}/y509-bin"
         if [ "$os" = "windows" ]; then
-          mv "${workdir}/y509.exe" "${RUNNER_TEMP}/y509-bin/y509.exe"
+          binary="${RUNNER_TEMP}/y509-bin/y509.exe"
+          mv "${workdir}/y509.exe" "$binary"
         else
-          mv "${workdir}/y509" "${RUNNER_TEMP}/y509-bin/y509"
-          chmod +x "${RUNNER_TEMP}/y509-bin/y509"
+          binary="${RUNNER_TEMP}/y509-bin/y509"
+          mv "${workdir}/y509" "$binary"
+          chmod +x "$binary"
         fi
+
+        # The next step runs the binary by this absolute path rather than by
+        # name. GITHUB_PATH is exported as well, so a caller's own later steps
+        # can just say "y509", but the action itself does not depend on that
+        # having taken effect: a PATH that has not been rebuilt yet turns into a
+        # "command not found" whose message lands in a redirect and is never
+        # seen again.
+        echo "Y509_BIN=$binary" >> "$GITHUB_ENV"
         echo "${RUNNER_TEMP}/y509-bin" >> "$GITHUB_PATH"
 
     - name: Check the chain
@@ -167,7 +183,16 @@ runs:
         INPUT_NO_SYSTEM_ROOTS: ${{ inputs.no-system-roots }}
         INPUT_SUMMARY: ${{ inputs.summary }}
       run: |
+        # The runner supplies "bash -e", so every command that is allowed to
+        # fail is written as one: y509's exit status is the verdict, not an
+        # error, and letting -e act on it would abort the step before the
+        # report is ever read.
         set -uo pipefail
+
+        if [ ! -x "${Y509_BIN:-}" ]; then
+          echo "::error::the install step did not leave a y509 binary behind"
+          exit 1
+        fi
 
         args=(validate "$INPUT_TARGET" --json)
         [ -n "$INPUT_STARTTLS" ] && args+=(--starttls "$INPUT_STARTTLS")
@@ -176,16 +201,16 @@ runs:
         [ "$INPUT_NO_SYSTEM_ROOTS" = "true" ] && args+=(--no-system-roots)
 
         report="${RUNNER_TEMP}/y509-report.json"
+        errors="${RUNNER_TEMP}/y509-error.txt"
         # --json replaces the text report rather than adding to it, and sends
         # the failure message to stderr, so stdout parses even when the check
-        # fails. The exit status is the verdict, not an error, so it is
-        # deliberately not allowed to abort the step here.
-        y509 "${args[@]}" > "$report" 2> "${RUNNER_TEMP}/y509-error.txt"
-        status=$?
+        # fails. "|| status=$?" keeps a non-zero verdict from tripping -e.
+        status=0
+        "$Y509_BIN" "${args[@]}" > "$report" 2> "$errors" || status=$?
 
         if [ ! -s "$report" ]; then
-          echo "::error::y509 produced no report"
-          cat "${RUNNER_TEMP}/y509-error.txt" >&2 || true
+          echo "::error::y509 exited $status without producing a report"
+          cat "$errors" >&2 || true
           exit 1
         fi
 

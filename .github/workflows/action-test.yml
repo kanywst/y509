@@ -29,7 +29,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # windows-latest joins this list once a release carries a Windows
+        # archive. The action installs a published release, so it cannot be
+        # tested on a platform no release has been built for yet.
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - id: check
