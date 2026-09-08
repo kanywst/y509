@@ -32,13 +32,12 @@ CI runs the same three. `make test-coverage` gates at 80%; a patch that drops be
 
 ## Things worth knowing about the codebase
 
-[CLAUDE.md](CLAUDE.md) is written for AI assistants but is the current architecture document, and the invariants it lists are real. Read it before touching `internal/model` or the `--json` contract.
+Four invariants that are easy to break by accident:
 
-The three that catch people out:
-
-- `View()` is pure. Resizing and re-rendering belong in `Update`.
-- Key bindings go through `internal/model/keys.go`, which also generates the `?` overlay.
-- `pkg/certificate` never writes to stderr by default, because a stray line corrupts the TUI.
+- `View()` is pure. It returns a `tea.View` and never mutates the model. Resizing and re-rendering belong in `Update`, via `resizeComponents()` and `refreshViewportContent()`.
+- Key bindings go through `internal/model/keys.go`, which also generates the `?` overlay. A binding added anywhere else will not appear in the help.
+- `pkg/certificate` never writes to stderr by default. It keeps its own logger, defaulting to a no-op, because a stray line corrupts the TUI.
+- The `--json` contract in `pkg/certificate/report.go` is a translation layer, not json tags on the internal structs. `TrustLevel` and `ChainProblem` are iota constants, so marshalling them directly would publish their numbers as an API. Everything crossing that boundary is a string, a timestamp, or a bool, and slices are initialised so they marshal as `[]` rather than `null`.
 
 ## Reporting a bug
 
