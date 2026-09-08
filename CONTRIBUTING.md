@@ -26,34 +26,26 @@ CI runs the same three. `make test-coverage` gates at 80%; a patch that drops be
 
 ## What gets merged
 
-**One commit, one logical change.** A refactor and a behaviour change in the same commit are two commits. This matters more than commit count — a large single-purpose commit is fine.
-
-**Commit messages in English, conventional-commits style.** `feat(scope): ...`, `fix: ...`, `docs: ...`, `chore: ...`. The subject says what changed; the body says *why*, in prose. "Fixed bug" tells a future reader nothing.
-
-**Explain the non-obvious in comments, not the obvious.** The code says what it does. A comment earns its place by saying why it is that way — which constraint, which spec, which bug. Several already in the tree exist because the naive version was wrong, and they say so.
-
-**New behaviour needs a test.** Certificate handling especially: the package mints its own certificates in tests rather than checking in fixtures, so a chain with the exact shape you need is a few lines away. Look at `serverChain` in `pkg/certificate/connect_test.go`.
+- One commit per logical change. A refactor and a behaviour change belong in separate commits.
+- Commit messages in English, conventional-commits style. The subject says what changed, the body says why.
+- New behaviour needs a test. `pkg/certificate` mints its own certificates rather than checking in fixtures, so a chain with the shape you need is a few lines away; see `serverChain` in `connect_test.go`.
 
 ## Things worth knowing about the codebase
 
-The [CLAUDE.md](CLAUDE.md) file at the root is written for AI assistants but is the most current architecture document, and is worth reading whichever kind of contributor you are. The invariants it lists are real ones — breaking them is how the panes end up different heights or the TUI corrupts itself with a stray log line.
+[CLAUDE.md](CLAUDE.md) is written for AI assistants but is the current architecture document, and the invariants it lists are real. Read it before touching `internal/model` or the `--json` contract.
 
-Three that catch people out:
+The three that catch people out:
 
-- **`View()` must be pure.** It returns a `tea.View` and never mutates the model. Anything that resizes or re-renders belongs in `Update`, via `resizeComponents()` or `refreshViewportContent()`.
-- **Every key binding goes through `internal/model/keys.go`.** `keyMap` implements `help.KeyMap`, so the `?` overlay is generated from the same source. A binding added anywhere else will not appear in the help.
-- **`pkg/certificate` never writes to stderr by default.** It keeps its own logger, defaulting to a no-op, because a stray line of output corrupts the TUI. Route diagnostics through that logger.
-
-The `--json` contract in `pkg/certificate/report.go` is a deliberate translation layer rather than json tags on the internal structs. `TrustLevel` and `ChainProblem` are iota constants; marshalling them directly would publish their numeric values as an API and break every consumer the moment a constant is inserted. Everything crossing that boundary is a string, a timestamp, or a bool. If you add a field, add it there too, and keep slices initialised so they marshal as `[]` rather than `null`.
+- `View()` is pure. Resizing and re-rendering belong in `Update`.
+- Key bindings go through `internal/model/keys.go`, which also generates the `?` overlay.
+- `pkg/certificate` never writes to stderr by default, because a stray line corrupts the TUI.
 
 ## Reporting a bug
 
-The certificate that triggers it is worth more than a description of it. `y509 export` will write one out, and a chain that reproduces the problem is usually safe to attach — it is public data that a server hands to anyone who connects. If it is from an internal PKI and you would rather not, say what shape it is: how many certificates, which one is missing, what the issuers look like.
-
-Include `y509 version`, your OS and terminal, and the exact command line.
+The issue template asks for the fields. The one worth going out of your way for is the certificate itself: `y509 export` will write one out, and a chain a public server presents is public data, so it is normally safe to attach.
 
 ## Adding a STARTTLS protocol
 
-The most likely first contribution, so it is worth spelling out. Every prelude lives in `pkg/certificate/connect.go` and is one function of the shape `func(net.Conn) error`. Add it to the `startTLSNegotiators` table and to `StartTLSProtocols`; the `--starttls` help text and the "unsupported protocol" error both read from that slice, so they update themselves.
+Every prelude lives in `pkg/certificate/connect.go` and is one function of the shape `func(net.Conn) error`. Add it to the `startTLSNegotiators` table and to `StartTLSProtocols`; the `--starttls` help text and the "unsupported protocol" error both read from that slice, so they update themselves.
 
-Test it against a fake server over `net.Pipe`, the way the existing five are tested, and cover the awkward case as well as the happy one — a multi-line greeting, an untagged response, a server that refuses. That awkward case is usually the entire reason the prelude is not a one-liner.
+Test it against a fake server over `net.Pipe`, like the existing ones, and cover the awkward case as well as the happy one: a multi-line greeting, an untagged response, a server that refuses. That case is usually the whole reason the prelude is not a one-liner.

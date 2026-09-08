@@ -1,0 +1,521 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "Awesome TUI Home" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]:
+          - generic [ref=e12]:
+            - generic [ref=e13]: AWESOME
+            - generic [ref=e17]:
+              - generic [ref=e18]: T
+              - generic [ref=e19]: U
+              - generic [ref=e20]: I
+          - generic [ref=e22]: .com
+      - generic [ref=e23]:
+        - navigation "Primary header navigation" [ref=e24]:
+          - button "Explore" [ref=e26] [cursor=pointer]
+          - link "Messages" [ref=e30] [cursor=pointer]:
+            - /url: /messages
+          - link "Feedback" [ref=e33] [cursor=pointer]:
+            - /url: /feedback
+          - link "Guestbook" [ref=e36] [cursor=pointer]:
+            - /url: /wall
+            - generic:
+              - generic [aria-hidden]:
+                - generic: G
+                - generic: u
+                - generic: e
+                - generic: s
+                - generic: t
+                - generic: b
+                - generic: o
+                - generic: o
+                - generic: k
+              - generic: Guestbook
+          - link "Submit tool" [ref=e38] [cursor=pointer]:
+            - /url: /contribute
+            - generic [ref=e40]: Submit
+        - button "Search tools (Cmd+K)" [ref=e42] [cursor=pointer]:
+          - generic [ref=e43]: Search tools...
+          - generic [ref=e46]: ⌘K
+        - generic [ref=e47]:
+          - button "Sign in with GitHub" [ref=e48] [cursor=pointer]
+          - link "GitHub" [ref=e50] [cursor=pointer]:
+            - /url: https://github.com/alvinunreal/awesometui
+          - link "RSS Feed" [ref=e52] [cursor=pointer]:
+            - /url: /rss.xml
+  - generic [ref=e54]:
+    - complementary "Sidebar" [ref=e56]:
+      - generic [ref=e57]:
+        - link "█████████ ███░░░░░███ ░███ ░███ █████ ███ █████ ██████ █████ ██████ █████████████ ██████ ░███████████ ░░███ ░███░░███ ███░░███ ███░░ ███░░███░░███░░███░░███ ███░░███ ░███░░░░░███ ░███ ░███ ░███ ░███████ ░░█████ ░███ ░███ ░███ ░███ ░███ ░███████ ░███ ░███ ░░███████████ ░███░░░ ░░░░███░███ ░███ ░███ ░███ ░███ ░███░░░ █████ █████ ░░████░████ ░░██████ ██████ ░░██████ █████░███ █████░░██████ ░░░░░ ░░░░░ ░░░░ ░░░░ ░░░░░░ ░░░░░░ ░░░░░░ ░░░░░ ░░░ ░░░░░ ░░░░░░ ███████████ █████ █████ █████ ░█░░░███░░░█░░███ ░░███ ░░███ ░ ░███ ░ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ █████ ░░████████ █████ ░░░░░ ░░░░░░░░ ░░░░░" [ref=e58] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e59]: █████████ ███░░░░░███ ░███ ░███ █████ ███ █████ ██████ █████ ██████ █████████████ ██████ ░███████████ ░░███ ░███░░███ ███░░███ ███░░ ███░░███░░███░░███░░███ ███░░███ ░███░░░░░███ ░███ ░███ ░███ ░███████ ░░█████ ░███ ░███ ░███ ░███ ░███ ░███████ ░███ ░███ ░░███████████ ░███░░░ ░░░░███░███ ░███ ░███ ░███ ░███ ░███░░░ █████ █████ ░░████░████ ░░██████ ██████ ░░██████ █████░███ █████░░██████ ░░░░░ ░░░░░ ░░░░ ░░░░ ░░░░░░ ░░░░░░ ░░░░░░ ░░░░░ ░░░ ░░░░░ ░░░░░░
+          - generic [ref=e60]: ███████████ █████ █████ █████ ░█░░░███░░░█░░███ ░░███ ░░███ ░ ░███ ░ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ ░███ █████ ░░████████ █████ ░░░░░ ░░░░░░░░ ░░░░░
+        - generic [ref=e61]:
+          - generic [ref=e62]: A curated list of awesomeText User Interface apps.
+          - link "Visit Alvin at Boring Dystopia" [ref=e63] [cursor=pointer]:
+            - /url: https://boringdystopia.ai/
+            - img "Alvin" [ref=e64]
+            - generic [ref=e65]: BY ALVIN
+      - navigation "Categories" [ref=e66]:
+        - link "ALL TOOLS 1333" [ref=e440] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e68]: ALL TOOLS
+          - generic [ref=e71]: "1333"
+        - generic [ref=e72]:
+          - generic [ref=e73]:
+            - link "Development" [ref=e74] [cursor=pointer]:
+              - /url: /development
+            - button "Toggle Development sub-categories" [ref=e76] [cursor=pointer]
+          - link "Development 243" [ref=e441] [cursor=pointer]:
+            - /url: /development
+            - generic [ref=e79]: Development
+            - generic [ref=e82]: "243"
+          - link "Git 48" [ref=e442] [cursor=pointer]:
+            - /url: /git
+            - generic [ref=e84]: Git
+            - generic [ref=e87]: "48"
+          - link "Editors 57" [ref=e443] [cursor=pointer]:
+            - /url: /editors
+            - generic [ref=e89]: Editors
+            - generic [ref=e92]: "57"
+          - link "Frameworks 60" [ref=e444] [cursor=pointer]:
+            - /url: /frameworks-libraries
+            - generic [ref=e94]: Frameworks
+            - generic [ref=e97]: "60"
+        - generic [ref=e98]:
+          - link "AI 48" [ref=e445] [cursor=pointer]:
+            - /url: /ai
+            - generic [ref=e100]: AI
+            - generic [ref=e103]: "48"
+          - region [ref=e104]:
+            - link "AI Coding Agents 16" [ref=e446] [cursor=pointer]:
+              - /url: /ai-coding-agents
+              - generic [ref=e106]: AI Coding Agents
+              - generic [ref=e109]: "16"
+        - generic [ref=e110]:
+          - generic [ref=e111]:
+            - link "Operate" [ref=e112] [cursor=pointer]:
+              - /url: /operate
+            - button "Toggle Operate sub-categories" [ref=e114] [cursor=pointer]
+          - link "DevOps 80" [ref=e447] [cursor=pointer]:
+            - /url: /devops
+            - generic [ref=e117]: DevOps
+            - generic [ref=e120]: "80"
+          - link "Monitoring 56" [ref=e448] [cursor=pointer]:
+            - /url: /monitoring
+            - generic [ref=e122]: Monitoring
+            - generic [ref=e125]: "56"
+          - link "Network 66" [ref=e449] [cursor=pointer]:
+            - /url: /network
+            - generic [ref=e127]: Network
+            - generic [ref=e130]: "66"
+          - link "System 63" [ref=e450] [cursor=pointer]:
+            - /url: /system
+            - generic [ref=e132]: System
+            - generic [ref=e135]: "63"
+          - link "Security 46" [ref=e451] [cursor=pointer]:
+            - /url: /security
+            - generic [ref=e137]: Security
+            - generic [ref=e140]: "46"
+        - generic [ref=e141]:
+          - link "Data & Files" [ref=e143] [cursor=pointer]:
+            - /url: /data-files
+          - link "File Management 89" [ref=e452] [cursor=pointer]:
+            - /url: /file-management
+            - generic [ref=e146]: File Management
+            - generic [ref=e149]: "89"
+          - link "Database Clients 28" [ref=e453] [cursor=pointer]:
+            - /url: /database
+            - generic [ref=e151]: Database Clients
+            - generic [ref=e154]: "28"
+          - link "Text Processing 65" [ref=e454] [cursor=pointer]:
+            - /url: /text-processing
+            - generic [ref=e156]: Text Processing
+            - generic [ref=e159]: "65"
+        - generic [ref=e160]:
+          - generic [ref=e161]:
+            - link "Work & Communication" [ref=e162] [cursor=pointer]:
+              - /url: /work-communication
+            - button "Toggle Work & Communication sub-categories" [ref=e164] [cursor=pointer]
+          - link "Productivity 115" [ref=e455] [cursor=pointer]:
+            - /url: /productivity
+            - generic [ref=e167]: Productivity
+            - generic [ref=e170]: "115"
+          - link "Writing & Notes 8" [ref=e456] [cursor=pointer]:
+            - /url: /writing
+            - generic [ref=e172]: Writing & Notes
+            - generic [ref=e175]: "8"
+          - link "Email 9" [ref=e457] [cursor=pointer]:
+            - /url: /email
+            - generic [ref=e177]: Email
+            - generic [ref=e180]: "9"
+          - link "IRC 13" [ref=e458] [cursor=pointer]:
+            - /url: /irc
+            - generic [ref=e182]: IRC
+            - generic [ref=e185]: "13"
+        - generic [ref=e186]:
+          - generic [ref=e187]:
+            - link "Media & Play" [ref=e188] [cursor=pointer]:
+              - /url: /media-play
+            - button "Toggle Media & Play sub-categories" [ref=e190] [cursor=pointer]
+          - link "Media 64" [ref=e459] [cursor=pointer]:
+            - /url: /media
+            - generic [ref=e193]: Media
+            - generic [ref=e196]: "64"
+          - link "Games 55" [ref=e460] [cursor=pointer]:
+            - /url: /games
+            - generic [ref=e198]: Games
+            - generic [ref=e201]: "55"
+      - generic [ref=e461]:
+        - link "cli 1129" [ref=e462] [cursor=pointer]:
+          - /url: /?tag=cli
+          - generic [aria-hidden] [ref=e463]: "#"
+          - generic [ref=e464]: cli
+          - generic [ref=e465]: "1129"
+        - link "tui 974" [ref=e466] [cursor=pointer]:
+          - /url: /?tag=tui
+          - generic [aria-hidden] [ref=e467]: "#"
+          - generic [ref=e468]: tui
+          - generic [ref=e469]: "974"
+        - link "terminal 511" [ref=e470] [cursor=pointer]:
+          - /url: /?tag=terminal
+          - generic [aria-hidden] [ref=e471]: "#"
+          - generic [ref=e472]: terminal
+          - generic [ref=e473]: "511"
+        - link "rust 361" [ref=e474] [cursor=pointer]:
+          - /url: /?tag=rust
+          - generic [aria-hidden] [ref=e475]: "#"
+          - generic [ref=e476]: rust
+          - generic [ref=e477]: "361"
+        - link "go 218" [ref=e478] [cursor=pointer]:
+          - /url: /?tag=go
+          - generic [aria-hidden] [ref=e479]: "#"
+          - generic [ref=e480]: go
+          - generic [ref=e481]: "218"
+        - link "golang 180" [ref=e482] [cursor=pointer]:
+          - /url: /?tag=golang
+          - generic [aria-hidden] [ref=e483]: "#"
+          - generic [ref=e484]: golang
+          - generic [ref=e485]: "180"
+        - link "linux 146" [ref=e486] [cursor=pointer]:
+          - /url: /?tag=linux
+          - generic [aria-hidden] [ref=e487]: "#"
+          - generic [ref=e488]: linux
+          - generic [ref=e489]: "146"
+        - link "ratatui 118" [ref=e490] [cursor=pointer]:
+          - /url: /?tag=ratatui
+          - generic [aria-hidden] [ref=e491]: "#"
+          - generic [ref=e492]: ratatui
+          - generic [ref=e493]: "118"
+        - link "command-line 113" [ref=e494] [cursor=pointer]:
+          - /url: /?tag=command-line
+          - generic [aria-hidden] [ref=e495]: "#"
+          - generic [ref=e496]: command-line
+          - generic [ref=e497]: "113"
+        - link "python 113" [ref=e498] [cursor=pointer]:
+          - /url: /?tag=python
+          - generic [aria-hidden] [ref=e499]: "#"
+          - generic [ref=e500]: python
+          - generic [ref=e501]: "113"
+        - link "bubbletea 73" [ref=e502] [cursor=pointer]:
+          - /url: /?tag=bubbletea
+          - generic [aria-hidden] [ref=e503]: "#"
+          - generic [ref=e504]: bubbletea
+          - generic [ref=e505]: "73"
+        - link "terminal-based 67" [ref=e506] [cursor=pointer]:
+          - /url: /?tag=terminal-based
+          - generic [aria-hidden] [ref=e507]: "#"
+          - generic [ref=e508]: terminal-based
+          - generic [ref=e509]: "67"
+        - link "macos 66" [ref=e510] [cursor=pointer]:
+          - /url: /?tag=macos
+          - generic [aria-hidden] [ref=e511]: "#"
+          - generic [ref=e512]: macos
+          - generic [ref=e513]: "66"
+        - link "terminal-ui 66" [ref=e514] [cursor=pointer]:
+          - /url: /?tag=terminal-ui
+          - generic [aria-hidden] [ref=e515]: "#"
+          - generic [ref=e516]: terminal-ui
+          - generic [ref=e517]: "66"
+        - link "command-line-tool 62" [ref=e518] [cursor=pointer]:
+          - /url: /?tag=command-line-tool
+          - generic [aria-hidden] [ref=e519]: "#"
+          - generic [ref=e520]: command-line-tool
+          - generic [ref=e521]: "62"
+        - link "hacktoberfest 62" [ref=e522] [cursor=pointer]:
+          - /url: /?tag=hacktoberfest
+          - generic [aria-hidden] [ref=e523]: "#"
+          - generic [ref=e524]: hacktoberfest
+          - generic [ref=e525]: "62"
+        - link "windows 51" [ref=e526] [cursor=pointer]:
+          - /url: /?tag=windows
+          - generic [aria-hidden] [ref=e527]: "#"
+          - generic [ref=e528]: windows
+          - generic [ref=e529]: "51"
+        - link "cross-platform 45" [ref=e530] [cursor=pointer]:
+          - /url: /?tag=cross-platform
+          - generic [aria-hidden] [ref=e531]: "#"
+          - generic [ref=e532]: cross-platform
+          - generic [ref=e533]: "45"
+      - generic [ref=e216]:
+        - generic [ref=e217]: "> LATEST UPDATES"
+        - generic [ref=e534]:
+          - link "network-doctor v1.16.3 today" [ref=e535] [cursor=pointer]:
+            - /url: https://github.com/heymaikol/network-doctor/releases/tag/v1.16.3
+            - generic [ref=e536]: network-doctor v1.16.3
+            - generic [ref=e537]: today
+          - link "personal-os-setup v2.13.2 today" [ref=e538] [cursor=pointer]:
+            - /url: https://github.com/AmineDjeghri/personal-os-setup/releases/tag/v2.13.2
+            - generic [ref=e539]: personal-os-setup v2.13.2
+            - generic [ref=e540]: today
+          - link "sofka v0.24.8 today" [ref=e541] [cursor=pointer]:
+            - /url: https://github.com/nklmilojevic/sofka/releases/tag/v0.24.8
+            - generic [ref=e542]: sofka v0.24.8
+            - generic [ref=e543]: today
+          - link "cliamp v2.1.0 today" [ref=e544] [cursor=pointer]:
+            - /url: https://github.com/bjarneo/cliamp/releases/tag/v2.1.0
+            - generic [ref=e545]: cliamp v2.1.0
+            - generic [ref=e546]: today
+          - link "herdr v0.9.0 today" [ref=e547] [cursor=pointer]:
+            - /url: https://github.com/herdrdev/herdr/releases/tag/v0.9.0
+            - generic [ref=e548]: herdr v0.9.0
+            - generic [ref=e549]: today
+        - link "View all updates" [ref=e234] [cursor=pointer]:
+          - /url: /updates
+          - text: View all updates ->
+      - generic [ref=e235]:
+        - generic [ref=e236]: "> WHAT IS TUI?"
+        - paragraph [ref=e237]: Text User Interface (TUI) applications that run in your terminal. Keyboard-driven, lightweight and incredibly powerful.
+        - link "Learn more" [ref=e238] [cursor=pointer]:
+          - /url: /about
+          - text: Learn more
+          - generic [aria-hidden] [ref=e239]: "->"
+      - generic [ref=e241]:
+        - generic [ref=e242]: ">"
+        - generic [ref=e243]: built with ♥ in the terminal
+    - main [ref=e244]:
+      - generic [ref=e246]:
+        - generic [ref=e247]: Supported by
+        - generic [ref=e249]:
+          - generic [ref=e250]:
+            - link [ref=e251] [cursor=pointer]:
+              - /url: https://www.greptile.com/
+              - img "Greptile" [ref=e252]
+            - link [ref=e253] [cursor=pointer]:
+              - /url: https://boringdystopia.ai/
+              - img "Boring Dystopia" [ref=e254]
+            - link "SUBMITLIST.io" [ref=e255] [cursor=pointer]:
+              - /url: https://submitlist.io/
+            - link "Your logo" [ref=e257] [cursor=pointer]:
+              - /url: /sponsors
+            - link "Your logo" [ref=e260] [cursor=pointer]:
+              - /url: /sponsors
+          - generic [aria-hidden] [ref=e263]:
+            - link [ref=e264] [cursor=pointer]:
+              - /url: https://www.greptile.com/
+            - link [ref=e266] [cursor=pointer]:
+              - /url: https://boringdystopia.ai/
+            - link [ref=e268] [cursor=pointer]:
+              - /url: https://submitlist.io/
+              - generic [ref=e269]: SUBMITLIST.io
+            - link [ref=e270] [cursor=pointer]:
+              - /url: /sponsors
+              - generic [ref=e272]: Your logo
+            - link [ref=e273] [cursor=pointer]:
+              - /url: /sponsors
+              - generic [ref=e275]: Your logo
+        - link "Become a sponsor" [ref=e276] [cursor=pointer]:
+          - /url: /sponsors
+      - generic [ref=e282]:
+        - generic [ref=e283]:
+          - heading ">Submit Project" [level=1] [ref=e284]
+          - paragraph [ref=e285]: Submit a project you maintain for review and possible featuring.
+        - alert [active] [ref=e550]:
+          - heading "Please fix the following errors" [level=3] [ref=e551]
+          - list [ref=e553]:
+            - listitem [ref=e554]: "design Choice: Design choice must be at most 900 characters"
+        - generic [ref=e286]:
+          - group "Project" [ref=e287]:
+            - generic [ref=e289]:
+              - generic [ref=e290]: GitHub Repository URL *
+              - textbox "GitHub Repository URL *" [ref=e291]:
+                - /placeholder: https://github.com/owner/repo
+                - text: https://github.com/kanywst/y509
+              - paragraph [ref=e292]: We use this to pull metadata, README, license, language, and install hints.
+            - generic [ref=e293]:
+              - generic [ref=e294]: Screenshot/Demo URL *
+              - textbox "Screenshot/Demo URL *" [ref=e295]:
+                - /placeholder: https://...
+                - text: https://raw.githubusercontent.com/kanywst/y509/main/demo.gif
+              - paragraph [ref=e296]: Image, GIF, asciinema, video, or docs demo.
+            - generic [ref=e298] [cursor=pointer]:
+              - checkbox "I am the creator, maintainer, or official contributor of this project. *" [checked] [ref=e299]
+              - generic [ref=e300]: I am the creator, maintainer, or official contributor of this project. *
+          - group "Maintainer Context" [ref=e301]:
+            - generic [ref=e303]:
+              - generic [ref=e304]: What problem or frustration led to this project? *
+              - textbox "What problem or frustration led to this project? *" [ref=e305]:
+                - /placeholder: What was annoying, missing, slow, or painful enough that this needed to exist?
+                - text: "A certificate chain that works in the browser and fails in curl. The cause is almost always structural: the server never sent an intermediate, or sent its root, or sent them out of order. Browsers hide it by chasing the AIA URL to fetch the missing piece; curl, Go and Java do not, so the bug sits in production for months until a client library upgrade trips over it. The tools for this all answer the wrong question. openssl s_client dumps the raw handshake and leaves you counting BEGIN CERTIFICATE lines by eye. Everything else answers \"does this verify\", which is exactly the question that says yes while the chain is still broken for half your clients. I wanted the two questions separated, and I wanted the answer in a pane I could scroll rather than a wall of text."
+            - generic [ref=e306]:
+              - generic [ref=e307]: What is the first workflow users should try? *
+              - textbox "What is the first workflow users should try? *" [ref=e308]:
+                - /placeholder: Describe the first practical flow that shows why the tool is useful.
+                - text: "Point it at a server that is misconfigured on purpose: y509 validate incomplete-chain.badssl.com:443 It reports the chain as valid, and then separately reports that the chain as presented is broken: the issuer was never sent, so a client that does not chase AIA cannot build a chain. It also prints the URL to fetch the missing intermediate from. That gap between the two answers is the whole tool in one screen. Then open the same host without validate, y509 incomplete-chain.badssl.com:443, to browse the chain interactively: a list of certificates on the left, tabbed detail on the right, search across subject/issuer/SAN, filters for expired and expiring, and export or copy any certificate as PEM."
+            - generic [ref=e309]:
+              - generic [ref=e310]: What design choice makes it different? *
+              - textbox "What design choice makes it different? *" [invalid] [ref=e311]:
+                - /placeholder: Keyboard model, layout, speed, architecture, constraints, UX philosophy, or another choice you care about.
+                - text: "Trust and presentation are two separate reports, and the certificates are never sorted. Every other tool sorts the chain into leaf-to-root order before showing it, because that reads better. But sorting destroys the evidence: the order the server actually sent them in is the bug. So y509 keeps them exactly as they arrived, and the presentation report is derived from that raw order. The handshake also deliberately verifies nothing. A chain that fails to verify is the reason you opened the tool, so rejecting it at the transport would defeat the purpose. Verification is a separate, explicit step. The same split shows up in validate --json, where trust.level and presentation.ok are independent fields. An exit code cannot carry that distinction: it collapses \"internal PKI\" and \"does not link up\" into the same non-zero, and says nothing at all about how the chain was served. Everything crossing the JSON boundary is a string or a bool rather than an internal enum, so inserting a constant cannot silently change the meaning of the output."
+              - paragraph [ref=e555]: Design choice must be at most 900 characters
+          - group [ref=e312]:
+            - generic [ref=e313]:
+              - generic [ref=e314]: What is next for the project?
+              - textbox "What is next for the project?" [ref=e315]:
+                - /placeholder: Roadmap, next release, or direction.
+                - text: "STARTTLS coverage is expanding beyond smtp/imap/postgres to ftp, ldap and mysql, which closes the gap against certigo. Windows binaries are landing, along with a GitHub Action so the mis-served check can gate CI rather than only being run by hand. Nixpkgs packaging is in review; Homebrew and FreeBSD ports are already there. Longer term the interesting direction is expiry: as CA/Browser Forum maximum lifetimes shrink toward 47 days, renewals get frequent enough that a leaf-only certificate reaching production becomes a matter of when, not if."
+            - generic [ref=e316]:
+              - generic [ref=e317]: Social links
+              - textbox "Social links" [ref=e318]:
+                - /placeholder: One https:// link per line
+                - text: https://github.com/kanywst https://kanywst.github.io/y509/
+              - paragraph [ref=e319]: Project account, maintainer account, Discord, Mastodon, Bluesky, X, YouTube, etc.
+            - generic [ref=e320]:
+              - generic [ref=e321]: Anything else we should know?
+              - textbox "Anything else we should know?" [ref=e322]:
+                - /placeholder: Private notes for review.
+                - text: Built on the Charm v2 stack (Bubble Tea, Lip Gloss, Bubbles, huh). Apache-2.0, first commit 2025-05-24. Already listed in Terminal Trove and charm-in-the-wild. Releases carry cosign-signed checksums, a CycloneDX SBOM and SLSA build provenance, and install via Homebrew, FreeBSD ports, deb/rpm or go install.
+          - button "> Submit Project" [ref=e324] [cursor=pointer]
+      - generic [ref=e328]:
+        - generic [ref=e329]:
+          - generic [ref=e330]:
+            - link ">_ awesometui" [ref=e331] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e332]: ">_"
+              - generic [ref=e333]: awesometui
+            - paragraph [ref=e334]: A curated catalog of open-source Text User Interface apps. Keyboard-driven, lightweight, and built to last.
+            - paragraph [ref=e335]:
+              - text: "Awesome list:"
+              - link "alvinunreal/awesometui" [ref=e336] [cursor=pointer]:
+                - /url: https://github.com/alvinunreal/awesometui
+            - generic [ref=e337]:
+              - link "GitHub" [ref=e338] [cursor=pointer]:
+                - /url: https://github.com/alvinunreal/awesometui
+              - link "RSS Feed" [ref=e340] [cursor=pointer]:
+                - /url: /rss.xml
+            - generic [ref=e342]:
+              - heading "Newsletter" [level=3] [ref=e343]
+              - generic [ref=e345]:
+                - generic [aria-hidden] [ref=e346]:
+                  - text: Company
+                  - textbox [ref=e347]
+                - generic [ref=e348]:
+                  - generic [ref=e349]: Email address
+                  - generic [ref=e350]:
+                    - textbox "Email address" [ref=e351]:
+                      - /placeholder: you@example.com
+                    - button "> Subscribe" [ref=e352]
+          - generic [ref=e354]:
+            - heading "Navigate" [level=3] [ref=e355]
+            - list [ref=e356]:
+              - listitem [ref=e357]:
+                - link "> Apps" [ref=e358] [cursor=pointer]:
+                  - /url: /
+                  - generic [ref=e359]: ">"
+                  - generic [ref=e360]: Apps
+              - listitem [ref=e361]:
+                - link "> Awards" [ref=e362] [cursor=pointer]:
+                  - /url: /awards
+                  - generic [ref=e363]: ">"
+                  - generic [ref=e364]: Awards
+              - listitem [ref=e365]:
+                - link "> Updates" [ref=e366] [cursor=pointer]:
+                  - /url: /updates
+                  - generic [ref=e367]: ">"
+                  - generic [ref=e368]: Updates
+              - listitem [ref=e369]:
+                - link "> Guestbook" [ref=e370] [cursor=pointer]:
+                  - /url: /wall
+                  - generic [ref=e371]: ">"
+                  - generic [ref=e372]: Guestbook
+              - listitem [ref=e373]:
+                - link "> About" [ref=e374] [cursor=pointer]:
+                  - /url: /about
+                  - generic [ref=e375]: ">"
+                  - generic [ref=e376]: About
+              - listitem [ref=e377]:
+                - link "> Submit Project" [ref=e378] [cursor=pointer]:
+                  - /url: /contribute
+                  - generic [ref=e379]: ">"
+                  - generic [ref=e380]: Submit Project
+          - generic [ref=e381]:
+            - heading "Categories" [level=3] [ref=e382]
+            - list [ref=e383]:
+              - listitem [ref=e384]:
+                - link "# Development" [ref=e385] [cursor=pointer]:
+                  - /url: /development
+                  - generic [ref=e386]: "#"
+                  - generic [ref=e387]: Development
+              - listitem [ref=e388]:
+                - link "# Git" [ref=e389] [cursor=pointer]:
+                  - /url: /git
+                  - generic [ref=e390]: "#"
+                  - generic [ref=e391]: Git
+              - listitem [ref=e392]:
+                - link "# Editors" [ref=e393] [cursor=pointer]:
+                  - /url: /editors
+                  - generic [ref=e394]: "#"
+                  - generic [ref=e395]: Editors
+              - listitem [ref=e396]:
+                - link "# Frameworks" [ref=e397] [cursor=pointer]:
+                  - /url: /frameworks-libraries
+                  - generic [ref=e398]: "#"
+                  - generic [ref=e399]: Frameworks
+              - listitem [ref=e400]:
+                - link "# AI" [ref=e401] [cursor=pointer]:
+                  - /url: /ai
+                  - generic [ref=e402]: "#"
+                  - generic [ref=e403]: AI
+              - listitem [ref=e404]:
+                - link "# DevOps" [ref=e405] [cursor=pointer]:
+                  - /url: /devops
+                  - generic [ref=e406]: "#"
+                  - generic [ref=e407]: DevOps
+              - listitem [ref=e408]:
+                - link "# Monitoring" [ref=e409] [cursor=pointer]:
+                  - /url: /monitoring
+                  - generic [ref=e410]: "#"
+                  - generic [ref=e411]: Monitoring
+              - listitem [ref=e412]:
+                - link "# Network" [ref=e413] [cursor=pointer]:
+                  - /url: /network
+                  - generic [ref=e414]: "#"
+                  - generic [ref=e415]: Network
+          - generic [ref=e416]:
+            - heading "Resources" [level=3] [ref=e417]
+            - list [ref=e418]:
+              - listitem [ref=e419]:
+                - link "> GitHub" [ref=e420] [cursor=pointer]:
+                  - /url: https://github.com/alvinunreal/awesometui
+                  - generic [ref=e421]: ">"
+                  - generic [ref=e422]: GitHub
+              - listitem [ref=e423]:
+                - link "> RSS Feed" [ref=e424] [cursor=pointer]:
+                  - /url: /rss.xml
+                  - generic [ref=e425]: ">"
+                  - generic [ref=e426]: RSS Feed
+              - listitem [ref=e427]:
+                - link "> Sitemap" [ref=e428] [cursor=pointer]:
+                  - /url: /sitemap.xml
+                  - generic [ref=e429]: ">"
+                  - generic [ref=e430]: Sitemap
+        - generic [ref=e431]:
+          - generic [ref=e432]: $
+          - generic [ref=e433]: © 2026 awesometui · built with ♥ in the terminal
+  - link "Visit LazySkills" [ref=e434] [cursor=pointer]:
+    - /url: https://lazyskills.sh/
+    - img "LazySkills" [ref=e436]
+    - generic [ref=e437]:
+      - generic [ref=e438]: LazySkills
+      - generic [ref=e439]: agent skills
