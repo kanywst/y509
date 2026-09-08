@@ -230,10 +230,25 @@ runs:
         } >> "$GITHUB_OUTPUT"
 
         # "none" disables every gate; otherwise a keyword must appear in the
-        # list to fail the job. Substring matching is safe because the three
-        # keywords share no prefix.
-        fail_on=",${INPUT_FAIL_ON},"
-        wants() { [ "$INPUT_FAIL_ON" != "none" ] && [ "${fail_on#*,"$1",}" != "$fail_on" ]; }
+        # list to fail the job rather than only warn.
+        #
+        # The list is normalised first. "untrusted, mis-served" is the natural
+        # way to write this in YAML, and matching the raw string would quietly
+        # miss the second keyword: the finding would still be reported, but as
+        # a warning, and the job would pass. A gate that silently stops gating
+        # is worse than no gate.
+        # An unknown keyword is refused rather than ignored, for the same
+        # reason: a typo must not read as "gate nothing".
+        gates=""
+        for keyword in $(printf '%s' "$INPUT_FAIL_ON" | tr ',[:upper:]' ' [:lower:]'); do
+          case "$keyword" in
+            untrusted|mis-served|expiring|none) gates="${gates}${keyword}," ;;
+            *) echo "::error::unknown fail-on keyword '$keyword' (expected untrusted, mis-served, expiring or none)"; exit 1 ;;
+          esac
+        done
+        gates=",${gates}"
+
+        wants() { [ "${gates#*,"$1",}" != "$gates" ] && [ "${gates#*,none,}" = "$gates" ]; }
 
         failed=0
 
