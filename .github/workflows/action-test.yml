@@ -1,0 +1,115 @@
+name: action
+
+# Exercises action.yml against badssl.com, which maintains one endpoint per
+# failure mode. The action installs a released binary, so this tests the action
+# itself -- the download, the checksum, the gating -- not the working tree.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "action.yml"
+      - ".github/workflows/action-test.yml"
+  pull_request:
+    paths:
+      - "action.yml"
+      - ".github/workflows/action-test.yml"
+  # Re-run weekly. The endpoints are third party, and a certificate rotation
+  # there should surface here rather than in someone else's workflow.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  healthy:
+    name: a well-served chain passes
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # windows-latest joins this list once a release carries a Windows
+        # archive. The action installs a published release, so it cannot be
+        # tested on a platform no release has been built for yet.
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        uses: ./
+        with:
+          target: badssl.com:443
+          # Not "expiring": a third-party certificate will wander inside any
+          # threshold eventually, and that is not this workflow's business.
+          fail-on: untrusted,mis-served
+      - name: the outputs describe a healthy chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ steps.check.outputs.trust-level }}" = "trusted"
+          test "${{ steps.check.outputs.trusted }}" = "true"
+          test "${{ steps.check.outputs.presentation-ok }}" = "true"
+          test -n "${{ steps.check.outputs.days-until-expiry }}"
+
+  mis-served:
+    name: a chain missing an intermediate fails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # This is the case the whole tool exists for: the chain verifies in a
+      # browser and is still misconfigured, because the intermediate was never
+      # sent. The step must fail, so its failure is the assertion.
+      - id: check
+        continue-on-error: true
+        uses: ./
+        with:
+          target: incomplete-chain.badssl.com:443
+          fail-on: mis-served
+      - name: the step failed, and named the problem
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.check.outcome }}" != "failure" ]; then
+            echo "expected the mis-served chain to fail the gate"; exit 1
+          fi
+          test "${{ steps.check.outputs.presentation-ok }}" = "false"
+          case "${{ steps.check.outputs.problems }}" in
+            *"missing issuer"*) ;;
+            *) echo "expected a missing issuer finding, got: ${{ steps.check.outputs.problems }}"; exit 1 ;;
+          esac
+
+  untrusted:
+    name: an expired chain fails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        continue-on-error: true
+        uses: ./
+        with:
+          target: expired.badssl.com:443
+          fail-on: untrusted
+      - name: the step failed, and the trust level says why
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.check.outcome }}" != "failure" ]; then
+            echo "expected the expired chain to fail the gate"; exit 1
+          fi
+          test "${{ steps.check.outputs.trusted }}" = "false"
+
+  report-only:
+    name: fail-on none never fails the job
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        uses: ./
+        with:
+          target: incomplete-chain.badssl.com:443
+          fail-on: none
+      - name: the finding is still reported
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ steps.check.outputs.presentation-ok }}" = "false"

@@ -1,0 +1,285 @@
+name: "y509 certificate check"
+description: >-
+  Check a TLS certificate chain: whether it verifies, whether it was served
+  correctly, and how long it has left. Fails the job on whichever of those you
+  choose.
+author: "kanywst"
+
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  target:
+    description: >-
+      What to check: a host, a host:port, or a path to a PEM or DER file in the
+      workspace. A path that exists is read as a file; anything else is dialled.
+    required: true
+  version:
+    description: >-
+      y509 release to run, as a tag (v1.0.4) or "latest". Pin it if you want the
+      check to be reproducible.
+    required: false
+    default: "latest"
+  fail-on:
+    description: >-
+      Which findings fail the job, comma separated. "untrusted" is a chain the
+      system trust store rejects; "mis-served" is a chain that verifies but was
+      presented wrongly -- a missing intermediate, a redundant root, the wrong
+      order; "expiring" is a leaf inside expiry-days. Use "none" to report
+      without ever failing.
+    required: false
+    default: "untrusted,mis-served"
+  expiry-days:
+    description: >-
+      Days of remaining leaf validity below which "expiring" trips. Worth
+      raising as CA/Browser Forum maximum lifetimes shrink.
+    required: false
+    default: "30"
+  starttls:
+    description: >-
+      Upgrade a plaintext protocol before the handshake: smtp, imap, ftp, ldap,
+      mysql or postgres.
+    required: false
+    default: ""
+  servername:
+    description: "SNI server name to send, if it differs from the host dialled."
+    required: false
+    default: ""
+  roots:
+    description: "Path to a PEM file of additional trust anchors, for an internal PKI."
+    required: false
+    default: ""
+  no-system-roots:
+    description: >-
+      Trust only the anchors given by "roots", ignoring the system store. Set
+      this when an internal CA is the only one that should ever verify.
+    required: false
+    default: "false"
+  summary:
+    description: "Write a report to the job summary."
+    required: false
+    default: "true"
+
+outputs:
+  trust-level:
+    description: '"trusted", "self-anchored" or "broken".'
+    value: ${{ steps.check.outputs.trust-level }}
+  trusted:
+    description: '"true" when the chain verifies against the trust anchors.'
+    value: ${{ steps.check.outputs.trusted }}
+  presentation-ok:
+    description: '"true" when the chain was served correctly.'
+    value: ${{ steps.check.outputs.presentation-ok }}
+  days-until-expiry:
+    description: "Days until the leaf expires."
+    value: ${{ steps.check.outputs.days-until-expiry }}
+  problems:
+    description: "Comma separated presentation problems, empty when there are none."
+    value: ${{ steps.check.outputs.problems }}
+  report:
+    description: "Path to the full JSON report."
+    value: ${{ steps.check.outputs.report }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install y509
+      shell: bash
+      env:
+        Y509_VERSION: ${{ inputs.version }}
+        # The token is only ever spent on api.github.com to resolve a tag and
+        # to download a public release asset. It is read here rather than
+        # hardcoded so a caller can pass a different one.
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+
+        case "$RUNNER_OS" in
+          Linux)   os=linux;   archive=tar.gz ;;
+          macOS)   os=darwin;  archive=tar.gz ;;
+          Windows) os=windows; archive=zip ;;
+          *) echo "::error::y509 has no build for runner OS '$RUNNER_OS'"; exit 1 ;;
+        esac
+        case "$RUNNER_ARCH" in
+          X64)   arch=amd64 ;;
+          ARM64) arch=arm64 ;;
+          *) echo "::error::y509 has no build for runner architecture '$RUNNER_ARCH'"; exit 1 ;;
+        esac
+
+        tag="$Y509_VERSION"
+        if [ "$tag" = "latest" ]; then
+          tag=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/kanywst/y509/releases/latest |
+            sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
+        fi
+        if [ -z "$tag" ]; then
+          echo "::error::could not resolve a y509 release tag"; exit 1
+        fi
+        version="${tag#v}"
+
+        base="https://github.com/kanywst/y509/releases/download/${tag}"
+        asset="y509-${version}-${os}-${arch}.${archive}"
+        checksums="y509-${version}-checksums.txt"
+
+        workdir="${RUNNER_TEMP}/y509-install"
+        mkdir -p "$workdir"
+        curl -fsSL -o "${workdir}/${asset}" "${base}/${asset}"
+        curl -fsSL -o "${workdir}/${checksums}" "${base}/${checksums}"
+
+        # Verify before unpacking. A release asset is fetched over the network
+        # and then executed, so an unchecked download would make this action a
+        # way into every workflow that uses it.
+        (
+          cd "$workdir"
+          if command -v sha256sum >/dev/null 2>&1; then
+            grep " ${asset}\$" "$checksums" | sha256sum -c -
+          else
+            grep " ${asset}\$" "$checksums" | shasum -a 256 -c -
+          fi
+        )
+
+        if [ "$archive" = "zip" ]; then
+          # Git Bash on the Windows runners does not always carry unzip, but
+          # the bsdtar shipped with Windows reads a zip perfectly well.
+          if command -v unzip >/dev/null 2>&1; then
+            unzip -q -o "${workdir}/${asset}" -d "$workdir"
+          else
+            tar -xf "${workdir}/${asset}" -C "$workdir"
+          fi
+        else
+          tar -xzf "${workdir}/${asset}" -C "$workdir"
+        fi
+
+        mkdir -p "${RUNNER_TEMP}/y509-bin"
+        if [ "$os" = "windows" ]; then
+          binary="${RUNNER_TEMP}/y509-bin/y509.exe"
+          mv "${workdir}/y509.exe" "$binary"
+        else
+          binary="${RUNNER_TEMP}/y509-bin/y509"
+          mv "${workdir}/y509" "$binary"
+          chmod +x "$binary"
+        fi
+
+        # The next step runs the binary by this absolute path rather than by
+        # name. GITHUB_PATH is exported as well, so a caller's own later steps
+        # can just say "y509", but the action itself does not depend on that
+        # having taken effect: a PATH that has not been rebuilt yet turns into a
+        # "command not found" whose message lands in a redirect and is never
+        # seen again.
+        echo "Y509_BIN=$binary" >> "$GITHUB_ENV"
+        echo "${RUNNER_TEMP}/y509-bin" >> "$GITHUB_PATH"
+
+    - name: Check the chain
+      id: check
+      shell: bash
+      env:
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_EXPIRY_DAYS: ${{ inputs.expiry-days }}
+        INPUT_STARTTLS: ${{ inputs.starttls }}
+        INPUT_SERVERNAME: ${{ inputs.servername }}
+        INPUT_ROOTS: ${{ inputs.roots }}
+        INPUT_NO_SYSTEM_ROOTS: ${{ inputs.no-system-roots }}
+        INPUT_SUMMARY: ${{ inputs.summary }}
+      run: |
+        # The runner supplies "bash -e", so every command that is allowed to
+        # fail is written as one: y509's exit status is the verdict, not an
+        # error, and letting -e act on it would abort the step before the
+        # report is ever read.
+        set -uo pipefail
+
+        if [ ! -x "${Y509_BIN:-}" ]; then
+          echo "::error::the install step did not leave a y509 binary behind"
+          exit 1
+        fi
+
+        args=(validate "$INPUT_TARGET" --json)
+        [ -n "$INPUT_STARTTLS" ] && args+=(--starttls "$INPUT_STARTTLS")
+        [ -n "$INPUT_SERVERNAME" ] && args+=(--servername "$INPUT_SERVERNAME")
+        [ -n "$INPUT_ROOTS" ] && args+=(--roots "$INPUT_ROOTS")
+        [ "$INPUT_NO_SYSTEM_ROOTS" = "true" ] && args+=(--no-system-roots)
+
+        report="${RUNNER_TEMP}/y509-report.json"
+        errors="${RUNNER_TEMP}/y509-error.txt"
+        # --json replaces the text report rather than adding to it, and sends
+        # the failure message to stderr, so stdout parses even when the check
+        # fails. "|| status=$?" keeps a non-zero verdict from tripping -e.
+        status=0
+        "$Y509_BIN" "${args[@]}" > "$report" 2> "$errors" || status=$?
+
+        if [ ! -s "$report" ]; then
+          echo "::error::y509 exited $status without producing a report"
+          cat "$errors" >&2 || true
+          exit 1
+        fi
+
+        level=$(jq -r '.trust.level' "$report")
+        trusted=$(jq -r '.trust.trusted' "$report")
+        presentation_ok=$(jq -r '.presentation.ok' "$report")
+        days=$(jq -r '.chain[0].daysUntilExpiry // empty' "$report")
+        problems=$(jq -r '[.presentation.findings[].problem] | join(", ")' "$report")
+
+        {
+          echo "trust-level=$level"
+          echo "trusted=$trusted"
+          echo "presentation-ok=$presentation_ok"
+          echo "days-until-expiry=${days:-}"
+          echo "problems=$problems"
+          echo "report=$report"
+        } >> "$GITHUB_OUTPUT"
+
+        # "none" disables every gate; otherwise a keyword must appear in the
+        # list to fail the job. Substring matching is safe because the three
+        # keywords share no prefix.
+        fail_on=",${INPUT_FAIL_ON},"
+        wants() { [ "$INPUT_FAIL_ON" != "none" ] && [ "${fail_on#*,"$1",}" != "$fail_on" ]; }
+
+        failed=0
+
+        if [ "$trusted" != "true" ]; then
+          reason=$(jq -r '.trust.error // "the chain does not verify"' "$report")
+          if wants untrusted; then
+            echo "::error::chain is $level: $reason"
+            failed=1
+          else
+            echo "::warning::chain is $level: $reason"
+          fi
+        fi
+
+        if [ "$presentation_ok" != "true" ]; then
+          # These are the findings a browser hides and curl, Go and Java do not.
+          jq -r '.presentation.findings[] | "\(.problem): \(.subject)\n  \(.detail)"' "$report" |
+            while IFS= read -r line; do echo "  $line"; done
+          if wants mis-served; then
+            echo "::error::chain was served incorrectly: $problems"
+            failed=1
+          else
+            echo "::warning::chain was served incorrectly: $problems"
+          fi
+        fi
+
+        if [ -n "${days:-}" ] && [ "$days" -lt "$INPUT_EXPIRY_DAYS" ]; then
+          if wants expiring; then
+            echo "::error::leaf expires in $days days (threshold $INPUT_EXPIRY_DAYS)"
+            failed=1
+          else
+            echo "::warning::leaf expires in $days days (threshold $INPUT_EXPIRY_DAYS)"
+          fi
+        fi
+
+        if [ "$INPUT_SUMMARY" = "true" ]; then
+          {
+            echo "### y509: \`$INPUT_TARGET\`"
+            echo
+            echo "| Check | Result |"
+            echo "| :--- | :--- |"
+            echo "| Trust | \`$level\` |"
+            echo "| Served correctly | \`$presentation_ok\`${problems:+ — $problems} |"
+            echo "| Leaf expires in | ${days:-unknown} days |"
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        # status is reported for the record; the gates above decide the job.
+        echo "y509 validate exited $status"
+        exit $failed
