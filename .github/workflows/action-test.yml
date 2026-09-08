@@ -95,6 +95,48 @@ jobs:
           fi
           test "${{ steps.check.outputs.trusted }}" = "false"
 
+  spaced-list:
+    name: a fail-on list written with spaces still gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # "untrusted, mis-served" is the natural way to write this in YAML. It
+      # used to miss the second keyword, downgrading the gate to a warning and
+      # passing the job.
+      - id: check
+        continue-on-error: true
+        uses: ./
+        with:
+          target: incomplete-chain.badssl.com:443
+          fail-on: untrusted, mis-served
+      - name: the spaced list still failed the job
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.check.outcome }}" != "failure" ]; then
+            echo "a fail-on list with spaces did not gate"; exit 1
+          fi
+
+  bad-keyword:
+    name: an unknown fail-on keyword is refused
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # A typo must not read as "gate nothing".
+      - id: check
+        continue-on-error: true
+        uses: ./
+        with:
+          target: badssl.com:443
+          fail-on: untrusted,mis-servd
+      - name: the typo failed the step
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.check.outcome }}" != "failure" ]; then
+            echo "an unknown keyword was accepted"; exit 1
+          fi
+
   report-only:
     name: fail-on none never fails the job
     runs-on: ubuntu-latest
