@@ -70,3 +70,6 @@ testdata/demo/certs.pem
 # Demo recording artifacts
 *.mp4
 *.webm
+
+# Scratch output from Playwright MCP browser sessions.
+.playwright-mcp/
