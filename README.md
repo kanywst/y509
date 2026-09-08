@@ -24,8 +24,13 @@ go install github.com/kanywst/y509/cmd/y509@latest
 ```
 
 Every [release](https://github.com/kanywst/y509/releases) attaches binaries for
-macOS and Linux, plus `.deb` and `.rpm` packages for Linux, with checksums,
-cosign signatures and an SBOM.
+macOS, Linux and Windows — `.tar.gz` for the first two, `.zip` for Windows —
+plus `.deb` and `.rpm` packages for Linux, with checksums, cosign signatures and
+an SBOM.
+
+On Windows, unpack the zip and put `y509.exe` on your `PATH`. Any terminal that
+supports ANSI works; Windows Terminal is the safe choice. Shell completion comes
+from `y509 completion powershell`.
 
 On FreeBSD, y509 is [`security/y509`](https://www.freshports.org/security/y509/)
 in the ports tree, packaged and maintained there rather than here. Until the
