@@ -2,6 +2,7 @@ package certificate
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -9,7 +10,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/binary"
 	"errors"
+	"io"
 	"math/big"
 	"net"
 	"strings"
@@ -560,5 +563,229 @@ func TestFetchChain_ContextCancelDuringStartTLS(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > 5*time.Second {
 		t.Errorf("took %v; the cancellation was not honoured during STARTTLS", elapsed)
+	}
+}
+
+// TestStartTLSFTP drives the AUTH TLS exchange from RFC 4217, including the
+// multi-line greeting that most real FTP servers send.
+func TestStartTLSFTP(t *testing.T) {
+	tests := []struct {
+		name     string
+		greeting string
+		reply    string
+		wantErr  bool
+	}{
+		{
+			name:     "single line greeting",
+			greeting: "220 ready\r\n",
+			reply:    "234 AUTH TLS OK\r\n",
+		},
+		{
+			name: "multi-line greeting",
+			// A hyphen in the fourth column continues the reply. Reading only
+			// the first line would leave the rest to be misread as the answer
+			// to AUTH TLS.
+			greeting: "220-welcome to the server\r\n220-be nice\r\n220 ready\r\n",
+			reply:    "234 AUTH TLS OK\r\n",
+		},
+		{
+			name:     "server has no TLS",
+			greeting: "220 ready\r\n",
+			reply:    "500 unknown command\r\n",
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, server := net.Pipe()
+			t.Cleanup(func() { _ = client.Close() })
+
+			go func() {
+				defer func() { _ = server.Close() }()
+				if _, err := server.Write([]byte(tt.greeting)); err != nil {
+					return
+				}
+				command, err := bufio.NewReader(server).ReadString('\n')
+				if err != nil {
+					return
+				}
+				if strings.TrimSpace(command) != "AUTH TLS" {
+					t.Errorf("expected AUTH TLS, got %q", strings.TrimSpace(command))
+				}
+				_, _ = server.Write([]byte(tt.reply))
+			}()
+
+			done := make(chan error, 1)
+			go func() { done <- startTLSFTP(client) }()
+
+			select {
+			case err := <-done:
+				if tt.wantErr && err == nil {
+					t.Error("expected an error")
+				}
+				if !tt.wantErr && err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("startTLSFTP hung; it did not consume the greeting correctly")
+			}
+		})
+	}
+}
+
+// TestStartTLSLDAP drives the RFC 4511 extended operation against a fake
+// server, checking both the request bytes and how a refusal is reported.
+func TestStartTLSLDAP(t *testing.T) {
+	// An ExtendedResponse carrying the given LDAP result code.
+	response := func(code byte) []byte {
+		body := []byte{
+			0x02, 0x01, 0x01, // messageID 1
+			0x78, 0x07, // [APPLICATION 24] ExtendedResponse
+			0x0a, 0x01, code, // ENUMERATED resultCode
+			0x04, 0x00, // matchedDN, empty
+			0x04, 0x00, // diagnosticMessage, empty
+		}
+		return append([]byte{0x30, byte(len(body))}, body...)
+	}
+
+	tests := []struct {
+		name    string
+		reply   []byte
+		wantErr bool
+	}{
+		{name: "server accepts", reply: response(0)},
+		// 53 is unwillingToPerform, what a server without TLS configured says.
+		{name: "server refuses", reply: response(53), wantErr: true},
+		{name: "not an ExtendedResponse", reply: []byte{0x30, 0x05, 0x02, 0x01, 0x01, 0x65, 0x00}, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, server := net.Pipe()
+			t.Cleanup(func() { _ = client.Close() })
+
+			go func() {
+				defer func() { _ = server.Close() }()
+				request := make([]byte, len(ldapStartTLSRequest()))
+				if _, err := io.ReadFull(server, request); err != nil {
+					return
+				}
+				if !bytes.Contains(request, []byte(ldapStartTLSOID)) {
+					t.Errorf("request does not carry the StartTLS OID: %x", request)
+				}
+				if request[0] != 0x30 {
+					t.Errorf("request is not an LDAPMessage SEQUENCE: %x", request)
+				}
+				_, _ = server.Write(tt.reply)
+			}()
+
+			done := make(chan error, 1)
+			go func() { done <- startTLSLDAP(client) }()
+
+			select {
+			case err := <-done:
+				if tt.wantErr && err == nil {
+					t.Error("expected an error")
+				}
+				if !tt.wantErr && err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("startTLSLDAP hung")
+			}
+		})
+	}
+}
+
+// errPacket builds a MySQL ERR packet: the 0xff marker, a two byte error code,
+// and the message, which conventionally opens with a "#" SQL state marker.
+func errPacket(code uint16, message string) []byte {
+	payload := []byte{0xff, 0, 0}
+	binary.LittleEndian.PutUint16(payload[1:3], code)
+	payload = append(payload, message...)
+
+	return append([]byte{byte(len(payload)), 0, 0, 0}, payload...)
+}
+
+// TestStartTLSMySQL drives the SSLRequest half of the MySQL handshake.
+func TestStartTLSMySQL(t *testing.T) {
+	// greeting builds a v10 initial handshake packet advertising capabilities.
+	greeting := func(capabilities uint32) []byte {
+		payload := []byte{10}                      // protocol version
+		payload = append(payload, "8.0.36\x00"...) // server version
+		payload = append(payload, make([]byte, 13)...)
+		lower := make([]byte, 2)
+		binary.LittleEndian.PutUint16(lower, uint16(capabilities))
+		payload = append(payload, lower...)
+		payload = append(payload, 45, 0, 0) // charset, status flags
+		upper := make([]byte, 2)
+		binary.LittleEndian.PutUint16(upper, uint16(capabilities>>16))
+		payload = append(payload, upper...)
+
+		packet := []byte{byte(len(payload)), 0, 0, 0}
+		return append(packet, payload...)
+	}
+
+	tests := []struct {
+		name     string
+		greeting []byte
+		wantErr  bool
+	}{
+		{name: "server offers TLS", greeting: greeting(mysqlClientSSL | mysqlClientProtocol41)},
+		{name: "server built without TLS", greeting: greeting(mysqlClientProtocol41), wantErr: true},
+		// An ERR packet instead of a greeting: the reason belongs in the error.
+		{name: "connection refused", greeting: errPacket(1129, "#08S01host blocked"), wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, server := net.Pipe()
+			t.Cleanup(func() { _ = client.Close() })
+
+			sent := make(chan []byte, 1)
+			go func() {
+				defer func() { _ = server.Close() }()
+				if _, err := server.Write(tt.greeting); err != nil {
+					return
+				}
+				request := make([]byte, 36)
+				if _, err := io.ReadFull(server, request); err != nil {
+					return
+				}
+				sent <- request
+			}()
+
+			done := make(chan error, 1)
+			go func() { done <- startTLSMySQL(client) }()
+
+			select {
+			case err := <-done:
+				if tt.wantErr {
+					if err == nil {
+						t.Error("expected an error")
+					}
+					return
+				}
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("startTLSMySQL hung")
+			}
+
+			select {
+			case request := <-sent:
+				// 32 byte payload, sequence 1, and CLIENT_SSL set.
+				if request[0] != 32 || request[3] != 1 {
+					t.Errorf("wrong SSLRequest header: %x", request[:4])
+				}
+				if flags := binary.LittleEndian.Uint32(request[4:8]); flags&mysqlClientSSL == 0 {
+					t.Errorf("SSLRequest does not set CLIENT_SSL: %08x", flags)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("the server never received the SSLRequest packet")
+			}
+		})
 	}
 }
