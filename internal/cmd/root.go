@@ -143,6 +143,10 @@ type input struct {
 	// gives validate a hostname to check the leaf against, which is the whole
 	// question when you are looking at a live endpoint.
 	Host string
+	// Conn is the handshake the certificates arrived over, nil for a file or
+	// stdin. It carries the negotiated version, the cipher suite and whether
+	// OCSP was stapled, none of which the certificates themselves record.
+	Conn *certificate.ConnectResult
 }
 
 // loadInput decides where the certificates come from: a live server, a file, or
@@ -169,7 +173,7 @@ func loadInput(cmd *cobra.Command, args []string) (*input, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &input{Certs: result.Certificates, Host: result.ServerName}, nil
+		return &input{Certs: result.Certificates, Host: result.ServerName, Conn: result}, nil
 	}
 
 	if target == "" {

@@ -149,9 +149,18 @@ y509 validate example.com:443 --json | jq .
       }
     ]
   },
-  "chain": [{ "index": 0, "commonName": "*.example.com", "daysUntilExpiry": 43, "…": "…" }]
+  "chain": [{ "index": 0, "commonName": "*.example.com", "daysUntilExpiry": 43, "…": "…" }],
+  "connection": {
+    "tlsVersion": "TLS 1.3",
+    "cipherSuite": "TLS_AES_128_GCM_SHA256",
+    "ocspStapled": true
+  }
 }
 ```
+
+`connection` is what the handshake revealed rather than what the certificates
+say, so it is absent entirely for a file or stdin input. Testing for the key is
+how a consumer tells a live check from an offline one.
 
 This exists because the exit code cannot carry the answer. It collapses
 `self-anchored` and `broken` into the same non-zero, so a script cannot tell an
@@ -164,6 +173,9 @@ y509 validate example.com:443 --json | jq -e '.presentation.ok'
 
 # Warn 30 days out, without parsing prose.
 y509 validate example.com:443 --json | jq '.chain[0].daysUntilExpiry < 30'
+
+# Find anything still negotiating below TLS 1.2.
+y509 validate example.com:443 --json | jq -e '.connection.tlsVersion | test("1\\.[23]$")'
 ```
 
 `chain` is in the order the certificates were **presented**, not sorted, because

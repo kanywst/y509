@@ -1,6 +1,7 @@
 package certificate
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"time"
 )
@@ -31,6 +32,42 @@ type JSONReport struct {
 	// server sent them, or the order they appear in a file. It is not sorted,
 	// because sorting is what destroys the evidence Presentation reports on.
 	Chain []JSONCertificate `json:"chain"`
+	// Connection describes the handshake the chain arrived over. It is absent
+	// for a file or stdin, where there was no handshake and every field would
+	// be an invention.
+	Connection *JSONConnection `json:"connection,omitempty"`
+}
+
+// JSONConnection is what the handshake itself revealed, as opposed to what the
+// certificates say.
+//
+// "Is anything still negotiating TLS 1.0" and "did stapling quietly stop
+// working" are both questions a scheduled check wants to answer, and neither is
+// visible anywhere in the chain.
+type JSONConnection struct {
+	// TLSVersion is the negotiated version, as "TLS 1.3" rather than 0x0304.
+	TLSVersion string `json:"tlsVersion"`
+	// CipherSuite is the negotiated suite by its IANA name.
+	CipherSuite string `json:"cipherSuite"`
+	// OCSPStapled reports whether the server stapled an OCSP response. It says
+	// nothing about what that response contained; y509 does no revocation
+	// checking.
+	OCSPStapled bool `json:"ocspStapled"`
+}
+
+// NewJSONConnection renders a handshake for the report, or nil when there was
+// none. Both fields cross the boundary as strings: Version and CipherSuite are
+// uint16 on the wire, and publishing those numbers would make the constant
+// values an API in exactly the way this package avoids elsewhere.
+func NewJSONConnection(result *ConnectResult) *JSONConnection {
+	if result == nil {
+		return nil
+	}
+	return &JSONConnection{
+		TLSVersion:  result.TLSVersionName(),
+		CipherSuite: tls.CipherSuiteName(result.CipherSuite),
+		OCSPStapled: result.OCSPStapled,
+	}
 }
 
 // JSONTrust is the verification outcome.

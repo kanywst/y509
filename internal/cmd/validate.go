@@ -76,7 +76,7 @@ says nothing at all about how the chain was served.`,
 			// Nothing else may go to stdout in this mode: the whole point is
 			// that the stream parses. The non-zero exit below still reports the
 			// failure, and cobra prints that to stderr.
-			if err := writeJSONReport(cmd.OutOrStdout(), source.Host, report, result); err != nil {
+			if err := writeJSONReport(cmd.OutOrStdout(), source, report, result); err != nil {
 				return err
 			}
 		} else {
@@ -111,14 +111,19 @@ says nothing at all about how the chain was served.`,
 // It is indented and newline-terminated because the overwhelmingly likely
 // consumer is a human reading a CI log or piping into jq, and neither is served
 // by one long line.
-func writeJSONReport(w io.Writer, host string, report *certificate.ChainReport, result *certificate.VerifyResult) error {
+func writeJSONReport(w io.Writer, source *input, report *certificate.ChainReport, result *certificate.VerifyResult) error {
+	out := certificate.NewJSONReport(source.Host, report, result)
+	// Nil for a file or stdin, which leaves the object out entirely rather
+	// than reporting a handshake that never happened.
+	out.Connection = certificate.NewJSONConnection(source.Conn)
+
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	// Certificate subjects and SANs are attacker-controlled strings, and Go's
 	// default HTML escaping would mangle them into < sequences for no
 	// benefit outside a browser.
 	enc.SetEscapeHTML(false)
-	if err := enc.Encode(certificate.NewJSONReport(host, report, result)); err != nil {
+	if err := enc.Encode(out); err != nil {
 		return fmt.Errorf("failed to write JSON report: %w", err)
 	}
 	return nil
