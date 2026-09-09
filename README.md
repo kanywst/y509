@@ -106,10 +106,10 @@ Trust anchor: ISRG Root X1
 
 Chain as presented:
   • missing issuer: *.badssl.com
-    the chain stops at a certificate that is not a CA; its issuer "R13" was
+    the chain stops at a certificate that is not a CA; its issuer "YR2" was
     never sent, so a client that does not chase AIA (curl, Go, Java) cannot
     build a chain
-    fetch from: http://r13.i.lencr.org/
+    fetch from: http://yr2.i.lencr.org/
 ```
 
 Note that the chain *verified* — on macOS the platform verifier fetched the
@@ -144,8 +144,8 @@ y509 validate example.com:443 --json | jq .
       {
         "problem": "missing issuer",
         "subject": "*.example.com",
-        "detail": "the chain stops at a certificate that is not a CA; its issuer \"R13\" was never sent, so a client that does not chase AIA (curl, Go, Java) cannot build a chain",
-        "fetchUrls": ["http://r13.i.lencr.org/"]
+        "detail": "the chain stops at a certificate that is not a CA; its issuer \"YR2\" was never sent, so a client that does not chase AIA (curl, Go, Java) cannot build a chain",
+        "fetchUrls": ["http://yr2.i.lencr.org/"]
       }
     ]
   },
