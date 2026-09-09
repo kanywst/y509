@@ -3,7 +3,14 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      # Only real version tags. The bare 'v1' that the GitHub Action points at
+      # is moved on every release, and 'v*' matched it: goreleaser then ran a
+      # second time against the same commit, rebuilt with a new timestamp, and
+      # replaced the artifacts of the release it had just published. The
+      # cosign-signed checksums were replaced along with them, so anyone who
+      # had already recorded a hash saw it stop matching.
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
 
 permissions:
   contents: write
