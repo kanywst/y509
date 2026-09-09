@@ -1,6 +1,8 @@
 package certificate
 
 import (
+	"bytes"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
@@ -272,4 +274,54 @@ func TestJSONReport_NilInputsDoNotPanic(t *testing.T) {
 		t.Error("a report with no analysis claims a presentation problem")
 	}
 	marshal(t, report)
+}
+
+// TestNewJSONConnection checks the handshake fields cross the boundary as
+// strings, and that a chain with no handshake behind it produces nothing.
+func TestNewJSONConnection(t *testing.T) {
+	if got := NewJSONConnection(nil); got != nil {
+		t.Errorf("a file or stdin input produced a connection object: %+v", got)
+	}
+
+	conn := NewJSONConnection(&ConnectResult{
+		Version:     tls.VersionTLS13,
+		CipherSuite: tls.TLS_AES_128_GCM_SHA256,
+		OCSPStapled: true,
+	})
+	if conn == nil {
+		t.Fatal("expected a connection object for a live handshake")
+	}
+	if conn.TLSVersion != "TLS 1.3" {
+		t.Errorf("TLSVersion = %q, want %q", conn.TLSVersion, "TLS 1.3")
+	}
+	if conn.CipherSuite != "TLS_AES_128_GCM_SHA256" {
+		t.Errorf("CipherSuite = %q, want %q", conn.CipherSuite, "TLS_AES_128_GCM_SHA256")
+	}
+	if !conn.OCSPStapled {
+		t.Error("OCSPStapled = false, want true")
+	}
+}
+
+// TestJSONReport_ConnectionOmittedWithoutHandshake pins the wire format: the
+// key must be absent rather than null, so a consumer can test for its presence
+// to tell a live check from a file one.
+func TestJSONReport_ConnectionOmittedWithoutHandshake(t *testing.T) {
+	report := NewJSONReport("", nil, &VerifyResult{Level: TrustAnchored})
+
+	encoded, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(encoded, []byte(`"connection"`)) {
+		t.Errorf("connection present with no handshake: %s", encoded)
+	}
+
+	report.Connection = NewJSONConnection(&ConnectResult{Version: tls.VersionTLS12})
+	encoded, err = json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(encoded, []byte(`"tlsVersion":"TLS 1.2"`)) {
+		t.Errorf("connection missing or wrong after a handshake: %s", encoded)
+	}
 }
