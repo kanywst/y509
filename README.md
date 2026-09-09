@@ -64,8 +64,8 @@ y509 db.example.com:3306 --starttls mysql
 
 An argument naming an existing file is always read as a file; anything else is
 treated as an address. Pass `--connect` to force it. `--starttls` understands
-`smtp`, `imap`, `ftp`, `ldap`, `mysql` and `postgres` (`mariadb` and
-`postgresql` are accepted as aliases).
+`smtp`, `lmtp`, `imap`, `nntp`, `ftp`, `ldap`, `mysql` and `postgres`
+(`mariadb` and `postgresql` are accepted as aliases).
 
 The handshake deliberately verifies nothing, because a chain that fails to
 verify is usually the reason you came. Certificates come back **in the order the
