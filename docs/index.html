@@ -890,6 +890,10 @@ footer { padding-block: 44px 60px; color: var(--text-mute); font-size: 13.5px; }
           <button class="copy" type="button" aria-label="Copy Homebrew install command">copy</button>
         </div>
         <div class="install__row">
+          <div class="install__cmd"><span class="p">$</span><span data-cmd>scoop bucket add kanywst https://github.com/kanywst/scoop-bucket; scoop install kanywst/y509</span></div>
+          <button class="copy" type="button" aria-label="Copy Scoop install command">copy</button>
+        </div>
+        <div class="install__row">
           <div class="install__cmd"><span class="p">$</span><span data-cmd>go install github.com/kanywst/y509/cmd/y509@latest</span></div>
           <button class="copy" type="button" aria-label="Copy go install command">copy</button>
         </div>
@@ -1053,7 +1057,7 @@ Chain as presented:
 <span class="c"># a live server</span>
 <span class="p">$</span> <b>y509 example.com:443</b>
 
-<span class="c"># ...behind STARTTLS (smtp, imap, postgres)</span>
+<span class="c"># ...behind STARTTLS (smtp, imap, ftp, ldap, mysql, postgres)</span>
 <span class="p">$</span> <b>y509 smtp.example.com:587 --starttls smtp</b>
 
 <span class="c"># an internal host with a different SNI</span>
@@ -1173,6 +1177,18 @@ Chain as presented:
             <code>chain</code> is in the order the certificates were <strong>presented</strong>, not
             sorted, because sorting is what destroys the evidence <code>presentation</code> reports on.
           </p>
+          <div class="out" style="margin-top:22px">
+            <div class="out__head">or as a step, without the jq</div>
+<pre><span class="k">- uses:</span> kanywst/y509@v1
+  <span class="k">with:</span>
+    <span class="k">target:</span> example.com:443
+    <span class="k">fail-on:</span> untrusted,mis-served,expiring</pre>
+          </div>
+          <p class="lede" style="margin-top:18px">
+            The action downloads a release, verifies its checksum, and fails the job on whichever
+            findings you name. Anything you leave out is still reported, as a warning rather than an
+            error, so <code>fail-on: none</code> turns the same step into a scheduled monitor.
+          </p>
         </div>
       </div>
     </div>
@@ -1224,6 +1240,21 @@ Chain as presented:
         </div>
 
         <div class="get__card">
+          <h3>Scoop</h3>
+          <p>Windows, x64 and arm64.</p>
+          <div class="install">
+            <div class="install__row">
+              <div class="install__cmd"><span class="p">$</span><span data-cmd>scoop bucket add kanywst https://github.com/kanywst/scoop-bucket</span></div>
+              <button class="copy" type="button" aria-label="Copy Scoop bucket command">copy</button>
+            </div>
+            <div class="install__row">
+              <div class="install__cmd"><span class="p">$</span><span data-cmd>scoop install kanywst/y509</span></div>
+              <button class="copy" type="button" aria-label="Copy Scoop install command">copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="get__card">
           <h3>Go</h3>
           <p>Straight from source, Go 1.26 or newer.</p>
           <div class="install">
@@ -1236,7 +1267,7 @@ Chain as presented:
 
         <div class="get__card">
           <h3>Release archives</h3>
-          <p>Every release attaches binaries for macOS and Linux, plus <code>.deb</code> and <code>.rpm</code> packages, with checksums, cosign signatures and a CycloneDX SBOM.</p>
+          <p>Every release attaches binaries for macOS, Linux and Windows, plus <code>.deb</code> and <code>.rpm</code> packages, with checksums, cosign signatures and a CycloneDX SBOM.</p>
           <p style="margin-top:14px"><a class="btn" href="https://github.com/kanywst/y509/releases">Releases ↗</a></p>
         </div>
 
