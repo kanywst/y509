@@ -235,14 +235,16 @@ func normalizeAddress(addr string) (address, host string, err error) {
 
 // StartTLSProtocols are the application protocols FetchChain can upgrade, in
 // the order they are offered to the user.
-var StartTLSProtocols = []string{"smtp", "imap", "ftp", "ldap", "mysql", "postgres"}
+var StartTLSProtocols = []string{"smtp", "lmtp", "imap", "nntp", "ftp", "ldap", "mysql", "postgres"}
 
 // startTLSNegotiators maps every accepted spelling to its prelude. One table
 // rather than two switch statements, so the set --starttls advertises and the
 // set it can actually negotiate cannot drift apart.
 var startTLSNegotiators = map[string]func(net.Conn) error{
 	"smtp":       startTLSSMTP,
+	"lmtp":       startTLSLMTP,
 	"imap":       startTLSIMAP,
+	"nntp":       startTLSNNTP,
 	"ftp":        startTLSFTP,
 	"ldap":       startTLSLDAP,
 	"mysql":      startTLSMySQL,
@@ -271,6 +273,19 @@ func negotiateStartTLS(conn net.Conn, protocol string) error {
 
 // startTLSSMTP does the EHLO / STARTTLS exchange from RFC 3207.
 func startTLSSMTP(conn net.Conn) error {
+	return startTLSSMTPLike(conn, "EHLO")
+}
+
+// startTLSLMTP does the same exchange for LMTP, RFC 2033, which differs from
+// SMTP only in greeting with LHLO. A server that speaks LMTP refuses EHLO
+// outright, so the verb has to be right rather than merely close.
+func startTLSLMTP(conn net.Conn) error {
+	return startTLSSMTPLike(conn, "LHLO")
+}
+
+// startTLSSMTPLike performs the SMTP-shaped prelude with the given greeting
+// verb.
+func startTLSSMTPLike(conn net.Conn, greeting string) error {
 	reader := bufio.NewReader(conn)
 
 	// The greeting is frequently several lines. Every one of them has to be
@@ -279,11 +294,11 @@ func startTLSSMTP(conn net.Conn) error {
 		return fmt.Errorf("greeting: %w", err)
 	}
 
-	if _, err := fmt.Fprintf(conn, "EHLO y509\r\n"); err != nil {
+	if _, err := fmt.Fprintf(conn, "%s y509\r\n", greeting); err != nil {
 		return err
 	}
 	if err := expectReplyCode(reader, "250"); err != nil {
-		return fmt.Errorf("EHLO: %w", err)
+		return fmt.Errorf("%s: %w", greeting, err)
 	}
 
 	if _, err := fmt.Fprintf(conn, "STARTTLS\r\n"); err != nil {
@@ -295,8 +310,33 @@ func startTLSSMTP(conn net.Conn) error {
 	return nil
 }
 
-// expectReplyCode reads a complete SMTP or FTP reply and checks its status
-// code. Both protocols share the grammar, so both preludes share this reader.
+// startTLSNNTP does the STARTTLS exchange from RFC 4642.
+//
+// The greeting is 200 when posting is allowed and 201 when the server is read
+// only. Both are a working connection, and accepting only 200 would turn every
+// read-only news server into a spurious failure.
+func startTLSNNTP(conn net.Conn) error {
+	reader := bufio.NewReader(conn)
+
+	if err := expectReplyCode(reader, "200", "201"); err != nil {
+		return fmt.Errorf("greeting: %w", err)
+	}
+
+	if _, err := fmt.Fprintf(conn, "STARTTLS\r\n"); err != nil {
+		return err
+	}
+	// 382 is "continue with TLS negotiation". A server that already has TLS on
+	// the connection answers 502, and one built without it answers 580.
+	if err := expectReplyCode(reader, "382"); err != nil {
+		return fmt.Errorf("STARTTLS: %w", err)
+	}
+	return nil
+}
+
+// expectReplyCode reads a complete reply and checks its status code against the
+// ones given. SMTP, LMTP, FTP and NNTP share the grammar, so they share this
+// reader; more than one code is accepted because an NNTP greeting is 200 or 201
+// depending on whether posting is allowed, and both are a working connection.
 //
 // A reply may span several lines. RFC 5321 (and RFC 959 before it) marks a
 // continuation with a hyphen in the fourth column ("250-STARTTLS") and the
@@ -304,14 +344,24 @@ func startTLSSMTP(conn net.Conn) error {
 // first line leaves the rest in the buffer, where it gets mistaken for the
 // answer to the next command -- so a server with a multi-line greeting broke
 // the exchange before it began.
-func expectReplyCode(reader *bufio.Reader, code string) error {
+func expectReplyCode(reader *bufio.Reader, codes ...string) error {
+	accepts := func(line string) bool {
+		for _, code := range codes {
+			if strings.HasPrefix(line, code) {
+				return true
+			}
+		}
+		return false
+	}
+
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			return err
 		}
-		if !strings.HasPrefix(line, code) {
-			return fmt.Errorf("expected %s, got: %s", code, strings.TrimSpace(line))
+		if !accepts(line) {
+			return fmt.Errorf("expected %s, got: %s",
+				strings.Join(codes, " or "), strings.TrimSpace(line))
 		}
 		// Anything but a hyphen in column four ends the reply. Testing for a
 		// space instead would hang on a bare "250\r\n", which is legal.

@@ -1057,7 +1057,7 @@ Chain as presented:
 <span class="c"># a live server</span>
 <span class="p">$</span> <b>y509 example.com:443</b>
 
-<span class="c"># ...behind STARTTLS (smtp, imap, ftp, ldap, mysql, postgres)</span>
+<span class="c"># ...behind STARTTLS (smtp, lmtp, imap, nntp, ftp, ldap, mysql, postgres)</span>
 <span class="p">$</span> <b>y509 smtp.example.com:587 --starttls smtp</b>
 
 <span class="c"># an internal host with a different SNI</span>
@@ -1079,7 +1079,7 @@ Chain as presented:
           <span class="spec__key">net</span>
           <h3>Live handshake</h3>
           <p>TLS straight to the port, or through a STARTTLS upgrade, with SNI you control.</p>
-          <ul><li>--connect · --servername</li><li>--starttls smtp / imap / ftp / ldap / mysql / postgres</li><li>verifies nothing on purpose</li></ul>
+          <ul><li>--connect · --servername</li><li>--starttls smtp / lmtp / imap / nntp / ftp / ldap / mysql / postgres</li><li>verifies nothing on purpose</li></ul>
         </div>
         <div class="spec__cell">
           <span class="spec__key">audit</span>

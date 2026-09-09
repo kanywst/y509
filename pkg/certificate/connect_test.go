@@ -839,3 +839,120 @@ func TestParseBERElement_RejectsOversizedLength(t *testing.T) {
 		t.Fatal("expected a length of 0xffffffff to be refused")
 	}
 }
+
+// TestStartTLSNNTP covers RFC 4642, including the read-only greeting that a
+// 200-only check would reject.
+func TestStartTLSNNTP(t *testing.T) {
+	tests := []struct {
+		name     string
+		greeting string
+		reply    string
+		wantErr  bool
+	}{
+		{
+			name:     "posting allowed",
+			greeting: "200 news.example.com InterNetNews ready\r\n",
+			reply:    "382 Continue with TLS negotiation\r\n",
+		},
+		{
+			// 201 is a working server that will not accept posts. Treating only
+			// 200 as a greeting would fail on every read-only news server.
+			name:     "read only server",
+			greeting: "201 news.example.com InterNetNews (no posting)\r\n",
+			reply:    "382 Continue with TLS negotiation\r\n",
+		},
+		{
+			name:     "server without TLS",
+			greeting: "200 news.example.com ready\r\n",
+			reply:    "580 Can not initiate TLS negotiation\r\n",
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, server := net.Pipe()
+			t.Cleanup(func() { _ = client.Close() })
+
+			go func() {
+				defer func() { _ = server.Close() }()
+				if _, err := server.Write([]byte(tt.greeting)); err != nil {
+					return
+				}
+				command, err := bufio.NewReader(server).ReadString('\n')
+				if err != nil {
+					return
+				}
+				if strings.TrimSpace(command) != "STARTTLS" {
+					t.Errorf("expected STARTTLS, got %q", strings.TrimSpace(command))
+				}
+				_, _ = server.Write([]byte(tt.reply))
+			}()
+
+			done := make(chan error, 1)
+			go func() { done <- startTLSNNTP(client) }()
+
+			select {
+			case err := <-done:
+				if tt.wantErr && err == nil {
+					t.Error("expected an error")
+				}
+				if !tt.wantErr && err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("startTLSNNTP hung")
+			}
+		})
+	}
+}
+
+// TestStartTLSLMTP checks the prelude greets with LHLO rather than EHLO. A
+// server speaking LMTP refuses EHLO outright, so the verb has to be exact.
+func TestStartTLSLMTP(t *testing.T) {
+	client, server := net.Pipe()
+	t.Cleanup(func() { _ = client.Close() })
+
+	greeted := make(chan string, 1)
+	go func() {
+		defer func() { _ = server.Close() }()
+		// Multi-line, as a real LMTP greeting is.
+		if _, err := server.Write([]byte("220-lmtp.example.com\r\n220 ready\r\n")); err != nil {
+			return
+		}
+		reader := bufio.NewReader(server)
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return
+		}
+		greeted <- strings.Fields(strings.TrimSpace(line))[0]
+		if _, err := server.Write([]byte("250-lmtp.example.com\r\n250 STARTTLS\r\n")); err != nil {
+			return
+		}
+		if _, err := reader.ReadString('\n'); err != nil {
+			return
+		}
+		_, _ = server.Write([]byte("220 go ahead\r\n"))
+	}()
+
+	done := make(chan error, 1)
+	go func() { done <- startTLSLMTP(client) }()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("startTLSLMTP hung")
+	}
+
+	select {
+	case verb := <-greeted:
+		if verb != "LHLO" {
+			t.Errorf("greeted with %q, want LHLO", verb)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("the server never saw a greeting")
+	}
+}
