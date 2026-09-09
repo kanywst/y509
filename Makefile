@@ -34,6 +34,20 @@ install:
 demo-certs:
 	@go run scripts/gen_demo_certs.go
 
+# Regenerate the shell completion scripts from the binary.
+#
+# These used to be written by hand and had drifted badly: they knew -h and -v
+# and nothing else, while the CLI had grown subcommands and a dozen flags.
+# Cobra's output calls back into the binary to complete, so it stays correct on
+# its own. Run this after adding a flag or a subcommand.
+.PHONY: completions
+completions: build-dev
+	@for shell in bash zsh fish; do \
+		./$(BINARY_NAME) completion $$shell > completions/$(BINARY_NAME).$$shell; \
+	done
+	@./$(BINARY_NAME) completion powershell > completions/$(BINARY_NAME).ps1
+	@echo "regenerated completions/"
+
 # Run tests
 .PHONY: test
 test: demo-certs
@@ -147,6 +161,7 @@ help:
 	@echo "  version      - Show version information"
 	@echo "  run          - Build and run with test data"
 	@echo "  demo         - Same as run"
+	@echo "  completions  - Regenerate the shell completion scripts"
 	@echo "  fmt          - Format code"
 	@echo "  lint         - Lint code"
 	@echo "  tidy         - Tidy dependencies"

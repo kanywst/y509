@@ -90,6 +90,16 @@ func init() {
 		strings.Join(certificate.StartTLSProtocols, ", "))
 	RootCmd.PersistentFlags().Duration("timeout", certificate.DefaultConnectTimeout, "Timeout for a live connection")
 
+	// --starttls takes one of a fixed set, so offer them rather than leaving
+	// the user to remember. The list is the same slice the help text and the
+	// error message read from, so it cannot fall behind.
+	if err := RootCmd.RegisterFlagCompletionFunc("starttls",
+		func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+			return certificate.StartTLSProtocols, cobra.ShellCompDirectiveNoFileComp
+		}); err != nil {
+		panic(err)
+	}
+
 	// Subcommands register themselves in their own init().
 
 	// Handle arguments
