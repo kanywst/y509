@@ -9,7 +9,7 @@ y509 \- inspect and validate X.509 certificate chains
 [\fIOPTIONS\fR] [\fIFILE\fR | \fIHOST\fR:\fIPORT\fR]
 .br
 .B y509 export
-[\fIINDEX\fR] [\fIFORMAT\fR] [\fIFILENAME\fR]
+[\fIOPTIONS\fR] [\fIINDEX\fR] [\fIFORMAT\fR] [\fIFILENAME\fR]
 .br
 .B y509 completion
 \fISHELL\fR
@@ -44,7 +44,11 @@ URL to fetch a missing intermediate.
 .B export
 Write a certificate to a file. \fIFORMAT\fR is \fBpem\fR, \fBder\fR, \fBcrt\fR
 or \fBcert\fR; \fBcrt\fR and \fBcert\fR are written as PEM. Defaults to the
-selected certificate, \fBpem\fR, and a generated filename.
+first certificate, \fBpem\fR, and a generated filename. The chain is read from
+\fB\-\-connect\fR, \fB\-i\fR or standard input like every other subcommand; the
+positional arguments choose what to write, not where to read from. With
+\fB\-\-all\fR the whole chain is written to one PEM bundle and the first
+positional argument is the filename.
 .TP
 .B completion
 Write a shell completion script for \fBbash\fR, \fBzsh\fR, \fBfish\fR or
