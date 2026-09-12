@@ -109,12 +109,18 @@ func NewStyles(theme *config.Theme) Styles {
 type Model struct {
 	certificates    []*certificate.Info // Filtered list of certificates
 	allCertificates []*certificate.Info // Original unfiltered list
-	width           int                 // Window width
-	height          int                 // Window height
-	ready           bool                // Whether dimensions are initialized
-	Config          *config.Config      // Application configuration
-	Styles          Styles              // Computed Lip Gloss styles
-	focus           Focus               // Currently focused pane
+
+	// chainReport is how the chain was presented, analyzed before the list was
+	// sorted. It concerns the whole input rather than the selected
+	// certificate, so filtering and searching leave it alone.
+	chainReport *certificate.ChainReport
+
+	width  int            // Window width
+	height int            // Window height
+	ready  bool           // Whether dimensions are initialized
+	Config *config.Config // Application configuration
+	Styles Styles         // Computed Lip Gloss styles
+	focus  Focus          // Currently focused pane
 
 	// Tabs for the right pane
 	tabs      []string
@@ -185,13 +191,21 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 
 	// Sort and validate the certificate chain
 	var sortedCerts []*certificate.Info
+	var chainReport *certificate.ChainReport
 	if len(certs) > 0 {
 		rawCerts := make([]*x509.Certificate, len(certs))
 		for i, c := range certs {
 			rawCerts[i] = c.Certificate
 		}
-		// Sort the raw certificates
-		sortedRawCerts, _ := certificate.SortChain(rawCerts)
+		// Analyze before sorting. AnalyzeChain reads the order the chain was
+		// presented in, and everything below reorders it -- so this call has
+		// to come first or the findings it exists to report are gone.
+		chainReport = certificate.AnalyzeChain(rawCerts)
+
+		// Reuse the sort AnalyzeChain already did: it keeps the result in
+		// Sorted so a caller does not repeat the O(n^2) signature checks on
+		// every model load.
+		sortedRawCerts := chainReport.Sorted
 
 		// Map raw certificates to their Info wrappers for efficient lookup.
 		// Use fingerprint as key, and a slice of wrappers to handle potential duplicates
@@ -221,7 +235,7 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 		certificate.ValidateChainLinks(sortedCerts)
 	}
 
-	tabs := []string{"Subject", "Issuer", "Validity", "SANs", "Misc"}
+	tabs := []string{"Subject", "Issuer", "Validity", "SANs", "Misc", "Findings"}
 
 	ti := textinput.New()
 	tiStyles := textinput.DefaultDarkStyles()
@@ -250,6 +264,7 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 	return &Model{
 		certificates:    sortedCerts,
 		allCertificates: sortedCerts,
+		chainReport:     chainReport,
 		ready:           false,
 		viewMode:        ViewSplash,
 		focus:           FocusLeft,

@@ -484,9 +484,60 @@ func (m Model) renderTabContent(width int) string {
 		b.WriteString("\n")
 		b.WriteString(m.Styles.SectionTitle.Render("Chain Position") + "\n")
 		b.WriteString(m.renderChainPosition(cert))
+	case "Findings":
+		b.WriteString(m.renderFindings())
 	}
 
 	return lipgloss.NewStyle().Width(width).Render(b.String())
+}
+
+// renderFindings shows how the chain was presented: the missing intermediate,
+// the redundant root, the wrong order. The findings concern the whole chain
+// rather than the selected certificate, which is why this tab reads the same
+// from every row.
+//
+// This is the question `validate` answers and the TUI did not. A chain that
+// verifies can still be served in a way that curl, Go and Java reject, and
+// nothing else on screen says so: the list sorts the chain before drawing it,
+// which is exactly what hides a wrong order or a root that should not have been
+// sent.
+func (m Model) renderFindings() string {
+	var b strings.Builder
+
+	if m.chainReport == nil {
+		return m.Styles.Dimmed.Render("  No chain to analyze")
+	}
+
+	if m.chainReport.OK() {
+		b.WriteString(m.Styles.BadgeValid.Render("  ● Presented correctly") + "\n\n")
+		b.WriteString(m.Styles.Dimmed.Render(
+			"  Every certificate links to the next, the order is leaf-first, " +
+				"and nothing redundant was sent."))
+		return b.String()
+	}
+
+	count := len(m.chainReport.Findings)
+	noun := "problems"
+	if count == 1 {
+		noun = "problem"
+	}
+	b.WriteString(m.Styles.BadgeWarning.Render(fmt.Sprintf("  ▲ %d %s", count, noun)) + "\n")
+
+	for _, finding := range m.chainReport.Findings {
+		b.WriteString("\n")
+		b.WriteString("  " +
+			m.Styles.StatusWarning.Render(finding.Problem.String()) +
+			m.Styles.DetailKey.Render(": ") +
+			m.Styles.DetailValue.Render(finding.Subject) + "\n")
+		b.WriteString(m.Styles.Dimmed.Render("    "+finding.Detail) + "\n")
+		for _, url := range finding.FetchURLs {
+			b.WriteString("    " +
+				m.Styles.DetailKey.Render("fetch from: ") +
+				m.Styles.Highlight.Render(url) + "\n")
+		}
+	}
+
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // renderChainPosition shows the certificate chain as a table, marking the
