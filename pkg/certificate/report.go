@@ -36,6 +36,52 @@ type JSONReport struct {
 	// for a file or stdin, where there was no handshake and every field would
 	// be an invention.
 	Connection *JSONConnection `json:"connection,omitempty"`
+	// Unparsed lists the CERTIFICATE blocks the input held that could not be
+	// read, so a consumer can tell "this chain is fine" from "this chain is
+	// fine as far as it could be read". Absent when everything parsed, which
+	// keeps the common case byte-identical for existing consumers.
+	Unparsed []JSONUnparsed `json:"unparsed,omitempty"`
+}
+
+// JSONUnparsed is one CERTIFICATE block that failed to parse.
+//
+// The error text is the parser's own and is not a stable contract; Block and
+// Bytes are what a consumer can act on -- where in the input it was, and enough
+// to tell an empty block from a truncated certificate.
+type JSONUnparsed struct {
+	// Block is the position in the input, counting every CERTIFICATE block
+	// from zero including the ones that failed.
+	//
+	// It is deliberately not called "index": Chain[].Index is a contiguous
+	// counter over the certificates that parsed, so for an input of
+	// good/bad/good the chain holds indexes 0 and 1 while this block is 1, and
+	// the two ones are different certificates. Two numbering spaces with one
+	// name would be worse than two names.
+	Block int `json:"block"`
+	// Bytes is the size of the DER that could not be parsed.
+	Bytes int `json:"bytes"`
+	// Error is what crypto/x509 reported.
+	Error string `json:"error"`
+}
+
+// NewJSONUnparsed translates parse failures for the report. Returns nil for
+// none, so the field is omitted rather than marshalled as an empty array: here
+// "absent" and "empty" mean the same thing, and absent keeps the output
+// unchanged for the overwhelming majority of runs.
+func NewJSONUnparsed(failures []ParseFailure) []JSONUnparsed {
+	if len(failures) == 0 {
+		return nil
+	}
+
+	out := make([]JSONUnparsed, 0, len(failures))
+	for _, f := range failures {
+		entry := JSONUnparsed{Block: f.Block, Bytes: len(f.Raw)}
+		if f.Err != nil {
+			entry.Error = f.Err.Error()
+		}
+		out = append(out, entry)
+	}
+	return out
 }
 
 // JSONConnection is what the handshake itself revealed, as opposed to what the

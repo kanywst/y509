@@ -75,15 +75,37 @@ const (
 
 // Info holds certificate data and metadata
 type Info struct {
-	Certificate      *x509.Certificate
+	Certificate *x509.Certificate
+	// Index is the certificate's position in the input, counting only
+	// CERTIFICATE blocks and counting from zero. A block that failed to parse
+	// still consumes a number -- it is reported as a ParseFailure with the same
+	// Index -- so these stay aligned with the file even when the slice is
+	// shorter than the bundle.
 	Index            int
 	Label            string
 	ValidationStatus ValidationStatus
 	ValidationError  error
 }
 
-// LoadCertificates loads certificates from a file or stdin
+// LoadCertificatesReport loads certificates from a file or stdin and also
+// reports the CERTIFICATE blocks that could not be parsed.
+func LoadCertificatesReport(filename string) ([]*Info, []ParseFailure, error) {
+	data, err := readInput(filename)
+	if err != nil {
+		return nil, nil, err
+	}
+	return ParseCertificatesReport(data)
+}
+
+// LoadCertificates loads certificates from a file or stdin. Unparsable blocks
+// are skipped; use LoadCertificatesReport to see them.
 func LoadCertificates(filename string) ([]*Info, error) {
+	certs, _, err := LoadCertificatesReport(filename)
+	return certs, err
+}
+
+// readInput reads the whole input, from a file or from stdin.
+func readInput(filename string) ([]byte, error) {
 	var input io.Reader
 	if filename == "" {
 		input = os.Stdin
@@ -112,7 +134,7 @@ func LoadCertificates(filename string) ([]*Info, error) {
 		return nil, fmt.Errorf("empty input")
 	}
 
-	return ParseCertificates(data)
+	return data, nil
 }
 
 // SortChain sorts certificates into valid chains [Leaf, Intermediate, Root]
@@ -355,34 +377,71 @@ func ExportChain(certs []*x509.Certificate, filename string) error {
 	return nil
 }
 
+// ParseFailure is a CERTIFICATE block that could not be parsed.
+//
+// It is reported rather than being allowed to abort the whole input: a bundle
+// holding one certificate this version of Go declines -- a valid certificate
+// using an algorithm crypto/x509 has not caught up with, say -- must not hide
+// the certificates around it.
+type ParseFailure struct {
+	// Block is the position of the CERTIFICATE block in the input, counting
+	// from zero and counting only CERTIFICATE blocks.
+	Block int
+	// Raw is the DER that failed to parse, kept so a caller can report its
+	// size or write it out for inspection.
+	Raw []byte
+	// Err is what crypto/x509 made of it.
+	Err error
+}
+
 // ParseCertificates extracts certificates from a PEM bundle or from raw DER.
 //
 // PEM is tried first. If the input holds no PEM armour at all it is treated as
 // DER, which is what Windows and most CAs hand out as .der / .cer, and what
 // y509's own export writes when asked for DER.
+//
+// Blocks that fail to parse are skipped. Use ParseCertificatesReport to see
+// them; an error comes back only when nothing could be parsed at all.
 func ParseCertificates(data []byte) ([]*Info, error) {
-	certs, sawPEM, err := parsePEMCertificates(data)
-	if err != nil {
-		return nil, err
-	}
+	certs, _, err := ParseCertificatesReport(data)
+	return certs, err
+}
+
+// ParseCertificatesReport parses the input and also reports the CERTIFICATE
+// blocks it could not read.
+func ParseCertificatesReport(data []byte) ([]*Info, []ParseFailure, error) {
+	certs, failures, sawPEM := parsePEMCertificates(data)
 	if len(certs) > 0 {
-		return certs, nil
+		return certs, failures, nil
+	}
+
+	// Nothing parsed, but something was there: report what went wrong with the
+	// first block rather than the generic "no certificates found".
+	if len(failures) > 0 {
+		logger.Error("No CERTIFICATE block could be parsed", zap.Error(failures[0].Err))
+		return nil, failures, fmt.Errorf("failed to parse certificate %d: %w", failures[0].Block, failures[0].Err)
 	}
 
 	if sawPEM {
 		// The input is PEM, it just holds no certificates -- a lone private key
 		// file, say. Saying "no certificates found" is right, but say why.
 		logger.Error("PEM input contains no CERTIFICATE blocks")
-		return nil, fmt.Errorf("no certificates found in input: the PEM data contains no CERTIFICATE blocks")
+		return nil, nil, fmt.Errorf("no certificates found in input: the PEM data contains no CERTIFICATE blocks")
 	}
 
-	return parseDERCertificates(data)
+	certs, err := parseDERCertificates(data)
+	return certs, nil, err
 }
 
 // parsePEMCertificates walks the PEM blocks in data. sawPEM reports whether any
-// PEM block at all was present, which tells ParseCertificates whether it is
-// worth retrying the input as DER.
-func parsePEMCertificates(data []byte) (certs []*Info, sawPEM bool, err error) {
+// PEM block at all was present, which tells ParseCertificatesReport whether it
+// is worth retrying the input as DER.
+//
+// A block that fails to parse is recorded and skipped rather than ending the
+// walk. Aborting meant a bundle of good/bad/good showed nothing at all, and the
+// certificate most likely to fail is a valid one whose algorithm this Go does
+// not know yet -- so the failure has to cost one row, not the whole file.
+func parsePEMCertificates(data []byte) (certs []*Info, failures []ParseFailure, sawPEM bool) {
 	rest := data
 	index := 0
 
@@ -396,8 +455,16 @@ func parsePEMCertificates(data []byte) (certs []*Info, sawPEM bool, err error) {
 		if block.Type == "CERTIFICATE" {
 			crt, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
-				logger.Error("Failed to parse certificate", zap.Error(err))
-				return nil, sawPEM, fmt.Errorf("failed to parse certificate %d: %w", index, err)
+				logger.Error("Failed to parse certificate",
+					zap.Int("block", index), zap.Int("bytes", len(block.Bytes)), zap.Error(err))
+				failures = append(failures, ParseFailure{Block: index, Raw: block.Bytes, Err: err})
+				// The block still counts: a caller comparing what it asked for
+				// against what it got needs the positions to line up with the
+				// file, and "certificate 2 is unreadable" has to mean the third
+				// one in the bundle.
+				index++
+				rest = remaining
+				continue
 			}
 
 			certs = append(certs, &Info{
@@ -407,14 +474,14 @@ func parsePEMCertificates(data []byte) (certs []*Info, sawPEM bool, err error) {
 			})
 			// Count certificates, not PEM blocks: a bundle may also carry a
 			// private key, DH parameters, or a CRL, and those must not consume
-			// a number. Index has to stay equal to the slice position.
+			// a number.
 			index++
 		}
 
 		rest = remaining
 	}
 
-	return certs, sawPEM, nil
+	return certs, failures, sawPEM
 }
 
 // parseDERCertificates reads the input as raw DER. x509.ParseCertificates

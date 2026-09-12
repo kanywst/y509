@@ -89,6 +89,14 @@ says nothing at all about how the chain was served.`,
 				fmt.Println()
 				fmt.Println(presentation)
 			}
+
+			// The verdict above is about the certificates that could be read.
+			// Say so when that was not all of them, or a trusted chain would
+			// look like the whole story.
+			if notice := describeUnparsed(source.Unparsed); notice != "" {
+				fmt.Println()
+				fmt.Printf("Note: %s\n", notice)
+			}
 		}
 
 		logger.Log.Info("Certificate chain validation result",
@@ -116,6 +124,8 @@ func writeJSONReport(w io.Writer, source *input, report *certificate.ChainReport
 	// Nil for a file or stdin, which leaves the object out entirely rather
 	// than reporting a handshake that never happened.
 	out.Connection = certificate.NewJSONConnection(source.Conn)
+	// Nil when everything parsed, which leaves the key out entirely.
+	out.Unparsed = certificate.NewJSONUnparsed(source.Unparsed)
 
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
