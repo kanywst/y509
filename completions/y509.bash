@@ -418,6 +418,8 @@ _y509_export()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--all")
+    local_nonpersistent_flags+=("--all")
     flags+=("--connect=")
     two_word_flags+=("--connect")
     flags+=("--debug")

@@ -2,6 +2,7 @@
 package certificate
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
@@ -311,6 +312,44 @@ func ExportCertificate(cert *x509.Certificate, format string, filename string) e
 
 	if _, err := file.Write(data); err != nil {
 		return fmt.Errorf("failed to write %s: %v", f, err)
+	}
+
+	return nil
+}
+
+// ExportChain writes every certificate to one file as a PEM bundle, in the
+// order given -- which for a chain fetched from a server is the order it was
+// presented, since that is the thing worth keeping.
+//
+// PEM only, deliberately. A bundle is a concatenation, and concatenated DER
+// carries no framing to say where one certificate ends and the next begins, so
+// a "DER bundle" is a file only the writer can read back.
+func ExportChain(certs []*x509.Certificate, filename string) error {
+	if len(certs) == 0 {
+		return fmt.Errorf("no certificates to export")
+	}
+
+	// Build the whole bundle first so a bad certificate halfway down does not
+	// leave a truncated file behind.
+	var buf bytes.Buffer
+	for i, cert := range certs {
+		if cert == nil || len(cert.Raw) == 0 {
+			return fmt.Errorf("certificate %d has no raw data to export", i)
+		}
+		if err := pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
+			return fmt.Errorf("failed to encode certificate %d: %v", i, err)
+		}
+	}
+
+	dir := filepath.Dir(filename)
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory: %v", err)
+		}
+	}
+
+	if err := os.WriteFile(filename, buf.Bytes(), 0600); err != nil {
+		return fmt.Errorf("failed to write %s: %v", filename, err)
 	}
 
 	return nil
