@@ -180,8 +180,8 @@ func TestNewJSONUnparsedIsAbsentWhenEverythingParsed(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("NewJSONUnparsed returned %d entries, want 1", len(got))
 	}
-	if got[0].Index != 3 || got[0].Bytes != 3 || got[0].Error != "bad" {
-		t.Errorf("NewJSONUnparsed()[0] = %+v, want index 3, 3 bytes and the error text", got[0])
+	if got[0].Block != 3 || got[0].Bytes != 3 || got[0].Error != "bad" {
+		t.Errorf("NewJSONUnparsed()[0] = %+v, want block 3, 3 bytes and the error text", got[0])
 	}
 }
 

@@ -45,13 +45,19 @@ type JSONReport struct {
 
 // JSONUnparsed is one CERTIFICATE block that failed to parse.
 //
-// The error text is the parser's own and is not a stable contract; Index and
-// Bytes are what a consumer can act on -- the position in the input, and enough
+// The error text is the parser's own and is not a stable contract; Block and
+// Bytes are what a consumer can act on -- where in the input it was, and enough
 // to tell an empty block from a truncated certificate.
 type JSONUnparsed struct {
-	// Index is the block's position in the input, counting only CERTIFICATE
-	// blocks from zero, so it lines up with the chain entries around it.
-	Index int `json:"index"`
+	// Block is the position in the input, counting every CERTIFICATE block
+	// from zero including the ones that failed.
+	//
+	// It is deliberately not called "index": Chain[].Index is a contiguous
+	// counter over the certificates that parsed, so for an input of
+	// good/bad/good the chain holds indexes 0 and 1 while this block is 1, and
+	// the two ones are different certificates. Two numbering spaces with one
+	// name would be worse than two names.
+	Block int `json:"block"`
 	// Bytes is the size of the DER that could not be parsed.
 	Bytes int `json:"bytes"`
 	// Error is what crypto/x509 reported.
@@ -69,7 +75,7 @@ func NewJSONUnparsed(failures []ParseFailure) []JSONUnparsed {
 
 	out := make([]JSONUnparsed, 0, len(failures))
 	for _, f := range failures {
-		entry := JSONUnparsed{Index: f.Block, Bytes: len(f.Raw)}
+		entry := JSONUnparsed{Block: f.Block, Bytes: len(f.Raw)}
 		if f.Err != nil {
 			entry.Error = f.Err.Error()
 		}

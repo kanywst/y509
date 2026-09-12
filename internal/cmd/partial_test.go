@@ -62,7 +62,7 @@ func TestValidateJSONCarriesUnreadableBlocks(t *testing.T) {
 	var report struct {
 		Chain    []map[string]any `json:"chain"`
 		Unparsed []struct {
-			Index int    `json:"index"`
+			Block int    `json:"block"`
 			Bytes int    `json:"bytes"`
 			Error string `json:"error"`
 		} `json:"unparsed"`
@@ -77,8 +77,13 @@ func TestValidateJSONCarriesUnreadableBlocks(t *testing.T) {
 	if len(report.Unparsed) != 1 {
 		t.Fatalf("report lists %d unparsed blocks, want 1:\n%s", len(report.Unparsed), out)
 	}
-	if report.Unparsed[0].Index != 1 {
-		t.Errorf("unparsed block index = %d, want 1", report.Unparsed[0].Index)
+	if report.Unparsed[0].Block != 1 {
+		t.Errorf("unparsed block = %d, want 1", report.Unparsed[0].Block)
+	}
+	// The key must not be "index": chain[].index is a contiguous counter over
+	// what parsed, so one name for two numbering spaces would mislead.
+	if strings.Contains(out, `"index": 1,`) && !strings.Contains(out, `"block": 1`) {
+		t.Error("the unparsed entry reuses the chain's index key")
 	}
 	if report.Unparsed[0].Bytes == 0 || report.Unparsed[0].Error == "" {
 		t.Errorf("unparsed entry is missing its size or error: %+v", report.Unparsed[0])
