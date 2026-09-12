@@ -202,8 +202,10 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 		// to come first or the findings it exists to report are gone.
 		chainReport = certificate.AnalyzeChain(rawCerts)
 
-		// Sort the raw certificates
-		sortedRawCerts, _ := certificate.SortChain(rawCerts)
+		// Reuse the sort AnalyzeChain already did: it keeps the result in
+		// Sorted so a caller does not repeat the O(n^2) signature checks on
+		// every model load.
+		sortedRawCerts := chainReport.Sorted
 
 		// Map raw certificates to their Info wrappers for efficient lookup.
 		// Use fingerprint as key, and a slice of wrappers to handle potential duplicates
