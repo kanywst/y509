@@ -1,6 +1,7 @@
 package model
 
 import (
+	"crypto/x509/pkix"
 	"fmt"
 	"strings"
 	"time"
@@ -395,16 +396,12 @@ func (m Model) renderTabContent(width int) string {
 
 	switch m.tabs[m.activeTab] {
 	case "Subject":
-		kv("CN", cert.Certificate.Subject.CommonName)
-		kv("Organization", strings.Join(cert.Certificate.Subject.Organization, ", "))
-		kv("OU", strings.Join(cert.Certificate.Subject.OrganizationalUnit, ", "))
-		kv("Country", strings.Join(cert.Certificate.Subject.Country, ", "))
-		kv("Province", strings.Join(cert.Certificate.Subject.Province, ", "))
-		kv("Locality", strings.Join(cert.Certificate.Subject.Locality, ", "))
+		renderDN(kv, cert.Certificate.Subject)
 	case "Issuer":
-		kv("CN", cert.Certificate.Issuer.CommonName)
-		kv("Organization", strings.Join(cert.Certificate.Issuer.Organization, ", "))
-		kv("Country", strings.Join(cert.Certificate.Issuer.Country, ", "))
+		// The same fields as Subject, deliberately: an issuer DN carries the
+		// same attributes, and showing fewer of them made two tabs disagree
+		// about what a distinguished name is.
+		renderDN(kv, cert.Certificate.Issuer)
 	case "Validity":
 		notBefore := cert.Certificate.NotBefore.Format("2006-01-02 15:04:05 MST")
 		notAfter := cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST")
@@ -469,6 +466,10 @@ func (m Model) renderTabContent(width int) string {
 			kv("Email", email)
 			hasSANs = true
 		}
+		for _, uri := range cert.Certificate.URIs {
+			kv("URI", uri.String())
+			hasSANs = true
+		}
 		if !hasSANs {
 			b.WriteString(m.Styles.Dimmed.Render("  No SANs present"))
 		}
@@ -476,9 +477,51 @@ func (m Model) renderTabContent(width int) string {
 		kv("Serial", cert.Certificate.SerialNumber.String())
 		kv("SHA256", groupHex(certificate.FormatFingerprint(cert.Certificate)))
 		kv("Sig Algo", cert.Certificate.SignatureAlgorithm.String())
+		kv("Version", fmt.Sprintf("v%d", cert.Certificate.Version))
+		kv("SKI", groupHex(fmt.Sprintf("%x", cert.Certificate.SubjectKeyId)))
+		kv("AKI", groupHex(fmt.Sprintf("%x", cert.Certificate.AuthorityKeyId)))
 		b.WriteString("\n")
 		b.WriteString(m.Styles.SectionTitle.Render("Public Key") + "\n")
 		kvLines(certificate.FormatPublicKey(cert.Certificate))
+
+		// What the certificate is allowed to be used for. A client that
+		// refuses a certificate for its usage says nothing about which bit
+		// offended, so both extensions are worth having on screen.
+		if ku, eku := certificate.KeyUsageNames(cert.Certificate), certificate.ExtKeyUsageNames(cert.Certificate); len(ku) > 0 || len(eku) > 0 || certificate.BasicConstraints(cert.Certificate) != "" {
+			b.WriteString("\n")
+			b.WriteString(m.Styles.SectionTitle.Render("Usage") + "\n")
+			kv("Key Usage", strings.Join(ku, ", "))
+			kv("Ext Key Usage", strings.Join(eku, ", "))
+			kv("Constraints", certificate.BasicConstraints(cert.Certificate))
+		}
+
+		// Where a client would go for the issuer or for revocation. These are
+		// the URLs behind the "missing intermediate" finding, so seeing them
+		// here closes the loop with the Findings tab.
+		aia := cert.Certificate.IssuingCertificateURL
+		ocsp := cert.Certificate.OCSPServer
+		crl := cert.Certificate.CRLDistributionPoints
+		if len(aia) > 0 || len(ocsp) > 0 || len(crl) > 0 {
+			b.WriteString("\n")
+			b.WriteString(m.Styles.SectionTitle.Render("Endpoints") + "\n")
+			for _, url := range aia {
+				kv("CA Issuers", url)
+			}
+			for _, url := range ocsp {
+				kv("OCSP", url)
+			}
+			for _, url := range crl {
+				kv("CRL", url)
+			}
+		}
+
+		if policies := certificate.PolicyOIDs(cert.Certificate); len(policies) > 0 {
+			b.WriteString("\n")
+			b.WriteString(m.Styles.SectionTitle.Render("Policies") + "\n")
+			for _, policy := range policies {
+				kv("", policy)
+			}
+		}
 
 		// Chain position visualization
 		b.WriteString("\n")
@@ -538,6 +581,28 @@ func (m Model) renderFindings() string {
 	}
 
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// renderDN writes a distinguished name through the tab's aligned key/value
+// renderer, including the attributes pkix.Name has no field for. Those come
+// last: they are the unusual ones, and an EV certificate carries several.
+func renderDN(kv func(key, value string), name pkix.Name) {
+	kv("CN", name.CommonName)
+	kv("Organization", strings.Join(name.Organization, ", "))
+	kv("OU", strings.Join(name.OrganizationalUnit, ", "))
+	kv("Country", strings.Join(name.Country, ", "))
+	kv("Province", strings.Join(name.Province, ", "))
+	kv("Locality", strings.Join(name.Locality, ", "))
+	kv("Street", strings.Join(name.StreetAddress, ", "))
+	kv("Postal Code", strings.Join(name.PostalCode, ", "))
+	kv("Serial", name.SerialNumber)
+
+	// The extras go in the value column whole, rather than through the key
+	// column: an attribute name like organizationIdentifier is wider than the
+	// key column and would be split mid-word.
+	for _, extra := range certificate.ExtraDNAttributes(name) {
+		kv("", extra)
+	}
 }
 
 // renderChainPosition shows the certificate chain as a table, marking the
