@@ -291,6 +291,9 @@ make lint        # Run golangci-lint
 make vulncheck   # Run govulncheck
 ```
 
+[ROADMAP.md](ROADMAP.md) covers what is planned, what the WebPKI calendar forces
+on the tool next, and what is deliberately out of scope.
+
 ## Verifying releases
 
 Release archives carry Sigstore-signed checksums, a CycloneDX SBOM, and SLSA
