@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -126,6 +127,10 @@ func init() {
 
 		// Create and run the TUI
 		model := model.NewModel(source.Certs, cfg)
+		// The list can only show what parsed, so the header has to admit it
+		// when that was not everything. Nothing may be printed here: stdout
+		// belongs to the TUI.
+		model.SetNotice(unparsedSummary(source.Unparsed))
 		p := tea.NewProgram(model)
 
 		if _, err := p.Run(); err != nil {
@@ -157,6 +162,10 @@ type input struct {
 	// stdin. It carries the negotiated version, the cipher suite and whether
 	// OCSP was stapled, none of which the certificates themselves record.
 	Conn *certificate.ConnectResult
+	// Unparsed are the CERTIFICATE blocks that could not be read. They are
+	// carried rather than dropped so a command can say the input held more
+	// than it is showing.
+	Unparsed []certificate.ParseFailure
 }
 
 // loadInput decides where the certificates come from: a live server, a file, or
@@ -194,11 +203,44 @@ func loadInput(cmd *cobra.Command, args []string) (*input, error) {
 		}
 	}
 
-	certs, err := certificate.LoadCertificates(target)
+	certs, unparsed, err := certificate.LoadCertificatesReport(target)
 	if err != nil {
 		return nil, err
 	}
-	return &input{Certs: certs}, nil
+	return &input{Certs: certs, Unparsed: unparsed}, nil
+}
+
+// describeUnparsed summarises the blocks that could not be read, for a command
+// that has to admit the input held more than it is showing. Empty when
+// everything parsed.
+func describeUnparsed(failures []certificate.ParseFailure) string {
+	if len(failures) == 0 {
+		return ""
+	}
+
+	noun := "certificates"
+	if len(failures) == 1 {
+		noun = "certificate"
+	}
+	positions := make([]string, 0, len(failures))
+	for _, f := range failures {
+		positions = append(positions, strconv.Itoa(f.Block))
+	}
+
+	return fmt.Sprintf("%d %s in the input could not be parsed (at %s): %v",
+		len(failures), noun, strings.Join(positions, ", "), failures[0].Err)
+}
+
+// unparsedSummary is the short form for the TUI header, where there is one line
+// and it sits beside the certificate count.
+func unparsedSummary(failures []certificate.ParseFailure) string {
+	if len(failures) == 0 {
+		return ""
+	}
+	if len(failures) == 1 {
+		return "1 unreadable certificate in the input"
+	}
+	return fmt.Sprintf("%d unreadable certificates in the input", len(failures))
 }
 
 // connectFromFlags fetches a chain from a live server.
