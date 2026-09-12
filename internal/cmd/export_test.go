@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/kanywst/y509/pkg/certificate"
 )
 
 // pemOf returns the nth PEM block of a bundle, re-encoded on its own, so a test
@@ -129,10 +131,46 @@ func TestExportAllWritesTheWholeChain(t *testing.T) {
 	if n := bytes.Count(got, []byte("BEGIN CERTIFICATE")); n != want {
 		t.Errorf("bundle holds %d certificates, want %d", n, want)
 	}
-	// The bundle has to be readable by the tool that wrote it.
-	if _, err := runRoot(t, "validate", out); err == nil {
-		t.Log("validate accepted the bundle")
-	} else if !strings.Contains(err.Error(), "chain is") {
-		t.Errorf("the exported bundle does not parse back: %v", err)
+}
+
+// TestExportAllBundleReadsBackThroughExport closes the loop: the bundle has to
+// be readable by the tool that wrote it. It is a separate test because RootCmd
+// is a singleton whose flags are only restored at test cleanup, so a second
+// runRoot in one test would still carry --all.
+func TestExportAllBundleReadsBackThroughExport(t *testing.T) {
+	chain := newTestChain(t)
+	src := write(t, "chain.pem", chain.ChainPEM)
+	bundle := filepath.Join(t.TempDir(), "bundle.pem")
+
+	if _, err := runRoot(t, "export", "-i", src, "--all", bundle); err != nil {
+		t.Fatalf("export --all: %v", err)
+	}
+
+	certs, err := certificate.LoadCertificates(bundle)
+	if err != nil {
+		t.Fatalf("the exported bundle does not parse back: %v", err)
+	}
+	if len(certs) != 2 {
+		t.Fatalf("bundle parses to %d certificates, want 2", len(certs))
+	}
+	// Order is the evidence, so the bundle must not have been sorted.
+	if cn := certs[0].Certificate.Subject.CommonName; cn != "y509 test leaf" {
+		t.Errorf("bundle starts with %q, want the leaf", cn)
+	}
+}
+
+// TestExportAllRejectsAnIndexOrFormat keeps --all from silently ignoring
+// arguments: `export --all 0 der out.pem` reads as if it would write DER.
+func TestExportAllRejectsAnIndexOrFormat(t *testing.T) {
+	chain := newTestChain(t)
+	src := write(t, "chain.pem", chain.ChainPEM)
+
+	_, err := runRoot(t, "export", "-i", src, "--all", "0", "der",
+		filepath.Join(t.TempDir(), "out.pem"))
+	if err == nil {
+		t.Fatal("export --all accepted an index and a format it cannot honour")
+	}
+	if !strings.Contains(err.Error(), "only a filename") {
+		t.Errorf("error = %q, want it to say --all takes only a filename", err)
 	}
 }

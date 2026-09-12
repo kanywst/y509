@@ -83,8 +83,18 @@ what to write out, not where to read from.
 }
 
 // exportBundle writes the whole chain to one PEM file. With --all the first
-// positional argument is the filename, since there is no certificate to select.
+// positional argument is the filename, since there is no certificate to select
+// and no format to choose.
 func exportBundle(certs []*certificate.Info, args []string) error {
+	// Accepting and ignoring an index or a format here would be worse than
+	// refusing them: `export --all 0 der out.pem` reads as if it would write
+	// DER, and it cannot.
+	if len(args) > 1 {
+		return fmt.Errorf(
+			"--all takes only a filename, got %d arguments: a bundle has no certificate to select and is always PEM",
+			len(args))
+	}
+
 	filename := "chain.pem"
 	if len(args) > 0 {
 		filename = args[0]
