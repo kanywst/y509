@@ -277,3 +277,57 @@ func TestJSONCertificateCarriesEverySANForm(t *testing.T) {
 		t.Errorf("otherNames = %v, want the UPN", entry.OtherNames)
 	}
 }
+
+// TestOtherSANsDecodesBMPString covers the encoding Microsoft has historically
+// used for UPNs. Reading its bytes as UTF-8 yields mojibake with embedded NULs,
+// which is worse than reporting nothing.
+func TestOtherSANsDecodesBMPString(t *testing.T) {
+	upn := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3}
+
+	// "alice" as UCS-2 big-endian.
+	var ucs2 []byte
+	for _, r := range "alice" {
+		ucs2 = append(ucs2, byte(r>>8), byte(r))
+	}
+
+	cert := sanCert(t, []asn1.RawValue{
+		otherNameValue(t, upn, asn1.RawValue{
+			Class: asn1.ClassUniversal,
+			Tag:   asn1.TagBMPString,
+			Bytes: ucs2,
+		}),
+	})
+
+	got := OtherSANs(cert)
+	if len(got) != 1 {
+		t.Fatalf("OtherSANs returned %d names, want 1", len(got))
+	}
+	if got[0].Value != "alice" {
+		t.Errorf("Value = %q, want %q", got[0].Value, "alice")
+	}
+}
+
+// TestOtherSANsSanitizesEveryKind is the reason the stripping happens in one
+// place: it was originally applied per-decoder, and the directoryName path was
+// missed.
+func TestOtherSANsSanitizesEveryKind(t *testing.T) {
+	dn, err := asn1.Marshal(pkix.Name{CommonName: "evil\x1b[31m.example.com"}.ToRDNSequence())
+	if err != nil {
+		t.Fatalf("encoding the directoryName: %v", err)
+	}
+
+	cert := sanCert(t, []asn1.RawValue{
+		{Class: asn1.ClassContextSpecific, Tag: sanDirectoryName, IsCompound: true, Bytes: dn},
+	})
+
+	got := OtherSANs(cert)
+	if len(got) != 1 {
+		t.Fatalf("OtherSANs returned %d names, want 1", len(got))
+	}
+	if strings.ContainsRune(got[0].Value, 0x1b) {
+		t.Errorf("directoryName kept an escape sequence: %q", got[0].Value)
+	}
+	if !strings.Contains(got[0].Value, "evil[31m.example.com") {
+		t.Errorf("Value = %q, want the name with the escape stripped", got[0].Value)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"encoding/asn1"
 	"fmt"
 	"strings"
+	"unicode/utf16"
 )
 
 // oidSubjectAltName is the subject alternative name extension.
@@ -121,6 +122,15 @@ func OtherSANs(cert *x509.Certificate) []OtherSAN {
 		}
 	}
 
+	// Sanitize once, here, rather than in each decoder: every one of these
+	// values is attacker-controlled, and a terminal will act on an escape
+	// sequence wherever it arrives from. Doing it per-branch is how the
+	// directoryName path came to be missed.
+	for i := range out {
+		out[i].Type = sanitizeSANText(out[i].Type)
+		out[i].Value = sanitizeSANText(out[i].Value)
+	}
+
 	return out
 }
 
@@ -161,9 +171,14 @@ func parseOtherName(der []byte) (OtherSAN, bool) {
 // a terminal.
 func stringOrSize(value asn1.RawValue) string {
 	switch value.Tag {
+	case asn1.TagBMPString:
+		// BMPString is UCS-2, big-endian 16-bit code units. Reading its bytes
+		// as UTF-8 would produce mojibake with embedded NULs, and Microsoft
+		// has historically encoded UPNs this way.
+		return decodeBMPString(value.Bytes)
 	case asn1.TagUTF8String, asn1.TagIA5String, asn1.TagPrintableString,
-		asn1.TagT61String, asn1.TagGeneralString, asn1.TagBMPString:
-		return sanitizeSANText(string(value.Bytes))
+		asn1.TagT61String, asn1.TagGeneralString:
+		return string(value.Bytes)
 	case asn1.TagOID:
 		var oid asn1.ObjectIdentifier
 		if _, err := asn1.Unmarshal(value.FullBytes, &oid); err == nil {
@@ -171,6 +186,19 @@ func stringOrSize(value asn1.RawValue) string {
 		}
 	}
 	return notDecoded(len(value.Bytes))
+}
+
+// decodeBMPString reads a UCS-2 big-endian string. An odd length is not a
+// BMPString, so it is reported by size rather than guessed at.
+func decodeBMPString(b []byte) string {
+	if len(b)%2 != 0 {
+		return notDecoded(len(b))
+	}
+	units := make([]uint16, 0, len(b)/2)
+	for i := 0; i < len(b); i += 2 {
+		units = append(units, uint16(b[i])<<8|uint16(b[i+1]))
+	}
+	return string(utf16.Decode(units))
 }
 
 // sanitizeSANText strips control characters. Subject alternative names are
