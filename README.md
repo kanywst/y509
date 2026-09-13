@@ -256,8 +256,10 @@ jobs:
 `~/.y509.yaml` — Catppuccin Mocha theme by default.
 
 ```yaml
-# Days before expiry to flag a certificate as "expiring soon" (default 30).
-# Lower this as CA/Browser Forum maximum lifetimes shrink (200 days in 2026).
+# Ceiling on the "expiring soon" window, in days (default 30). The window
+# actually used is the smaller of this and a third of the certificate's own
+# lifetime, so a 6-day certificate warns with 2 days left rather than from the
+# moment it is issued.
 expiry_warning_days: 30
 
 theme:

@@ -34,10 +34,13 @@ type Theme struct {
 // Config holds the application's configuration.
 type Config struct {
 	Theme Theme `mapstructure:"theme"`
-	// ExpiryWarningDays is the number of days before NotAfter at which a
-	// certificate is flagged as "expiring soon". As CA/Browser Forum maximum
-	// lifetimes shrink (200 days in 2026, 47 by 2029) a 30-day default becomes
-	// a large slice of a cert's life, so this is configurable.
+	// ExpiryWarningDays is the ceiling on the "expiring soon" window, in days
+	// before NotAfter.
+	//
+	// It is a ceiling rather than the window itself: the window actually used
+	// is the smaller of this and a third of the certificate's own lifetime, so
+	// that a short-lived certificate is not born inside it. See
+	// certificate.ExpiryWarningDaysFor.
 	ExpiryWarningDays int `mapstructure:"expiry_warning_days"`
 }
 

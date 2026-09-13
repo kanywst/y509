@@ -172,6 +172,7 @@ func renderExpiryWithBar(certInfo *certificate.Info, styles Styles, warnDays int
 	}
 
 	days := int(d.Hours() / 24)
+	warnDays = certificate.ExpiryWarningDaysFor(cert, warnDays)
 	totalDuration := cert.NotAfter.Sub(cert.NotBefore)
 	if totalDuration <= 0 {
 		totalDuration = time.Hour
@@ -416,7 +417,10 @@ func (m Model) renderTabContent(width int) string {
 			b.WriteString(m.Styles.BadgeExpired.Render("  ✖ EXPIRED") + "\n")
 		} else {
 			days := int(d.Hours() / 24)
-			if days <= m.Config.ExpiryWarningDays {
+			// The same derived window the list icon and the bar use, so one
+			// certificate cannot read as warning in one place and valid in
+			// another.
+			if days <= certificate.ExpiryWarningDaysFor(cert.Certificate, m.Config.ExpiryWarningDays) {
 				b.WriteString(m.Styles.BadgeWarning.Render(fmt.Sprintf("  ▲ %d days left", days)) + "\n")
 			} else {
 				b.WriteString(m.Styles.BadgeValid.Render(fmt.Sprintf("  ● Valid · %d days left", days)) + "\n")
