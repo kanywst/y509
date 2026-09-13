@@ -622,16 +622,56 @@ func IsExpiringSoon(cert *x509.Certificate) bool {
 	return IsExpiringSoonWithin(cert, defaultExpiryWarningDays)
 }
 
-// IsExpiringSoonWithin checks if a certificate expires within the given number
-// of days. Non-positive values fall back to the default window.
+// IsExpiringSoonWithin checks if a certificate expires within the warning
+// window. days is the configured ceiling; the window actually used is
+// ExpiryWarningDaysFor, which also takes the certificate's own lifetime into
+// account. Non-positive values fall back to the default window.
 func IsExpiringSoonWithin(cert *x509.Certificate, days int) bool {
 	if cert == nil {
 		return false
 	}
-	if days <= 0 {
-		days = defaultExpiryWarningDays
+	return cert.NotAfter.Before(time.Now().AddDate(0, 0, ExpiryWarningDaysFor(cert, days)))
+}
+
+// expiryWarningFraction is the share of a certificate's lifetime that the
+// warning window may occupy. A third is where ACME Renewal Information puts a
+// renewal window, and it keeps the warning meaning "past due for renewal"
+// rather than "exists".
+const expiryWarningFraction = 3
+
+// ExpiryWarningDaysFor returns the number of days before expiry at which a
+// certificate should be flagged: the configured ceiling, or a third of the
+// certificate's own lifetime, whichever is smaller.
+//
+// A fixed window stops meaning anything once certificates outlive it. Let's
+// Encrypt's 6-day certificate is inside a 30-day window from the moment it is
+// issued, and the CA/Browser Forum maximum reaches 47 days in 2029 -- so a
+// fixed 30 would put every certificate in a permanent warning state, which is
+// the same as having no warning at all.
+//
+// The ceiling still applies to long-lived certificates: a third of a ten-year
+// CA certificate is three years, and nobody wants three years of warning.
+func ExpiryWarningDaysFor(cert *x509.Certificate, configured int) int {
+	if configured <= 0 {
+		configured = defaultExpiryWarningDays
 	}
-	return cert.NotAfter.Before(time.Now().AddDate(0, 0, days))
+	if cert == nil {
+		return configured
+	}
+
+	lifetime := ValidityPeriodDays(cert)
+	if lifetime <= 0 {
+		// A malformed or zero-length validity period tells us nothing about
+		// what a sensible window would be, so keep the configured one.
+		return configured
+	}
+
+	// Round up, so even a one-day certificate gets a window rather than zero.
+	share := (lifetime + expiryWarningFraction - 1) / expiryWarningFraction
+	if share < configured {
+		return share
+	}
+	return configured
 }
 
 // FormatSubject formats certificate subject information

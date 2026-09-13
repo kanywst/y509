@@ -475,10 +475,21 @@ func TestFormatValidity(t *testing.T) {
 			expected:  []string{"Status: EXPIRED", "Expired:"},
 		},
 		{
+			// A year-long certificate with 15 days left: past due for renewal
+			// by any measure, and inside the default 30-day ceiling.
 			name:      "Expiring soon",
-			notBefore: now.Add(-24 * time.Hour),
+			notBefore: now.Add(-350 * 24 * time.Hour),
 			notAfter:  now.Add(15 * 24 * time.Hour),
 			expected:  []string{"Status: EXPIRING SOON", "Expires in:"},
+		},
+		{
+			// The same 15 days left, but on a 16-day certificate: 94% of its
+			// life is still ahead of it, so warning here would mean warning
+			// from the moment it was issued.
+			name:      "Young but short-lived is not expiring soon",
+			notBefore: now.Add(-24 * time.Hour),
+			notAfter:  now.Add(15 * 24 * time.Hour),
+			expected:  []string{"Status: Valid"},
 		},
 	}
 
