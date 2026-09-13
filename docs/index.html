@@ -1485,7 +1485,22 @@ Chain as presented:
     };
   });
 
-  const TABS = ["Subject", "Issuer", "Validity", "SANs", "Misc"];
+  const TABS = ["Subject", "Issuer", "Validity", "SANs", "Misc", "Findings"];
+
+  // How the demo chain was presented, by the rules AnalyzeChain applies. The
+  // bundle carries its own self-signed root, and a root is the one thing a
+  // server should not send: clients ignore it and trust their own copy. The
+  // rest of the checks pass -- every certificate links to one that was sent,
+  // the terminus is a CA, and the order is already leaf-first -- so this is
+  // the whole finding set rather than a sample of it.
+  const FINDINGS = [
+    {
+      problem: "redundant root",
+      subject: "Y509 Demo Root CA",
+      detail: "a self-signed root was included; clients ignore it and trust their own copy, " +
+        "so it only adds bytes to every handshake",
+    },
+  ];
 
   const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
   const toneVar = t => `var(--t-${t})`;
@@ -1540,6 +1555,16 @@ Chain as presented:
       html = c.sans
         ? kvs(c.sans.map(([k, v]) => kv(k, esc(v))).join(""))
         : `<span style="color:var(--t-key)">&nbsp;&nbsp;No SANs present</span>`;
+    }
+    else if (tab === 5) {
+      html = FINDINGS.length === 0
+        ? `<div><span class="badge ok">&nbsp;● Presented correctly&nbsp;</span></div>` +
+          `<div style="margin-top:8px;color:var(--t-key)">&nbsp;&nbsp;Every certificate links to the next, the order is leaf-first, and nothing redundant was sent.</div>`
+        : `<div><span class="badge warn">&nbsp;▲ ${FINDINGS.length} problem${FINDINGS.length === 1 ? "" : "s"}&nbsp;</span></div>` +
+          FINDINGS.map(f =>
+            `<div style="margin-top:10px">&nbsp;&nbsp;<span style="color:var(--t-yellow)">${esc(f.problem)}</span>` +
+            `<span style="color:var(--t-key)">: </span>${esc(f.subject)}</div>` +
+            `<div style="color:var(--t-key)">&nbsp;&nbsp;&nbsp;&nbsp;${esc(f.detail)}</div>`).join("");
     }
     else {
       const m = c.misc;
