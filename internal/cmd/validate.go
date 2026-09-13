@@ -160,9 +160,18 @@ func verifyOptionsFromFlags(cmd *cobra.Command) (certificate.VerifyOptions, erro
 		return opts, err
 	}
 	if rootsFile != "" {
-		roots, err := certificate.LoadCertificates(rootsFile)
+		roots, unparsed, err := certificate.LoadCertificatesReport(rootsFile)
 		if err != nil {
 			return opts, fmt.Errorf("failed to load trust anchors from %s: %w", rootsFile, err)
+		}
+		// Skipping an unreadable certificate is right for the chain under
+		// inspection and wrong for a trust anchor. The caller named this file
+		// as the set to trust, so quietly trusting a subset of it would change
+		// the verdict with nothing on screen to say why.
+		if len(unparsed) > 0 {
+			return opts, fmt.Errorf(
+				"failed to load trust anchors from %s: %s",
+				rootsFile, describeUnparsed(unparsed))
 		}
 		for _, root := range roots {
 			opts.ExtraRoots = append(opts.ExtraRoots, root.Certificate)

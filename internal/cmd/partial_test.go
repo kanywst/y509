@@ -106,3 +106,30 @@ func TestValidateJSONOmitsUnparsedWhenEverythingParsed(t *testing.T) {
 		t.Errorf("the report carries an unparsed key for a clean bundle:\n%s", out)
 	}
 }
+
+// TestValidateRefusesUnreadableTrustAnchors is the trust half of skipping.
+// Skipping an unreadable certificate is right for the chain under inspection
+// and wrong for --roots: the caller named that file as the set to trust, so
+// verifying against a subset of it would change the verdict silently.
+func TestValidateRefusesUnreadableTrustAnchors(t *testing.T) {
+	chain := newTestChain(t)
+	chainPath := write(t, "chain.pem", chain.ChainPEM)
+
+	var roots bytes.Buffer
+	roots.Write(pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: []byte{0x30, 0x03, 0x02, 0x01, 0x00},
+	}))
+	rootsPath := filepath.Join(t.TempDir(), "roots.pem")
+	if err := os.WriteFile(rootsPath, roots.Bytes(), 0o600); err != nil {
+		t.Fatalf("writing the roots file: %v", err)
+	}
+
+	_, err := runRoot(t, "validate", chainPath, "--roots", rootsPath)
+	if err == nil {
+		t.Fatal("validate accepted a trust anchor file it could not fully read")
+	}
+	if !strings.Contains(err.Error(), "trust anchors") {
+		t.Errorf("error = %q, want it to name the trust anchors", err)
+	}
+}
