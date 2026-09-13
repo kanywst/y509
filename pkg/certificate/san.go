@@ -201,12 +201,30 @@ func decodeBMPString(b []byte) string {
 	return string(utf16.Decode(units))
 }
 
-// sanitizeSANText strips control characters. Subject alternative names are
-// attacker-controlled, and a terminal will happily act on an escape sequence
-// that arrives inside one.
+// sanitizeSANText strips the characters that let a name lie about itself.
+//
+// Subject alternative names are attacker-controlled and reach both a terminal
+// and the JSON report. Three classes have to go, and the last two are the ones
+// worth spelling out:
+//
+//   - C0 and C1 controls and DEL, because a terminal acts on an escape
+//     sequence that arrives inside a name.
+//   - Bidirectional controls, because U+202E and the directional isolates
+//     reorder what follows them: a UPN can be made to read as a different name
+//     than the one the certificate asserts, which is the whole point of
+//     printing it.
+//   - Zero-width characters, because two names that render identically but
+//     compare unequal are worse than one that looks wrong.
 func sanitizeSANText(s string) string {
 	return strings.Map(func(r rune) rune {
-		if r < 0x20 || r == 0x7f {
+		switch {
+		case r < 0x20, r == 0x7f, r >= 0x80 && r <= 0x9f:
+			return -1
+		case r == 0x200e, r == 0x200f, // LRM, RLM
+			r >= 0x202a && r <= 0x202e, // embeddings and overrides, incl. RLO
+			r >= 0x2066 && r <= 0x2069: // isolates
+			return -1
+		case r == 0x200b, r == 0x200c, r == 0x200d, r == 0xfeff:
 			return -1
 		}
 		return r

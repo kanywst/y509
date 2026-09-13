@@ -331,3 +331,51 @@ func TestOtherSANsSanitizesEveryKind(t *testing.T) {
 		t.Errorf("Value = %q, want the name with the escape stripped", got[0].Value)
 	}
 }
+
+// TestOtherSANsStripsBidiAndZeroWidth covers the characters that make a name
+// lie about itself rather than merely look wrong: a right-to-left override
+// reorders what follows it, so a UPN can be made to read as a different name
+// than the certificate asserts.
+func TestOtherSANsStripsBidiAndZeroWidth(t *testing.T) {
+	upn := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3}
+
+	tests := []struct {
+		name  string
+		value string
+	}{
+		{"right-to-left override", "alice\u202egro.live@example.com"},
+		{"directional isolate", "alice\u2066x\u2069@example.com"},
+		{"left-to-right mark", "alice\u200e@example.com"},
+		{"zero-width space", "ali\u200bce@example.com"},
+		{"byte order mark", "alice\ufeff@example.com"},
+		{"C1 control", "alice\u0085@example.com"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cert := sanCert(t, []asn1.RawValue{
+				otherNameValue(t, upn, asn1.RawValue{
+					Class: asn1.ClassUniversal,
+					Tag:   asn1.TagUTF8String,
+					Bytes: []byte(tt.value),
+				}),
+			})
+
+			got := OtherSANs(cert)
+			if len(got) != 1 {
+				t.Fatalf("OtherSANs returned %d names, want 1", len(got))
+			}
+			for _, r := range got[0].Value {
+				if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) ||
+					r == 0x200b || r == 0x200c || r == 0x200d || r == 0xfeff ||
+					r == 0x200e || r == 0x200f || (r >= 0x202a && r <= 0x202e) ||
+					(r >= 0x2066 && r <= 0x2069) {
+					t.Errorf("Value %q kept U+%04X", got[0].Value, r)
+				}
+			}
+			if !strings.HasPrefix(got[0].Value, "ali") {
+				t.Errorf("Value = %q, want the ordinary characters kept", got[0].Value)
+			}
+		})
+	}
+}
