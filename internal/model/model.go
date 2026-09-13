@@ -148,12 +148,41 @@ type Model struct {
 	// held blocks y509 could not read.
 	notice string
 
+	// unparsed are the CERTIFICATE blocks that could not be read. They are
+	// listed after the certificates and never filtered out, so the list always
+	// accounts for everything the input held.
+	unparsed []certificate.ParseFailure
+
 	// Internal state for logic
 	detailField  string
 	detailValue  string
 	searchQuery  string
 	filterActive bool
 	filterType   string
+}
+
+// SetUnparsed records the CERTIFICATE blocks that could not be read and adds a
+// row for each, after the certificates.
+//
+// It is a setter rather than a constructor argument for the same reason as
+// SetNotice: this is about the input rather than the certificates, and only the
+// command that read the file knows about it.
+func (m *Model) SetUnparsed(failures []certificate.ParseFailure) {
+	m.unparsed = failures
+	m.list.SetItems(toListItems(m.certificates, m.unparsed))
+}
+
+// selectedUnparsed returns the unreadable block under the cursor, if that is
+// what the cursor is on.
+//
+// The mapping is positional and holds under filtering because the unreadable
+// rows are always appended after whatever the filter produced.
+func (m Model) selectedUnparsed() (certificate.ParseFailure, bool) {
+	idx := m.list.Index() - len(m.certificates)
+	if idx < 0 || idx >= len(m.unparsed) {
+		return certificate.ParseFailure{}, false
+	}
+	return m.unparsed[idx], true
 }
 
 // SetNotice sets a one-line warning about the input, shown in the header.
@@ -267,7 +296,7 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 	styles := NewStyles(&cfg.Theme)
 
 	delegate := certDelegate{styles: styles, warnDays: cfg.ExpiryWarningDays}
-	listModel := list.New(toListItems(sortedCerts), delegate, 0, 0)
+	listModel := list.New(toListItems(sortedCerts, nil), delegate, 0, 0)
 	listModel.SetShowTitle(false)
 	listModel.SetShowStatusBar(false)
 	listModel.SetShowFilter(false)

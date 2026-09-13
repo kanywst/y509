@@ -147,6 +147,9 @@ func init() {
 		// when that was not everything. Nothing may be printed here: stdout
 		// belongs to the TUI.
 		model.SetNotice(unparsedSummary(source.Unparsed))
+		// And a row each, so the list accounts for everything the input held
+		// rather than only what could be read.
+		model.SetUnparsed(source.Unparsed)
 		p := tea.NewProgram(model)
 
 		if _, err := p.Run(); err != nil {

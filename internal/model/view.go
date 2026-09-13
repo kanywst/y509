@@ -98,7 +98,10 @@ func (m Model) renderHeader() string {
 		crumbs = append(crumbs, m.Styles.Title.Render(m.filterType))
 	}
 
-	if idx := m.list.Index(); idx < len(m.certificates) {
+	if failure, ok := m.selectedUnparsed(); ok {
+		crumbs = append(crumbs, m.Styles.StatusExpired.Render(
+			fmt.Sprintf("unreadable #%d", failure.Block+1)))
+	} else if idx := m.list.Index(); idx < len(m.certificates) {
 		cn := m.certificates[idx].Certificate.Subject.CommonName
 		if cn == "" {
 			cn = "Unknown"
@@ -351,6 +354,10 @@ func groupHex(hexStr string) string {
 // Width is used to size the inner column; vertical truncation is handled
 // by the caller's viewport.
 func (m Model) renderTabContent(width int) string {
+	if failure, ok := m.selectedUnparsed(); ok {
+		return lipgloss.NewStyle().Width(width).Render(m.renderUnparsedDetail(failure))
+	}
+
 	idx := m.list.Index()
 	if idx < 0 || idx >= len(m.certificates) || m.certificates[idx] == nil || m.certificates[idx].Certificate == nil {
 		return ""
@@ -601,6 +608,34 @@ func (m Model) renderFindings() string {
 	}
 
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// renderUnparsedDetail explains a block the parser refused, in place of the
+// tabs there is nothing to fill.
+//
+// It names the position, the size and the parser's own words, because that is
+// all anyone can act on -- and because the likeliest cause is not corruption
+// but a valid certificate using an algorithm this build of Go cannot read.
+func (m Model) renderUnparsedDetail(failure certificate.ParseFailure) string {
+	var b strings.Builder
+
+	b.WriteString(m.Styles.BadgeExpired.Render(
+		fmt.Sprintf("  ? Certificate #%d could not be parsed", failure.Block+1)) + "\n\n")
+	b.WriteString(m.Styles.DetailKey.Render("  Position  ") +
+		m.Styles.DetailValue.Render(fmt.Sprintf("block %d in the input", failure.Block)) + "\n")
+	b.WriteString(m.Styles.DetailKey.Render("  Size      ") +
+		m.Styles.DetailValue.Render(fmt.Sprintf("%d bytes", len(failure.Raw))) + "\n")
+	if failure.Err != nil {
+		b.WriteString(m.Styles.DetailKey.Render("  Error     ") +
+			m.Styles.StatusExpired.Render(failure.Err.Error()) + "\n")
+	}
+	b.WriteString("\n")
+	b.WriteString(m.Styles.Dimmed.Render(
+		"  The rest of the bundle is listed above. A block that fails here is " +
+			"as likely to be a valid certificate using an algorithm this build " +
+			"cannot read as it is to be damaged."))
+
+	return b.String()
 }
 
 // renderDN writes a distinguished name through the tab's aligned key/value

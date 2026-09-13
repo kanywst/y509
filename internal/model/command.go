@@ -22,6 +22,12 @@ func (m Model) handleValidateCommand() Model {
 	if len(m.certificates) == 0 {
 		return m
 	}
+	if failure, ok := m.selectedUnparsed(); ok {
+		m.viewMode = ViewPopup
+		m.popupType = PopupAlert
+		m.popupMessage = unreadableMessage(failure)
+		return m
+	}
 
 	leaf := m.certificates[m.list.Index()].Certificate
 
@@ -155,7 +161,7 @@ func (m Model) applyFilter() Model {
 	}
 
 	m.certificates = filtered
-	m.list.SetItems(toListItems(filtered))
+	m.list.SetItems(toListItems(filtered, m.unparsed))
 	m.list.Select(0)
 	m.viewMode = ViewNormal
 	m = m.refreshViewportContent()
@@ -207,7 +213,7 @@ func matchSearch(cert *x509.Certificate, query string) bool {
 func (m Model) resetView() Model {
 	m = m.resetAllFields()
 	m.certificates = m.allCertificates
-	m.list.SetItems(toListItems(m.allCertificates))
+	m.list.SetItems(toListItems(m.allCertificates, m.unparsed))
 	m.list.Select(0)
 	m = m.refreshViewportContent()
 	return m
@@ -230,6 +236,12 @@ func (m Model) resetAllFields() Model {
 // user knows the copy succeeded (or why it didn't).
 func (m Model) handleYankCommand() (Model, tea.Cmd) {
 	if len(m.certificates) == 0 {
+		return m, nil
+	}
+	if failure, ok := m.selectedUnparsed(); ok {
+		m.viewMode = ViewPopup
+		m.popupType = PopupAlert
+		m.popupMessage = unreadableMessage(failure)
 		return m, nil
 	}
 	cert := m.certificates[m.list.Index()].Certificate
@@ -271,6 +283,11 @@ func (m Model) handleExportCommand(filename string) Model {
 		return m
 	}
 
+	if failure, ok := m.selectedUnparsed(); ok {
+		m.popupMessage = unreadableMessage(failure)
+		return m
+	}
+
 	cert := m.certificates[m.list.Index()].Certificate
 	// Determine format from filename extension (.pem, .der, .crt, etc.)
 	err := certificate.ExportCertificate(cert, "", filename)
@@ -284,4 +301,11 @@ func (m Model) handleExportCommand(filename string) Model {
 	m.viewMode = ViewPopup
 	m.popupType = PopupAlert
 	return m
+}
+
+// unreadableMessage explains why a row has nothing behind it, for the commands
+// that act on a certificate and find they have not been given one.
+func unreadableMessage(failure certificate.ParseFailure) string {
+	return fmt.Sprintf("⚠ Certificate #%d could not be parsed (%d bytes)\n\n%v",
+		failure.Block+1, len(failure.Raw), failure.Err)
 }
