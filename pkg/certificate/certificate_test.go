@@ -758,6 +758,11 @@ func TestIsExpiringSoonWithin(t *testing.T) {
 	}
 }
 
+// cabTranche2026 is a fixed issuance date inside the 200-day CA/Browser Forum
+// tranche, so lifetime fixtures do not change meaning when the clock crosses
+// the next step of the schedule.
+var cabTranche2026 = time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+
 func TestFormatValidityPeriod(t *testing.T) {
 	now := time.Now()
 
@@ -770,17 +775,21 @@ func TestFormatValidityPeriod(t *testing.T) {
 		wantNote   bool // whether the CA/B over-max note should appear
 	}{
 		{
+			// Anchored to a fixed issuance date rather than to now: the CA/B
+			// maximum is a schedule, so a relative fixture silently changes
+			// meaning when the clock crosses a step. 91 days is inside the
+			// 200-day limit that applies to a certificate issued in mid-2026.
 			name:       "Subscriber within CA/B max",
-			notBefore:  now.Add(-24 * time.Hour),
-			notAfter:   now.Add(90 * 24 * time.Hour),
+			notBefore:  cabTranche2026,
+			notAfter:   cabTranche2026.Add(91 * 24 * time.Hour),
 			isCA:       false,
 			wantPeriod: "Validity Period: 91 days",
 			wantNote:   false,
 		},
 		{
 			name:       "Subscriber exceeding CA/B max",
-			notBefore:  now.Add(-24 * time.Hour),
-			notAfter:   now.Add(365 * 24 * time.Hour),
+			notBefore:  cabTranche2026,
+			notAfter:   cabTranche2026.Add(366 * 24 * time.Hour),
 			isCA:       false,
 			wantPeriod: "Validity Period: 366 days",
 			wantNote:   true,
@@ -803,7 +812,7 @@ func TestFormatValidityPeriod(t *testing.T) {
 			if !strings.Contains(result, tt.wantPeriod) {
 				t.Errorf("expected %q in:\n%s", tt.wantPeriod, result)
 			}
-			hasNote := strings.Contains(result, "exceeds CA/Browser Forum max")
+			hasNote := strings.Contains(result, "exceeds the CA/Browser Forum max")
 			if hasNote != tt.wantNote {
 				t.Errorf("CA/B note presence = %v, want %v\n%s", hasNote, tt.wantNote, result)
 			}

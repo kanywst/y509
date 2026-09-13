@@ -190,8 +190,11 @@ type JSONCertificate struct {
 	// ValidityDays is the certificate's total lifetime.
 	ValidityDays int `json:"validityDays"`
 	// ExceedsCABMaxLifetime reports a subscriber certificate whose lifetime is
-	// longer than the CA/Browser Forum maximum. CA certificates are exempt, so
-	// it is always false for them.
+	// longer than the CA/Browser Forum maximum that was in force when it was
+	// issued -- 398 days, then 200 from March 2026, 100 from March 2027 and 47
+	// from March 2029. It is judged against the certificate's own NotBefore, so
+	// a compliant certificate does not become non-compliant when the next step
+	// lands. CA certificates are exempt, so it is always false for them.
 	ExceedsCABMaxLifetime bool `json:"exceedsCabMaxLifetime"`
 	// IsCA is the basic constraints CA bit.
 	IsCA bool `json:"isCa"`
