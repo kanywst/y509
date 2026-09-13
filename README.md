@@ -46,11 +46,16 @@ binary package reaches your repository, build it with
 ## Usage
 
 ```bash
-y509 cert-chain.pem                       # a file (PEM or DER)
+y509 cert-chain.pem                       # a file (PEM, DER or PKCS#7)
 y509 example.com:443                      # a live server
 y509 smtp.example.com:587 --starttls smtp # ...behind STARTTLS
 cat chain.pem | y509                      # stdin
+kubectl get secret tls -o json | y509     # a Kubernetes TLS secret
 ```
+
+A `.p7b` or `.p7c` bundle and a Kubernetes TLS secret are recognised by their
+shape rather than by their filename, so a pipe works the same as a path. A
+secret is read from `tls.crt` and then `ca.crt`, so the leaf comes first.
 
 ### Talking to a live server
 
