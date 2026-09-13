@@ -11,6 +11,9 @@ y509 \- inspect and validate X.509 certificate chains
 .B y509 export
 [\fIOPTIONS\fR] [\fIINDEX\fR] [\fIFORMAT\fR] [\fIFILENAME\fR]
 .br
+.B y509 diff
+\fIA\fR \fIB\fR
+.br
 .B y509 completion
 \fISHELL\fR
 .br
@@ -49,6 +52,17 @@ first certificate, \fBpem\fR, and a generated filename. The chain is read from
 positional arguments choose what to write, not where to read from. With
 \fB\-\-all\fR the whole chain is written to one PEM bundle and the first
 positional argument is the filename.
+.TP
+.B diff
+Compare two chains as they were presented. Each argument is a file or a live
+server. Certificates are matched by the SHA-256 of their DER rather than by
+subject, because a renewed certificate keeps its name and changes everything
+else. Exits
+.B 0
+when the chains are identical and
+.B 1
+when they differ, following
+.BR diff (1).
 .TP
 .B completion
 Write a shell completion script for \fBbash\fR, \fBzsh\fR, \fBfish\fR or
