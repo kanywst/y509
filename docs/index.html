@@ -1289,7 +1289,8 @@ Chain as presented:
           <h3 style="font-family:var(--font-mono);font-size:21px;font-weight:700;margin-top:16px;letter-spacing:-.03em">~/.y509.yaml</h3>
           <p class="lede" style="margin-top:14px">
             Catppuccin Mocha ships as the default. Lower <code>expiry_warning_days</code> as
-            CA/Browser Forum maximum lifetimes shrink — 200 days in 2026.
+            CA/Browser Forum maximum lifetimes shrink — 200 days from March 2026, 100 from
+            March 2027, 47 from March 2029.
           </p>
         </div>
         <div class="out">
@@ -1387,7 +1388,16 @@ Chain as presented:
      why the real tool shows 364d and not 365d on a bundle it just made. */
   const GEN = NOW - 1000;
   const EXPIRY_WARNING_DAYS = 30;      // the shipped default
-  const CAB_MAX_SUBSCRIBER_DAYS = 200; // certificate.CABMaxSubscriberValidityDays
+  // The CA/Browser Forum schedule, newest first, mirroring
+  // certificate.CABMaxValidityDaysAt: the limit that governs a certificate is
+  // the one in force when it was issued, not the one in force today.
+  const CAB_MAX_SCHEDULE = [
+    [Date.UTC(2029, 2, 15), 47],
+    [Date.UTC(2027, 2, 15), 100],
+    [Date.UTC(2026, 2, 15), 200],
+    [0, 398],
+  ];
+  const cabMaxDaysAt = t => (CAB_MAX_SCHEDULE.find(([from]) => t >= from) || [0, 398])[1];
 
   const addYears = (t, y) => { const d = new Date(t); d.setFullYear(d.getFullYear() + y); return d.getTime(); };
   const addDays = (t, d) => t + d * DAY;
@@ -1463,7 +1473,8 @@ Chain as presented:
         nb: stamp(c.nb), na: stamp(c.na),
         life: `${lifetime} days total`,
         badge,
-        cab: !c.isCA && lifetime > CAB_MAX_SUBSCRIBER_DAYS,
+        cabMax: cabMaxDaysAt(c.nb),
+        cab: !c.isCA && lifetime > cabMaxDaysAt(c.nb),
         ratio,
         pct: Math.round(ratio * 100),
       },
@@ -1520,7 +1531,7 @@ Chain as presented:
       const filled = Math.trunc(v.ratio * 24); // int(ratio * barWidth), as in renderTabContent
       html = kvs(kv("Not Before", esc(v.nb)) + kv("Not After", esc(v.na)) + kv("Lifetime", esc(v.life))) +
         `<div><span class="badge ${v.badge[0]}">&nbsp;${esc(v.badge[1])}&nbsp;</span></div>` +
-        (v.cab ? `<div><span class="badge warn">&nbsp;⚠ Exceeds CA/B max lifetime (200 days)&nbsp;</span></div>` : "") +
+        (v.cab ? `<div><span class="badge warn">&nbsp;⚠ Exceeds CA/B max lifetime at issuance (${v.cabMax} days)&nbsp;</span></div>` : "") +
         `<div style="margin-top:6px" class="bar"><span style="color:var(--t-green)">${"█".repeat(filled)}</span><span style="color:var(--t-line)">${"░".repeat(24 - filled)}</span> <span style="color:var(--t-key)">${v.pct}% left</span></div>`;
     }
     else if (tab === 3) {

@@ -436,7 +436,9 @@ func (m Model) renderTabContent(width int) string {
 
 		// Flag subscriber certs that exceed the CA/Browser Forum max lifetime.
 		if certificate.ExceedsCABMaxLifetime(cert.Certificate) {
-			b.WriteString(m.Styles.BadgeWarning.Render(fmt.Sprintf("  ⚠ Exceeds CA/B max lifetime (%d days)", certificate.CABMaxSubscriberValidityDays)) + "\n")
+			b.WriteString(m.Styles.BadgeWarning.Render(fmt.Sprintf(
+				"  ⚠ Exceeds CA/B max lifetime at issuance (%d days)",
+				certificate.CABMaxLifetimeFor(cert.Certificate))) + "\n")
 		}
 
 		// Life-remaining bar. Fills with the fraction of the lifetime still

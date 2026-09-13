@@ -584,10 +584,38 @@ func IsExpired(cert *x509.Certificate) bool {
 // used when no caller-supplied threshold is available.
 const defaultExpiryWarningDays = 30
 
-// CABMaxSubscriberValidityDays is the CA/Browser Forum maximum lifetime for
-// publicly-trusted subscriber (leaf) certificates effective 2026-03-15. CA
-// certificates are exempt, so this is only applied to non-CA certs.
-const CABMaxSubscriberValidityDays = 200
+// cabMaxValiditySchedule is the CA/Browser Forum maximum lifetime for
+// publicly-trusted subscriber certificates, as a schedule rather than a
+// constant. Ballot SC-081v3 replaced the static 398-day cap with a glidepath,
+// so a single number is only ever right until the next step.
+//
+// Newest first, and each entry applies to certificates issued on or after its
+// date. The limit that governs a certificate is the one in force when it was
+// issued -- a 200-day certificate issued in 2026 does not become
+// non-compliant in 2027 -- which is why this is evaluated against NotBefore
+// rather than against today.
+var cabMaxValiditySchedule = []struct {
+	from time.Time
+	days int
+}{
+	{time.Date(2029, time.March, 15, 0, 0, 0, 0, time.UTC), 47},
+	{time.Date(2027, time.March, 15, 0, 0, 0, 0, time.UTC), 100},
+	{time.Date(2026, time.March, 15, 0, 0, 0, 0, time.UTC), 200},
+	// Before the glidepath, the cap set in 2020.
+	{time.Time{}, 398},
+}
+
+// CABMaxValidityDaysAt returns the CA/Browser Forum maximum subscriber
+// certificate lifetime in force for a certificate issued at the given time.
+func CABMaxValidityDaysAt(issued time.Time) int {
+	for _, step := range cabMaxValiditySchedule {
+		if !issued.Before(step.from) {
+			return step.days
+		}
+	}
+	// Unreachable: the last entry has a zero From, which nothing is before.
+	return cabMaxValiditySchedule[len(cabMaxValiditySchedule)-1].days
+}
 
 // ValidityPeriodDays returns the certificate's total validity window in days,
 // rounded to the nearest day (avoids DST / sub-day truncation).
@@ -609,12 +637,24 @@ func ValidityPeriodDays(cert *x509.Certificate) int {
 }
 
 // ExceedsCABMaxLifetime reports whether a subscriber (non-CA) certificate's
-// validity period exceeds the CA/Browser Forum maximum. CA certs are exempt.
+// validity period exceeds the CA/Browser Forum maximum that applied when it was
+// issued. CA certs are exempt.
 func ExceedsCABMaxLifetime(cert *x509.Certificate) bool {
 	if cert == nil || cert.IsCA {
 		return false
 	}
-	return ValidityPeriodDays(cert) > CABMaxSubscriberValidityDays
+	return ValidityPeriodDays(cert) > CABMaxValidityDaysAt(cert.NotBefore)
+}
+
+// CABMaxLifetimeFor returns the maximum lifetime that applied to the
+// certificate, or 0 for one the limit does not cover (a CA certificate, or no
+// certificate at all). It exists so a message can name the limit it is talking
+// about instead of a number that will be wrong next March.
+func CABMaxLifetimeFor(cert *x509.Certificate) int {
+	if cert == nil || cert.IsCA {
+		return 0
+	}
+	return CABMaxValidityDaysAt(cert.NotBefore)
 }
 
 // IsExpiringSoon checks if a certificate expires within the default window.
@@ -727,7 +767,9 @@ func FormatValidity(cert *x509.Certificate) string {
 	// CA/Browser Forum maximum lifetime (CA certs are exempt).
 	details.WriteString(fmt.Sprintf("Validity Period: %d days\n", ValidityPeriodDays(cert)))
 	if ExceedsCABMaxLifetime(cert) {
-		details.WriteString(fmt.Sprintf("Note: exceeds CA/Browser Forum max subscriber lifetime (%d days)\n", CABMaxSubscriberValidityDays))
+		details.WriteString(fmt.Sprintf(
+			"Note: exceeds the CA/Browser Forum max subscriber lifetime in force when it was issued (%d days)\n",
+			CABMaxLifetimeFor(cert)))
 	}
 
 	now := time.Now()

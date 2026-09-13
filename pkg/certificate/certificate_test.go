@@ -803,7 +803,7 @@ func TestFormatValidityPeriod(t *testing.T) {
 			if !strings.Contains(result, tt.wantPeriod) {
 				t.Errorf("expected %q in:\n%s", tt.wantPeriod, result)
 			}
-			hasNote := strings.Contains(result, "exceeds CA/Browser Forum max")
+			hasNote := strings.Contains(result, "exceeds the CA/Browser Forum max")
 			if hasNote != tt.wantNote {
 				t.Errorf("CA/B note presence = %v, want %v\n%s", hasNote, tt.wantNote, result)
 			}
