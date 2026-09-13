@@ -236,6 +236,16 @@ type JSONCertificate struct {
 	// hostname coverage is actually checked against.
 	DNSNames    []string `json:"dnsNames,omitempty"`
 	IPAddresses []string `json:"ipAddresses,omitempty"`
+	// EmailAddresses and URIs are the other two forms crypto/x509 exposes. A
+	// workload certificate's identity is a URI, so leaving them out made the
+	// report disagree with the SANs the TUI shows.
+	EmailAddresses []string `json:"emailAddresses,omitempty"`
+	URIs           []string `json:"uris,omitempty"`
+	// OtherNames are the subject alternative names crypto/x509 parses past
+	// without exposing -- a Microsoft UPN, a Kerberos principal, an SRVName --
+	// rendered as "type: value". Without them a certificate whose only
+	// identity is one of these reports no names at all.
+	OtherNames []string `json:"otherNames,omitempty"`
 	// KeyAlgorithm and SignatureAlgorithm name the crypto in use, so a script
 	// can flag a deprecated algorithm.
 	KeyAlgorithm       string `json:"keyAlgorithm"`
@@ -322,6 +332,13 @@ func newJSONCertificate(index int, cert *x509.Certificate, now time.Time) JSONCe
 		entry.SerialNumber = cert.SerialNumber.Text(16)
 	}
 
+	entry.EmailAddresses = cert.EmailAddresses
+	for _, uri := range cert.URIs {
+		entry.URIs = append(entry.URIs, uri.String())
+	}
+	for _, other := range OtherSANs(cert) {
+		entry.OtherNames = append(entry.OtherNames, other.String())
+	}
 	for _, ip := range cert.IPAddresses {
 		entry.IPAddresses = append(entry.IPAddresses, ip.String())
 	}
