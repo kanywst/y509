@@ -605,6 +605,13 @@ var cabMaxValiditySchedule = []struct {
 	{time.Time{}, 398},
 }
 
+// CABMaxSubscriberValidityDays is the maximum in force from 2026-03-15.
+//
+// Deprecated: the maximum is a schedule, not a constant, and this is only one
+// step of it. Use CABMaxValidityDaysAt to get the limit that applies to a given
+// certificate. Kept so an external caller does not stop compiling.
+const CABMaxSubscriberValidityDays = 200
+
 // CABMaxValidityDaysAt returns the CA/Browser Forum maximum subscriber
 // certificate lifetime in force for a certificate issued at the given time.
 func CABMaxValidityDaysAt(issued time.Time) int {
@@ -643,7 +650,13 @@ func ExceedsCABMaxLifetime(cert *x509.Certificate) bool {
 	if cert == nil || cert.IsCA {
 		return false
 	}
-	return ValidityPeriodDays(cert) > CABMaxValidityDaysAt(cert.NotBefore)
+	// Compare the exact duration rather than ValidityPeriodDays, which rounds
+	// to the nearest day: a certificate over the limit by an hour is over the
+	// limit, and rounding it back down would report a misissuance as
+	// compliant. Unix seconds, so a far-future NotAfter cannot overflow.
+	const secsPerDay = 24 * 60 * 60
+	limit := int64(CABMaxValidityDaysAt(cert.NotBefore)) * secsPerDay
+	return cert.NotAfter.Unix()-cert.NotBefore.Unix() > limit
 }
 
 // CABMaxLifetimeFor returns the maximum lifetime that applied to the

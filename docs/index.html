@@ -1474,7 +1474,9 @@ Chain as presented:
         life: `${lifetime} days total`,
         badge,
         cabMax: cabMaxDaysAt(c.nb),
-        cab: !c.isCA && lifetime > cabMaxDaysAt(c.nb),
+        // Compare the exact duration, not the rounded day count: a
+        // certificate over the limit by an hour is over the limit.
+        cab: !c.isCA && (c.na - c.nb) > cabMaxDaysAt(c.nb) * DAY,
         ratio,
         pct: Math.round(ratio * 100),
       },

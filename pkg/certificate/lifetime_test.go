@@ -92,3 +92,27 @@ func TestExceedsCABMaxLifetimeExemptsCAs(t *testing.T) {
 		t.Errorf("CABMaxLifetimeFor(nil) = %d, want 0", got)
 	}
 }
+
+// TestExceedsCABMaxLifetimeCountsFractionsOfADay guards the rounding: days are
+// reported to the nearest day, but a certificate over the limit by an hour is
+// over the limit, and rounding it back down would report a misissuance as
+// compliant.
+func TestExceedsCABMaxLifetimeCountsFractionsOfADay(t *testing.T) {
+	issued := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+	limit := 200 * 24 * time.Hour
+
+	exact := &x509.Certificate{NotBefore: issued, NotAfter: issued.Add(limit)}
+	if ExceedsCABMaxLifetime(exact) {
+		t.Error("a certificate exactly at the limit was flagged")
+	}
+
+	over := &x509.Certificate{NotBefore: issued, NotAfter: issued.Add(limit + time.Hour)}
+	if !ExceedsCABMaxLifetime(over) {
+		t.Error("a certificate an hour over the limit was reported compliant; the day count rounded it away")
+	}
+	// And the rounded report still reads as 200 days, which is why the exact
+	// comparison has to be separate from ValidityPeriodDays.
+	if got := ValidityPeriodDays(over); got != 200 {
+		t.Errorf("ValidityPeriodDays = %d, want the rounded 200 that makes this worth testing", got)
+	}
+}
