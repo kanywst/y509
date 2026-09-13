@@ -483,6 +483,13 @@ func (m Model) renderTabContent(width int) string {
 			kv("URI", uri.String())
 			hasSANs = true
 		}
+		// The forms crypto/x509 parses past without exposing. A certificate
+		// whose only identity is a UPN or a Kerberos principal would otherwise
+		// report no names at all.
+		for _, other := range certificate.OtherSANs(cert.Certificate) {
+			kv(other.Kind, other.String())
+			hasSANs = true
+		}
 		if !hasSANs {
 			b.WriteString(m.Styles.Dimmed.Render("  No SANs present"))
 		}
