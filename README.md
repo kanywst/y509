@@ -121,7 +121,15 @@ certificates sent out of order, duplicates, and strangers in the bundle.
 
 ### Machine-readable output
 
-`--json` writes the whole result to stdout, and nothing else does. The text
+`y509 <target> --json` prints the chain itself, with no trust verdict, for when
+the question is what a certificate holds rather than whether it verifies:
+
+```bash
+y509 chain.pem --json | jq '.chain[0].otherNames'
+```
+
+`validate --json` writes the whole verification result to stdout, and nothing
+else does. The text
 report is replaced rather than added to, and the failure message goes to stderr,
 so the stream parses even when the check fails. The exit codes are unchanged.
 

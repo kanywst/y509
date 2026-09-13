@@ -84,6 +84,38 @@ func NewJSONUnparsed(failures []ParseFailure) []JSONUnparsed {
 	return out
 }
 
+// JSONInspection is the machine-readable form of an inspection: what the chain
+// is, and how it was served.
+//
+// It is a separate type from JSONReport rather than the same one with an empty
+// Trust, because "not verified" and "verified as untrusted" are different
+// claims and a consumer must not have to tell them apart by reading an empty
+// string. Nothing here asserts trust: y509 was not asked to verify anything.
+type JSONInspection struct {
+	// Host is the server the chain came from, empty for a file or stdin.
+	Host string `json:"host,omitempty"`
+	// Presentation is how the chain was served, judged structurally. This is
+	// the question an inspection can answer without a trust store.
+	Presentation JSONPresentation `json:"presentation"`
+	// Chain is the certificates in the order they were presented.
+	Chain []JSONCertificate `json:"chain"`
+	// Connection describes the handshake, absent for a file or stdin.
+	Connection *JSONConnection `json:"connection,omitempty"`
+	// Unparsed lists the CERTIFICATE blocks that could not be read.
+	Unparsed []JSONUnparsed `json:"unparsed,omitempty"`
+}
+
+// NewJSONInspection assembles the inspection report from the chain as
+// presented.
+func NewJSONInspection(host string, report *ChainReport) *JSONInspection {
+	full := NewJSONReport(host, report, nil)
+	return &JSONInspection{
+		Host:         full.Host,
+		Presentation: full.Presentation,
+		Chain:        full.Chain,
+	}
+}
+
 // JSONConnection is what the handshake itself revealed, as opposed to what the
 // certificates say.
 //
