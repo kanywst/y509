@@ -89,6 +89,14 @@ says nothing at all about how the chain was served.`,
 				fmt.Println()
 				fmt.Println(presentation)
 			}
+
+			// The verdict above is about the certificates that could be read.
+			// Say so when that was not all of them, or a trusted chain would
+			// look like the whole story.
+			if notice := describeUnparsed(source.Unparsed); notice != "" {
+				fmt.Println()
+				fmt.Printf("Note: %s\n", notice)
+			}
 		}
 
 		logger.Log.Info("Certificate chain validation result",
@@ -116,6 +124,8 @@ func writeJSONReport(w io.Writer, source *input, report *certificate.ChainReport
 	// Nil for a file or stdin, which leaves the object out entirely rather
 	// than reporting a handshake that never happened.
 	out.Connection = certificate.NewJSONConnection(source.Conn)
+	// Nil when everything parsed, which leaves the key out entirely.
+	out.Unparsed = certificate.NewJSONUnparsed(source.Unparsed)
 
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -150,9 +160,18 @@ func verifyOptionsFromFlags(cmd *cobra.Command) (certificate.VerifyOptions, erro
 		return opts, err
 	}
 	if rootsFile != "" {
-		roots, err := certificate.LoadCertificates(rootsFile)
+		roots, unparsed, err := certificate.LoadCertificatesReport(rootsFile)
 		if err != nil {
 			return opts, fmt.Errorf("failed to load trust anchors from %s: %w", rootsFile, err)
+		}
+		// Skipping an unreadable certificate is right for the chain under
+		// inspection and wrong for a trust anchor. The caller named this file
+		// as the set to trust, so quietly trusting a subset of it would change
+		// the verdict with nothing on screen to say why.
+		if len(unparsed) > 0 {
+			return opts, fmt.Errorf(
+				"failed to load trust anchors from %s: %s",
+				rootsFile, describeUnparsed(unparsed))
 		}
 		for _, root := range roots {
 			opts.ExtraRoots = append(opts.ExtraRoots, root.Certificate)

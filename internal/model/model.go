@@ -143,12 +143,26 @@ type Model struct {
 	keys keyMap
 	help help.Model
 
+	// notice is a one-line warning about the input itself, shown in the
+	// header. It exists for what the certificates cannot say: that the file
+	// held blocks y509 could not read.
+	notice string
+
 	// Internal state for logic
 	detailField  string
 	detailValue  string
 	searchQuery  string
 	filterActive bool
 	filterType   string
+}
+
+// SetNotice sets a one-line warning about the input, shown in the header.
+//
+// It is a setter rather than a constructor argument because it is about the
+// input rather than the certificates, and only the command that read the file
+// knows about it.
+func (m *Model) SetNotice(notice string) {
+	m.notice = notice
 }
 
 // SetDimensions sets the width and height of the model (for testing only)

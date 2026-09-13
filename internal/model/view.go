@@ -106,6 +106,13 @@ func (m Model) renderHeader() string {
 		crumbs = append(crumbs, m.Styles.DetailValue.Render(truncateText(cn, 30)))
 	}
 
+	// A warning about the input itself goes last, in the warning colour: the
+	// list can only show what parsed, so nothing else on screen would say that
+	// the file held more.
+	if m.notice != "" {
+		crumbs = append(crumbs, m.Styles.StatusWarning.Render("▲ "+m.notice))
+	}
+
 	sep := m.Styles.BreadcrumbSep.String()
 	breadcrumb := strings.Join(crumbs, sep)
 
