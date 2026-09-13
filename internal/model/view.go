@@ -622,7 +622,7 @@ func (m Model) renderUnparsedDetail(failure certificate.ParseFailure) string {
 	b.WriteString(m.Styles.BadgeExpired.Render(
 		fmt.Sprintf("  ? Certificate #%d could not be parsed", failure.Block+1)) + "\n\n")
 	b.WriteString(m.Styles.DetailKey.Render("  Position  ") +
-		m.Styles.DetailValue.Render(fmt.Sprintf("block %d in the input", failure.Block)) + "\n")
+		m.Styles.DetailValue.Render(fmt.Sprintf("certificate %d of the input", failure.Block+1)) + "\n")
 	b.WriteString(m.Styles.DetailKey.Render("  Size      ") +
 		m.Styles.DetailValue.Render(fmt.Sprintf("%d bytes", len(failure.Raw))) + "\n")
 	if failure.Err != nil {

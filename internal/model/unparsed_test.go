@@ -93,10 +93,32 @@ func TestUnparsedDetailExplainsItself(t *testing.T) {
 	m.list.Select(1)
 
 	got := m.renderTabContent(100)
-	for _, want := range []string{"could not be parsed", "block 1", "5 bytes", "malformed certificate"} {
+	for _, want := range []string{"could not be parsed", "certificate 2 of the input", "5 bytes", "malformed certificate"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("detail pane does not mention %q:\n%s", want, got)
 		}
+	}
+}
+
+// TestCommandsAnswerWhenNothingParsed covers the input where every block
+// failed: there are no certificates at all, so a guard that checks the count
+// first would leave the keys doing nothing on the only rows on screen.
+func TestCommandsAnswerWhenNothingParsed(t *testing.T) {
+	m := NewModel(nil, loadTestConfig(t))
+	m.SetDimensions(120, 40)
+	m.SetReady(true)
+	m.SetUnparsed([]certificate.ParseFailure{failureFixture()})
+	m.list.Select(0)
+
+	if got := m.handleValidateCommand(); !strings.Contains(got.popupMessage, "could not be parsed") {
+		t.Errorf("validate said nothing: %q", got.popupMessage)
+	}
+	if got := m.handleExportCommand("out.pem"); !strings.Contains(got.popupMessage, "could not be parsed") {
+		t.Errorf("export said nothing: %q", got.popupMessage)
+	}
+	got, _ := m.handleYankCommand()
+	if !strings.Contains(got.popupMessage, "could not be parsed") {
+		t.Errorf("yank said nothing: %q", got.popupMessage)
 	}
 }
 
@@ -117,6 +139,11 @@ func TestCommandsRefuseAnUnreadableRow(t *testing.T) {
 			got := run(*m)
 			if !strings.Contains(got.popupMessage, "could not be parsed") {
 				t.Errorf("%s did not explain the unreadable row: %q", name, got.popupMessage)
+			}
+			// The message is only visible if the popup is actually opened.
+			if got.viewMode != ViewPopup || got.popupType != PopupAlert {
+				t.Errorf("%s set a message without opening the popup (mode=%v type=%v)",
+					name, got.viewMode, got.popupType)
 			}
 		})
 	}
