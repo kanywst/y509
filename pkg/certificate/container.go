@@ -199,16 +199,3 @@ func parseKubernetesSecret(data []byte) ([]*Info, []ParseFailure, error) {
 	}
 	return certs, failures, nil
 }
-
-// wrapCertificates attaches the metadata the rest of the package expects.
-func wrapCertificates(certs []*x509.Certificate) []*Info {
-	out := make([]*Info, len(certs))
-	for i, cert := range certs {
-		out[i] = &Info{
-			Certificate: cert,
-			Index:       i,
-			Label:       generateCertificateLabel(cert, i),
-		}
-	}
-	return out
-}
