@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+
+	"go.uber.org/zap"
 )
 
 // This file reads the two containers people most often have a chain inside but
@@ -33,35 +35,72 @@ type pkcs7ContentInfo struct {
 // The certificates come back in the order the bundle carries them, which for
 // this format is not necessarily leaf-first and is exactly the evidence the
 // rest of the tool reads.
-func parsePKCS7(data []byte) ([]*Info, error) {
+func parsePKCS7(data []byte) ([]*Info, []ParseFailure, error) {
 	var outer pkcs7ContentInfo
 	if _, err := asn1.Unmarshal(data, &outer); err != nil {
-		return nil, fmt.Errorf("not a PKCS#7 container: %w", err)
+		return nil, nil, fmt.Errorf("not a PKCS#7 container: %w", err)
 	}
 	if !outer.ContentType.Equal(oidSignedData) {
-		return nil, fmt.Errorf("PKCS#7 container holds %s, not signed data", outer.ContentType)
+		return nil, nil, fmt.Errorf("PKCS#7 container holds %s, not signed data", outer.ContentType)
 	}
 
 	if len(outer.Content.Bytes) == 0 {
-		return nil, fmt.Errorf("PKCS#7 container carries no content")
+		return nil, nil, fmt.Errorf("PKCS#7 container carries no content")
 	}
 
 	// Bytes, not FullBytes: the field is explicitly tagged, so FullBytes is
 	// the [0] wrapper and Bytes is the SignedData SEQUENCE inside it.
 	raw, err := pkcs7Certificates(outer.Content.Bytes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// The certificates field is a SET OF Certificate, whose contents are the
-	// DER certificates one after another -- which is what ParseCertificates
-	// reads.
-	certs, err := x509.ParseCertificates(raw)
-	if err != nil {
-		return nil, fmt.Errorf("PKCS#7 certificates did not parse: %w", err)
+	// The certificates field is a SET OF Certificate: the DER certificates one
+	// after another. Walk them individually rather than handing the lot to
+	// x509.ParseCertificates, which returns nothing at all as soon as one of
+	// them fails -- the same all-or-nothing the PEM path was fixed out of.
+	certs, failures := parseDERSequence(raw)
+	if len(certs) == 0 {
+		if len(failures) > 0 {
+			return nil, nil, fmt.Errorf("PKCS#7 certificates did not parse: %w", failures[0].Err)
+		}
+		return nil, nil, fmt.Errorf("PKCS#7 container carries no certificates")
 	}
 
-	return wrapCertificates(certs), nil
+	return certs, failures, nil
+}
+
+// parseDERSequence reads certificates laid end to end, reporting the ones that
+// could not be read rather than losing the ones around them.
+func parseDERSequence(der []byte) ([]*Info, []ParseFailure) {
+	var certs []*Info
+	var failures []ParseFailure
+
+	rest := der
+	for index := 0; len(rest) > 0; index++ {
+		var element asn1.RawValue
+		remaining, err := asn1.Unmarshal(rest, &element)
+		if err != nil {
+			failures = append(failures, ParseFailure{Block: index, Raw: rest, Err: err})
+			break
+		}
+
+		cert, err := x509.ParseCertificate(element.FullBytes)
+		if err != nil {
+			logger.Error("Failed to parse a certificate in a container",
+				zap.Int("index", index), zap.Error(err))
+			failures = append(failures, ParseFailure{Block: index, Raw: element.FullBytes, Err: err})
+		} else {
+			certs = append(certs, &Info{
+				Certificate: cert,
+				Index:       index,
+				Label:       generateCertificateLabel(cert, index),
+			})
+		}
+		rest = remaining
+	}
+
+	return certs, failures
 }
 
 // pkcs7Certificates finds the certificates field inside a SignedData.
@@ -119,16 +158,16 @@ var k8sCertificateKeys = []string{"tls.crt", "ca.crt"}
 // This is the shape people actually have: a chain inside a base64 field inside
 // JSON, which otherwise takes a jq and a base64 to get at before y509 can see
 // it at all.
-func parseKubernetesSecret(data []byte) ([]*Info, error) {
+func parseKubernetesSecret(data []byte) ([]*Info, []ParseFailure, error) {
 	var secret k8sSecret
 	if err := json.Unmarshal(data, &secret); err != nil {
-		return nil, fmt.Errorf("not a JSON object: %w", err)
+		return nil, nil, fmt.Errorf("not a JSON object: %w", err)
 	}
 	if secret.Kind != "" && secret.Kind != "Secret" {
-		return nil, fmt.Errorf("JSON input is a %s, not a Secret", secret.Kind)
+		return nil, nil, fmt.Errorf("JSON input is a %s, not a Secret", secret.Kind)
 	}
 	if len(secret.Data) == 0 {
-		return nil, fmt.Errorf("secret carries no data")
+		return nil, nil, fmt.Errorf("secret carries no data")
 	}
 
 	var pemData []byte
@@ -139,23 +178,26 @@ func parseKubernetesSecret(data []byte) ([]*Info, error) {
 		}
 		decoded, err := base64.StdEncoding.DecodeString(encoded)
 		if err != nil {
-			return nil, fmt.Errorf("secret key %q is not base64: %w", key, err)
+			return nil, nil, fmt.Errorf("secret key %q is not base64: %w", key, err)
 		}
 		pemData = append(pemData, decoded...)
 	}
 
 	if len(pemData) == 0 {
-		return nil, fmt.Errorf("secret carries no %v", k8sCertificateKeys)
+		return nil, nil, fmt.Errorf("secret carries no %v", k8sCertificateKeys)
 	}
 
-	certs, _, sawPEM := parsePEMCertificates(pemData)
+	// The failures are carried back rather than dropped: a secret whose
+	// tls.crt holds one good certificate and one unreadable one must report
+	// the second, exactly as the same bundle in a file would.
+	certs, failures, sawPEM := parsePEMCertificates(pemData)
 	if len(certs) == 0 {
 		if sawPEM {
-			return nil, fmt.Errorf("secret holds PEM data with no CERTIFICATE blocks")
+			return nil, failures, fmt.Errorf("secret holds PEM data with no CERTIFICATE blocks")
 		}
-		return nil, fmt.Errorf("secret holds no certificates")
+		return nil, failures, fmt.Errorf("secret holds no certificates")
 	}
-	return certs, nil
+	return certs, failures, nil
 }
 
 // wrapCertificates attaches the metadata the rest of the package expects.

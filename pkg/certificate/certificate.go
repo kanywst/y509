@@ -434,16 +434,16 @@ func ParseCertificatesReport(data []byte) ([]*Info, []ParseFailure, error) {
 	// secret as kubectl prints it. Both are tried by shape rather than by
 	// filename, so a pipe works the same as a path.
 	if looksLikeJSON(data) {
-		certs, err := parseKubernetesSecret(data)
+		certs, failures, err := parseKubernetesSecret(data)
 		if err == nil {
-			return certs, nil, nil
+			return certs, failures, nil
 		}
 		logger.Debug("Input is JSON but not a certificate-bearing Secret", zap.Error(err))
 		return nil, nil, fmt.Errorf("no certificates found in input: %w", err)
 	}
 
-	if certs, err := parsePKCS7(data); err == nil {
-		return certs, nil, nil
+	if certs, failures, err := parsePKCS7(data); err == nil {
+		return certs, failures, nil
 	}
 
 	certs, err := parseDERCertificates(data)

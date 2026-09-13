@@ -122,7 +122,7 @@ func TestParsePKCS7ReadsABundle(t *testing.T) {
 }
 
 func TestParsePKCS7RejectsAContainerWithNoCertificates(t *testing.T) {
-	if _, err := parsePKCS7(buildPKCS7(t)); err == nil {
+	if _, _, err := parsePKCS7(buildPKCS7(t)); err == nil {
 		t.Error("an empty PKCS#7 container parsed as a chain")
 	}
 }
@@ -235,5 +235,59 @@ func TestJSONInputDoesNotFallThroughToDER(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "asn1") {
 		t.Errorf("error = %q, want it to be about the secret rather than DER", err)
+	}
+}
+
+// TestPKCS7KeepsTheCertificatesAroundABadOne is the same all-or-nothing the PEM
+// path was fixed out of: x509.ParseCertificates returns nothing at all as soon
+// as one certificate in the bundle fails, which would lose the readable ones.
+func TestPKCS7KeepsTheCertificatesAroundABadOne(t *testing.T) {
+	good := containerCert(t, "good.example.com")
+
+	// A well-formed SEQUENCE that is not a certificate, between two good ones.
+	bad := mustMarshal(t, asn1.RawValue{
+		Class: asn1.ClassUniversal, Tag: asn1.TagSequence, IsCompound: true,
+		Bytes: mustMarshal(t, 1),
+	})
+
+	var raw []byte
+	raw = append(raw, good.Raw...)
+	raw = append(raw, bad...)
+	raw = append(raw, good.Raw...)
+
+	certs, failures := parseDERSequence(raw)
+	if len(certs) != 2 {
+		t.Fatalf("parsed %d certificates, want the two readable ones", len(certs))
+	}
+	if len(failures) != 1 {
+		t.Fatalf("reported %d failures, want 1", len(failures))
+	}
+	if failures[0].Block != 1 {
+		t.Errorf("failure is at %d, want the middle certificate", failures[0].Block)
+	}
+}
+
+// TestKubernetesSecretReportsUnreadableCertificates keeps a secret behaving
+// like the same bundle in a file: the unreadable block is reported, not
+// silently dropped.
+func TestKubernetesSecretReportsUnreadableCertificates(t *testing.T) {
+	good := containerCert(t, "good.example.com")
+
+	var bundle []byte
+	bundle = append(bundle, certPEM(good)...)
+	bundle = append(bundle, pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: []byte{0x30, 0x03, 0x02, 0x01, 0x00},
+	})...)
+
+	certs, failures, err := ParseCertificatesReport(kubeSecret(t, map[string][]byte{"tls.crt": bundle}))
+	if err != nil {
+		t.Fatalf("ParseCertificatesReport: %v", err)
+	}
+	if len(certs) != 1 {
+		t.Fatalf("parsed %d certificates, want the readable one", len(certs))
+	}
+	if len(failures) != 1 {
+		t.Fatalf("reported %d failures, want the unreadable block to be carried back", len(failures))
 	}
 }
