@@ -2,8 +2,11 @@
 package cmd
 
 import (
+	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -90,6 +93,9 @@ func init() {
 	RootCmd.PersistentFlags().String("starttls", "", "Upgrade a plaintext protocol first: "+
 		strings.Join(certificate.StartTLSProtocols, ", "))
 	RootCmd.PersistentFlags().Duration("timeout", certificate.DefaultConnectTimeout, "Timeout for a live connection")
+	// Local rather than persistent: validate has its own --json, whose output
+	// carries a trust verdict this one deliberately does not.
+	RootCmd.Flags().Bool("json", false, "Print the chain as JSON instead of opening the TUI")
 
 	// --starttls takes one of a fixed set, so offer them rather than leaving
 	// the user to remember. The list is the same slice the help text and the
@@ -123,6 +129,16 @@ func init() {
 		if err != nil {
 			logger.Log.Error("Failed to load certificates", zap.Error(err))
 			return err
+		}
+
+		asJSON, err := cmd.Flags().GetBool("json")
+		if err != nil {
+			return err
+		}
+		if asJSON {
+			// An inspection, not a verification: nothing here asserts trust,
+			// and the exit status stays 0 for anything that parsed.
+			return writeInspection(cmd.OutOrStdout(), source)
 		}
 
 		// Create and run the TUI
@@ -208,6 +224,33 @@ func loadInput(cmd *cobra.Command, args []string) (*input, error) {
 		return nil, err
 	}
 	return &input{Certs: certs, Unparsed: unparsed}, nil
+}
+
+// writeInspection renders the chain as JSON instead of opening the TUI.
+//
+// This is the surface that makes a JSON view of a certificate possible at all:
+// --json otherwise lives only on validate, where it is bound up with a trust
+// verdict, so there was nowhere to put what the detail tabs show.
+func writeInspection(w io.Writer, source *input) error {
+	inputCerts := make([]*x509.Certificate, len(source.Certs))
+	for i, c := range source.Certs {
+		inputCerts[i] = c.Certificate
+	}
+
+	// Analyze what was presented, in the order it was presented.
+	out := certificate.NewJSONInspection(source.Host, certificate.AnalyzeChain(inputCerts))
+	out.Connection = certificate.NewJSONConnection(source.Conn)
+	out.Unparsed = certificate.NewJSONUnparsed(source.Unparsed)
+
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	// Subjects and SANs are attacker-controlled; Go's HTML escaping would
+	// mangle them for no benefit outside a browser.
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(out); err != nil {
+		return fmt.Errorf("failed to write JSON: %w", err)
+	}
+	return nil
 }
 
 // describeUnparsed summarises the blocks that could not be read, for a command

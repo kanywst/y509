@@ -78,6 +78,12 @@ Upgrade a plaintext protocol before the handshake. One of \fBsmtp\fR,
 .BI \-\-timeout " DURATION"
 Timeout for a live connection. Default 10s.
 .TP
+.B \-\-json
+Print the chain as JSON on standard output instead of opening the terminal UI.
+The output carries no trust verdict, because nothing was verified; use
+.B y509 validate \-\-json
+for that. Root command only.
+.TP
 .BI \-\-log\-file " PATH"
 Write the log to \fIPATH\fR. Without it the log goes to the default destination
 described under FILES, and if that cannot be created, nowhere.
