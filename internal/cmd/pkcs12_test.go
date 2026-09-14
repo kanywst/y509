@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -135,4 +136,53 @@ func TestPKCS12ShapedFileReportsAPKCS12Error(t *testing.T) {
 	if strings.Contains(err.Error(), "not a certificate") {
 		t.Errorf("error = %q, want it to be about the PKCS#12 file", err)
 	}
+}
+
+// TestPKCS12TrustStoreWorksAsRoots is why the input path is shared: a PKCS#12
+// truststore is a normal way to ship trust anchors, and reading it only for the
+// chain under inspection would be an arbitrary line to draw.
+func TestPKCS12TrustStoreWorksAsRoots(t *testing.T) {
+	chain := newTestChain(t)
+	chainPath := write(t, "chain.pem", chain.ChainPEM)
+
+	// The chain's own CA, packed as a PKCS#12 truststore.
+	caBlock := caCertificateOf(t, chain.ChainPEM)
+
+	store, err := pkcs12.Modern.EncodeTrustStore([]*x509.Certificate{caBlock}, "")
+	if err != nil {
+		t.Fatalf("encoding the trust store: %v", err)
+	}
+	storePath := filepath.Join(t.TempDir(), "roots.p12")
+	if err := os.WriteFile(storePath, store, 0o600); err != nil {
+		t.Fatalf("writing the trust store: %v", err)
+	}
+
+	if _, err := runRoot(t, "validate", chainPath, "--roots", storePath, "--no-system-roots"); err != nil {
+		t.Fatalf("a chain was not trusted against its own CA in a PKCS#12 truststore: %v", err)
+	}
+}
+
+// caCertificateOf returns the last certificate in a PEM bundle, which for the
+// test chain is the CA.
+func caCertificateOf(t *testing.T, bundle []byte) *x509.Certificate {
+	t.Helper()
+
+	var last *x509.Certificate
+	rest := bundle
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			t.Fatalf("parsing a certificate from the bundle: %v", err)
+		}
+		last = cert
+	}
+	if last == nil {
+		t.Fatal("the bundle holds no certificates")
+	}
+	return last
 }

@@ -173,10 +173,6 @@ func TestLooksLikePKCS12(t *testing.T) {
 // file is a PKCS#12 file and cannot be read, and saying "not a certificate"
 // would send the reader looking at the wrong thing.
 func TestPKCS12ShapedButUndecodable(t *testing.T) {
-	data, _ := p12Fixture(t, "")
-
-	_ = data
-
 	// A well-formed SEQUENCE opening with the version INTEGER, and nothing
 	// usable after it: the shape of a PKCS#12 file this cannot decode.
 	var body []byte

@@ -224,14 +224,28 @@ func loadInput(cmd *cobra.Command, args []string) (*input, error) {
 		}
 	}
 
-	data, err := certificate.ReadInput(target)
+	certs, unparsed, err := loadCertificateFile(cmd, target)
 	if err != nil {
 		return nil, err
+	}
+	return &input{Certs: certs, Unparsed: unparsed}, nil
+}
+
+// loadCertificateFile reads certificates from a file or stdin, in every format
+// y509 understands including the one that may need a password.
+//
+// Shared with the --roots path, which needs the same formats: a PKCS#12
+// truststore is a normal way to ship a set of trust anchors, and reading it
+// only for the chain under inspection would be an arbitrary line.
+func loadCertificateFile(cmd *cobra.Command, target string) ([]*certificate.Info, []certificate.ParseFailure, error) {
+	data, err := certificate.ReadInput(target)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	certs, unparsed, err := certificate.ParseCertificatesReport(data)
 	if err == nil {
-		return &input{Certs: certs, Unparsed: unparsed}, nil
+		return certs, unparsed, nil
 	}
 
 	// A PKCS#12 file reaches here because it is neither PEM nor a bare
@@ -239,17 +253,17 @@ func loadInput(cmd *cobra.Command, args []string) (*input, error) {
 	// that may need a password, and nothing else should provoke a prompt.
 	p12, p12Err := loadPKCS12(cmd, data)
 	if p12Err == nil {
-		return &input{Certs: p12}, nil
+		return p12, nil, nil
 	}
 	// Report the PKCS#12 failure for anything shaped like one -- a password
 	// problem, an encryption algorithm this cannot read, a truncated file.
 	// Falling back to "not a certificate" would send the reader looking at the
 	// wrong thing entirely.
 	if errors.Is(p12Err, errPKCS12Needed) || certificate.LooksLikePKCS12(data) {
-		return nil, p12Err
+		return nil, nil, p12Err
 	}
 
-	return nil, err
+	return nil, nil, err
 }
 
 // writeInspection renders the chain as JSON instead of opening the TUI.

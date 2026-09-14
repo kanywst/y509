@@ -325,7 +325,7 @@ func verifyOptionsFromFlags(cmd *cobra.Command) (certificate.VerifyOptions, erro
 		return opts, err
 	}
 	if rootsFile != "" {
-		roots, unparsed, err := certificate.LoadCertificatesReport(rootsFile)
+		roots, unparsed, err := loadCertificateFile(cmd, rootsFile)
 		if err != nil {
 			return opts, fmt.Errorf("failed to load trust anchors from %s: %w", rootsFile, err)
 		}
