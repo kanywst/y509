@@ -142,11 +142,16 @@ func inventoryRows(target string, source *input) []inventoryRow {
 		rows = append(rows, row)
 	}
 
-	for i, info := range source.Certs {
+	for _, info := range source.Certs {
 		cert := info.Certificate
 		rows = append(rows, inventoryRow{
-			Target:             target,
-			Position:           i,
+			Target: target,
+			// Info.Index, not the loop counter: source.Certs holds only what
+			// parsed, so the counter is contiguous while Index -- like the
+			// ParseFailure.Block used for the unreadable rows above -- counts
+			// every CERTIFICATE block. Mixing the two puts two rows at the
+			// same position and sorts them into the wrong order.
+			Position:           info.Index,
 			CommonName:         cert.Subject.CommonName,
 			Issuer:             cert.Issuer.CommonName,
 			KeyAlgorithm:       cert.PublicKeyAlgorithm.String(),

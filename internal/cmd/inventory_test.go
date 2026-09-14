@@ -153,9 +153,15 @@ func TestInventoryCountsCertificatesItCannotRead(t *testing.T) {
 	if report.Certificates[1].Unreadable == "" {
 		t.Errorf("the unreadable block has no reason: %+v", report.Certificates[1])
 	}
-	// In the position it occupied, not sorted to the end.
-	if report.Certificates[1].Position != 1 {
-		t.Errorf("the unreadable row is at position %d, want 1", report.Certificates[1].Position)
+	// Every row's position is its place in the input, so no two rows claim the
+	// same one. The readable certificates around the bad block are at 0 and 2.
+	positions := []int{
+		report.Certificates[0].Position,
+		report.Certificates[1].Position,
+		report.Certificates[2].Position,
+	}
+	if positions[0] != 0 || positions[1] != 1 || positions[2] != 2 {
+		t.Errorf("positions = %v, want 0, 1, 2 -- one per CERTIFICATE block in the input", positions)
 	}
 	// And the rows that are real certificates carry no reason.
 	if report.Certificates[0].Unreadable != "" {
