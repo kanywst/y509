@@ -228,6 +228,27 @@ y509 validate example.com:443 --json | jq -e '.connection.tlsVersion | test("1\\
 sorting is what destroys the evidence `presentation` reports on. `level` and
 `problem` are strings, and `findings` is always an array, never `null`.
 
+### Taking an inventory
+
+`inventory` answers "what have we got" rather than "is it valid". Nothing is
+verified against a trust store and it exits 0 for anything it could read:
+
+```bash
+y509 inventory www.example.com:443 api.example.com:443
+y509 inventory chain.pem --csv > inventory.csv
+```
+
+```text
+TARGET                   SUBJECT           KEY        SIGNATURE            EXPIRES     DAYS
+www.example.com:443      www.example.com   ECDSA 256  ECDSA-SHA256         2026-11-02  49
+www.example.com:443      R11               RSA 2048   SHA256-RSA           2027-03-12  179
+```
+
+This is the shape an audit asks for: PCI DSS 4.0.1 wants an inventory of
+certificates and keys, and a post-quantum migration starts by finding every RSA
+key. `--csv` goes straight into a spreadsheet; `--json` carries the fingerprint
+and lifetime as well.
+
 ### GitHub Actions
 
 The same check as a step. It downloads a release binary, verifies its checksum,
