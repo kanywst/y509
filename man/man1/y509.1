@@ -24,7 +24,7 @@ y509 \- inspect and validate X.509 certificate chains
 .SH DESCRIPTION
 .B y509
 opens a certificate chain in a terminal UI. The chain can come from a PEM, DER
-or PKCS#7 file, from a Kubernetes TLS secret as
+PKCS#7 or PKCS#12 file, from a Kubernetes TLS secret as
 .B kubectl get secret \-o json
 prints it, from standard input, or from a live server, including one behind
 STARTTLS. Containers are recognised by their shape rather than their filename,
@@ -115,6 +115,14 @@ Print the chain as JSON on standard output instead of opening the terminal UI.
 The output carries no trust verdict, because nothing was verified; use
 .B y509 validate \-\-json
 for that. Root command only.
+.TP
+.BI \-\-password\-file " FILE"
+Read the password for a PKCS#12 input from \fIFILE\fR, with any trailing
+newline stripped. Without it the password comes from
+.B Y509_PKCS12_PASSWORD
+or from a prompt on the terminal. There is deliberately no
+.B \-\-password
+flag: a flag value is visible in \fBps\fR to every user on the host.
 .TP
 .BI \-\-log\-file " PATH"
 Write the log to \fIPATH\fR. Without it the log goes to the default destination

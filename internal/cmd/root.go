@@ -96,6 +96,8 @@ func init() {
 	// Local rather than persistent: validate has its own --json, whose output
 	// carries a trust verdict this one deliberately does not.
 	RootCmd.Flags().Bool("json", false, "Print the chain as JSON instead of opening the TUI")
+	RootCmd.PersistentFlags().String("password-file", "",
+		"File holding the password for a PKCS#12 input (or set "+pkcs12PasswordEnv+")")
 
 	// --starttls takes one of a fixed set, so offer them rather than leaving
 	// the user to remember. The list is the same slice the help text and the
@@ -222,11 +224,46 @@ func loadInput(cmd *cobra.Command, args []string) (*input, error) {
 		}
 	}
 
-	certs, unparsed, err := certificate.LoadCertificatesReport(target)
+	certs, unparsed, err := loadCertificateFile(cmd, target)
 	if err != nil {
 		return nil, err
 	}
 	return &input{Certs: certs, Unparsed: unparsed}, nil
+}
+
+// loadCertificateFile reads certificates from a file or stdin, in every format
+// y509 understands including the one that may need a password.
+//
+// Shared with the --roots path, which needs the same formats: a PKCS#12
+// truststore is a normal way to ship a set of trust anchors, and reading it
+// only for the chain under inspection would be an arbitrary line.
+func loadCertificateFile(cmd *cobra.Command, target string) ([]*certificate.Info, []certificate.ParseFailure, error) {
+	data, err := certificate.ReadInput(target)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	certs, unparsed, err := certificate.ParseCertificatesReport(data)
+	if err == nil {
+		return certs, unparsed, nil
+	}
+
+	// A PKCS#12 file reaches here because it is neither PEM nor a bare
+	// certificate. It is tried last rather than first: it is the only format
+	// that may need a password, and nothing else should provoke a prompt.
+	p12, p12Err := loadPKCS12(cmd, data)
+	if p12Err == nil {
+		return p12, nil, nil
+	}
+	// Report the PKCS#12 failure for anything shaped like one -- a password
+	// problem, an encryption algorithm this cannot read, a truncated file.
+	// Falling back to "not a certificate" would send the reader looking at the
+	// wrong thing entirely.
+	if errors.Is(p12Err, errPKCS12Needed) || certificate.LooksLikePKCS12(data) {
+		return nil, nil, p12Err
+	}
+
+	return nil, nil, err
 }
 
 // writeInspection renders the chain as JSON instead of opening the TUI.
