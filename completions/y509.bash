@@ -515,6 +515,46 @@ _y509_help()
     noun_aliases=()
 }
 
+_y509_inventory()
+{
+    last_command="y509_inventory"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--csv")
+    local_nonpersistent_flags+=("--csv")
+    flags+=("--json")
+    local_nonpersistent_flags+=("--json")
+    flags+=("--connect=")
+    two_word_flags+=("--connect")
+    flags+=("--debug")
+    flags+=("--input=")
+    two_word_flags+=("--input")
+    two_word_flags+=("-i")
+    flags+=("--log-file=")
+    two_word_flags+=("--log-file")
+    flags+=("--servername=")
+    two_word_flags+=("--servername")
+    flags+=("--starttls=")
+    two_word_flags+=("--starttls")
+    flags_with_completion+=("--starttls")
+    flags_completion+=("__y509_handle_go_custom_completion")
+    flags+=("--timeout=")
+    two_word_flags+=("--timeout")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
 _y509_validate()
 {
     last_command="y509_validate"
@@ -610,6 +650,7 @@ _y509_root_command()
     commands+=("diff")
     commands+=("export")
     commands+=("help")
+    commands+=("inventory")
     commands+=("validate")
     commands+=("version")
 

@@ -11,6 +11,9 @@ y509 \- inspect and validate X.509 certificate chains
 .B y509 export
 [\fIOPTIONS\fR] [\fIINDEX\fR] [\fIFORMAT\fR] [\fIFILENAME\fR]
 .br
+.B y509 inventory
+[\fIOPTIONS\fR] [\fITARGET\fR...]
+.br
 .B y509 diff
 \fIA\fR \fIB\fR
 .br
@@ -59,6 +62,14 @@ first certificate, \fBpem\fR, and a generated filename. The chain is read from
 positional arguments choose what to write, not where to read from. With
 \fB\-\-all\fR the whole chain is written to one PEM bundle and the first
 positional argument is the filename.
+.TP
+.B inventory
+List what algorithm, key size and lifetime each target is using. Nothing is
+verified against a trust store and the command exits
+.B 0
+for anything it could read: this answers what is deployed, not whether it is
+acceptable. \fB\-\-csv\fR and \fB\-\-json\fR write it for a spreadsheet or a
+script.
 .TP
 .B diff
 Compare two chains as they were presented. Each argument is a file or a live

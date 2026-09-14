@@ -1,9 +1,12 @@
 package certificate
 
 import (
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
+	"time"
 )
 
 // This file turns the parts of an x509.Certificate that are bitmasks, OIDs or
@@ -218,4 +221,34 @@ func ExtraDNAttributes(name pkix.Name) []string {
 		out = append(out, fmt.Sprintf("%s: %s", label, value))
 	}
 	return out
+}
+
+// PublicKeyBits is the key size in bits, or 0 where that is not a meaningful
+// number -- Ed25519 and ML-DSA have one size each, and an algorithm
+// crypto/x509 did not decode has none to report.
+//
+// An inventory asks "how big is the key" of every certificate it meets, and
+// answering 0 is better than answering wrongly: the pair to act on is the
+// algorithm and the size together.
+func PublicKeyBits(cert *x509.Certificate) int {
+	if cert == nil {
+		return 0
+	}
+	switch pub := cert.PublicKey.(type) {
+	case *rsa.PublicKey:
+		return pub.N.BitLen()
+	case *ecdsa.PublicKey:
+		return pub.Curve.Params().BitSize
+	default:
+		return 0
+	}
+}
+
+// DaysUntilExpiry counts whole days from now to NotAfter, negative once the
+// certificate has expired.
+func DaysUntilExpiry(cert *x509.Certificate) int {
+	if cert == nil {
+		return 0
+	}
+	return daysUntil(cert.NotAfter, time.Now())
 }

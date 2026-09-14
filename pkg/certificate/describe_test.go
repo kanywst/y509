@@ -242,3 +242,32 @@ func TestDescribeURISANsSurviveAParse(t *testing.T) {
 		t.Error("fixture is not URI-only, so it does not test the gap")
 	}
 }
+
+func TestPublicKeyBits(t *testing.T) {
+	ec := describeCert(t, &x509.Certificate{Subject: pkix.Name{CommonName: "ec"}})
+	if got := PublicKeyBits(ec); got != 256 {
+		t.Errorf("PublicKeyBits(P-256) = %d, want 256", got)
+	}
+	// Ed25519 and the post-quantum algorithms have one size each, so a number
+	// would be noise. 0 means "not a meaningful number", not "no key".
+	if got := PublicKeyBits(nil); got != 0 {
+		t.Errorf("PublicKeyBits(nil) = %d, want 0", got)
+	}
+}
+
+func TestDaysUntilExpiry(t *testing.T) {
+	now := time.Now()
+	cert := &x509.Certificate{NotBefore: now.Add(-time.Hour), NotAfter: now.Add(10 * 24 * time.Hour)}
+
+	if got := DaysUntilExpiry(cert); got != 9 && got != 10 {
+		t.Errorf("DaysUntilExpiry = %d, want 9 or 10", got)
+	}
+
+	expired := &x509.Certificate{NotBefore: now.Add(-48 * time.Hour), NotAfter: now.Add(-24 * time.Hour)}
+	if got := DaysUntilExpiry(expired); got >= 0 {
+		t.Errorf("DaysUntilExpiry of an expired certificate = %d, want negative", got)
+	}
+	if got := DaysUntilExpiry(nil); got != 0 {
+		t.Errorf("DaysUntilExpiry(nil) = %d, want 0", got)
+	}
+}
