@@ -31,7 +31,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: check
         uses: ./
         with:
@@ -52,7 +52,7 @@ jobs:
     name: a chain missing an intermediate fails
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # This is the case the whole tool exists for: the chain verifies in a
       # browser and is still misconfigured, because the intermediate was never
       # sent. The step must fail, so its failure is the assertion.
@@ -79,7 +79,7 @@ jobs:
     name: an expired chain fails
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: check
         continue-on-error: true
         uses: ./
@@ -99,7 +99,7 @@ jobs:
     name: a fail-on list written with spaces still gates
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # "untrusted, mis-served" is the natural way to write this in YAML. It
       # used to miss the second keyword, downgrading the gate to a warning and
       # passing the job.
@@ -121,7 +121,7 @@ jobs:
     name: an unknown fail-on keyword is refused
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # A typo must not read as "gate nothing".
       - id: check
         continue-on-error: true
@@ -141,7 +141,7 @@ jobs:
     name: fail-on none never fails the job
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: check
         uses: ./
         with:
