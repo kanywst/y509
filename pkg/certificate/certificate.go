@@ -104,6 +104,15 @@ func LoadCertificates(filename string) ([]*Info, error) {
 	return certs, err
 }
 
+// ReadInput reads the whole input, from a file or from stdin.
+//
+// It is exported for the one caller that has to look at the bytes before
+// deciding what to do with them: a PKCS#12 file needs a password, and asking
+// for one is a decision for the command rather than for this package.
+func ReadInput(filename string) ([]byte, error) {
+	return readInput(filename)
+}
+
 // readInput reads the whole input, from a file or from stdin.
 func readInput(filename string) ([]byte, error) {
 	var input io.Reader

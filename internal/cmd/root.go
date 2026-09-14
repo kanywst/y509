@@ -96,6 +96,8 @@ func init() {
 	// Local rather than persistent: validate has its own --json, whose output
 	// carries a trust verdict this one deliberately does not.
 	RootCmd.Flags().Bool("json", false, "Print the chain as JSON instead of opening the TUI")
+	RootCmd.PersistentFlags().String("password-file", "",
+		"File holding the password for a PKCS#12 input (or set "+pkcs12PasswordEnv+")")
 
 	// --starttls takes one of a fixed set, so offer them rather than leaving
 	// the user to remember. The list is the same slice the help text and the
@@ -222,11 +224,26 @@ func loadInput(cmd *cobra.Command, args []string) (*input, error) {
 		}
 	}
 
-	certs, unparsed, err := certificate.LoadCertificatesReport(target)
+	data, err := certificate.ReadInput(target)
 	if err != nil {
 		return nil, err
 	}
-	return &input{Certs: certs, Unparsed: unparsed}, nil
+
+	certs, unparsed, err := certificate.ParseCertificatesReport(data)
+	if err == nil {
+		return &input{Certs: certs, Unparsed: unparsed}, nil
+	}
+
+	// A PKCS#12 file reaches here because it is neither PEM nor a bare
+	// certificate. It is tried last rather than first: it is the only format
+	// that may need a password, and nothing else should provoke a prompt.
+	if p12, p12Err := loadPKCS12(cmd, data); p12Err == nil {
+		return &input{Certs: p12}, nil
+	} else if errors.Is(p12Err, errPKCS12Needed) {
+		return nil, p12Err
+	}
+
+	return nil, err
 }
 
 // writeInspection renders the chain as JSON instead of opening the TUI.

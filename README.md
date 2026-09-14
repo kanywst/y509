@@ -53,9 +53,17 @@ cat chain.pem | y509                      # stdin
 kubectl get secret tls -o json | y509     # a Kubernetes TLS secret
 ```
 
-A `.p7b` or `.p7c` bundle and a Kubernetes TLS secret are recognised by their
-shape rather than by their filename, so a pipe works the same as a path. A
-secret is read from `tls.crt` and then `ca.crt`, so the leaf comes first.
+A `.p7b` or `.p7c` bundle, a `.p12`/`.pfx` and a Kubernetes TLS secret are
+recognised by their shape rather than by their filename, so a pipe works the
+same as a path. A secret is read from `tls.crt` and then `ca.crt`, so the leaf
+comes first.
+
+A PKCS#12 file is tried without a password first, since a bundle exported to
+move certificates around often has none. When one is needed it comes from
+`Y509_PKCS12_PASSWORD`, from `--password-file`, or from a prompt on the
+terminal, never from a flag, because a flag value is visible in `ps` to every
+user on the host. Only the certificates are read; the private key in the file
+is left alone.
 
 ### Talking to a live server
 
