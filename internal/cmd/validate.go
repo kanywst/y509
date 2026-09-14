@@ -246,6 +246,14 @@ func writeResults(w io.Writer, results []targetResult) error {
 	enc.SetEscapeHTML(false)
 
 	if len(results) == 1 {
+		// A single target that could not be read writes nothing at all, which
+		// is what it did before several targets were possible. The GitHub
+		// Action treats an empty report as "y509 produced nothing" and says so
+		// with the stderr attached; a valid object with no trust key would slip
+		// past that guard and be read as a verdict of null.
+		if results[0].Err != nil {
+			return nil
+		}
 		return encodeReport(enc, results[0])
 	}
 

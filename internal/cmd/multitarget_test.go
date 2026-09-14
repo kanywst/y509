@@ -109,3 +109,33 @@ func TestValidateSummarisesFailuresAcrossTargets(t *testing.T) {
 		t.Errorf("error = %q, want it to count the failures", err)
 	}
 }
+
+// TestValidateOneFailingTargetWritesNoJSON preserves what the GitHub Action
+// depends on: it treats an empty report as "y509 produced nothing" and says so
+// with the stderr attached. A valid object with no trust key would slip past
+// that guard and be read as a verdict of null.
+func TestValidateOneFailingTargetWritesNoJSON(t *testing.T) {
+	chain := newTestChain(t)
+	missing := write(t, "chain.pem", chain.ChainPEM) + ".missing"
+
+	out, err := runRoot(t, "validate", missing, "--json")
+	if err == nil {
+		t.Fatal("a missing target exited 0")
+	}
+	if strings.Contains(out, "{") {
+		t.Errorf("stdout carries JSON for a target that could not be read:\n%s", out)
+	}
+}
+
+// TestValidateSeveralTargetsStillReportFailures is the other half: with more
+// than one target, omitting the failed one is what would mislead, because a
+// consumer counting entries would watch the fleet shrink.
+func TestValidateSeveralTargetsStillReportFailures(t *testing.T) {
+	chain := newTestChain(t)
+	good := write(t, "good.pem", chain.ChainPEM)
+
+	out, _ := runRoot(t, "validate", good+".missing", good, "--json")
+	if !strings.Contains(out, "\"error\"") {
+		t.Errorf("the failed target is missing from a multi-target report:\n%s", out)
+	}
+}
