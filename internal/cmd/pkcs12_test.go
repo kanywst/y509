@@ -120,3 +120,19 @@ func TestPKCS12DoesNotProvokeAPromptForOtherInput(t *testing.T) {
 		t.Fatalf("reading a PEM file: %v", err)
 	}
 }
+
+// TestPKCS12ShapedFileReportsAPKCS12Error keeps the message pointing at the
+// right thing: a file that is a PKCS#12 file and cannot be decoded should not
+// be reported as not being a certificate.
+func TestPKCS12ShapedFileReportsAPKCS12Error(t *testing.T) {
+	path := writeP12(t, "hunter2")
+	t.Setenv("Y509_PKCS12_PASSWORD", "wrong")
+
+	_, err := runRoot(t, path, "--json")
+	if err == nil {
+		t.Fatal("a wrong password was accepted")
+	}
+	if strings.Contains(err.Error(), "not a certificate") {
+		t.Errorf("error = %q, want it to be about the PKCS#12 file", err)
+	}
+}

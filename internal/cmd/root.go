@@ -237,9 +237,15 @@ func loadInput(cmd *cobra.Command, args []string) (*input, error) {
 	// A PKCS#12 file reaches here because it is neither PEM nor a bare
 	// certificate. It is tried last rather than first: it is the only format
 	// that may need a password, and nothing else should provoke a prompt.
-	if p12, p12Err := loadPKCS12(cmd, data); p12Err == nil {
+	p12, p12Err := loadPKCS12(cmd, data)
+	if p12Err == nil {
 		return &input{Certs: p12}, nil
-	} else if errors.Is(p12Err, errPKCS12Needed) {
+	}
+	// Report the PKCS#12 failure for anything shaped like one -- a password
+	// problem, an encryption algorithm this cannot read, a truncated file.
+	// Falling back to "not a certificate" would send the reader looking at the
+	// wrong thing entirely.
+	if errors.Is(p12Err, errPKCS12Needed) || certificate.LooksLikePKCS12(data) {
 		return nil, p12Err
 	}
 

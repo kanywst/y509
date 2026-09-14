@@ -2,10 +2,33 @@ package certificate
 
 import (
 	"crypto/x509"
+	"encoding/asn1"
 	"fmt"
 
 	pkcs12 "software.sslmate.com/src/go-pkcs12"
 )
+
+// LooksLikePKCS12 reports whether the input has the outer shape of a PKCS#12
+// file: a SEQUENCE whose first element is the version INTEGER.
+//
+// It exists so a caller can tell a file that is not PKCS#12 from one that is
+// and could not be decoded -- an unsupported encryption algorithm, a truncated
+// file, a version this library does not read. The second deserves the PKCS#12
+// error rather than a general complaint that the input is not a certificate.
+func LooksLikePKCS12(data []byte) bool {
+	var outer asn1.RawValue
+	rest, err := asn1.Unmarshal(data, &outer)
+	if err != nil || len(rest) > 0 ||
+		!outer.IsCompound || outer.Class != asn1.ClassUniversal || outer.Tag != asn1.TagSequence {
+		return false
+	}
+
+	var first asn1.RawValue
+	if _, err := asn1.Unmarshal(outer.Bytes, &first); err != nil {
+		return false
+	}
+	return first.Class == asn1.ClassUniversal && first.Tag == asn1.TagInteger
+}
 
 // ErrPKCS12Password reports a PKCS#12 file that needs a password, or was given
 // the wrong one.

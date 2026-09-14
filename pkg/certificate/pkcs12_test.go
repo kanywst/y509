@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"math/big"
 	"strings"
 	"testing"
@@ -146,4 +147,60 @@ func TestParsePKCS12RejectsSomethingElse(t *testing.T) {
 	if !strings.Contains(err.Error(), "not a PKCS#12 container") {
 		t.Errorf("error = %q", err)
 	}
+}
+
+func TestLooksLikePKCS12(t *testing.T) {
+	data, _ := p12Fixture(t, "")
+	if !LooksLikePKCS12(data) {
+		t.Error("a real PKCS#12 file was not recognised by shape")
+	}
+
+	// A certificate is a SEQUENCE whose first element is the tbsCertificate
+	// SEQUENCE, not an INTEGER, so it must not be mistaken for one.
+	cert := containerCert(t, "leaf.example.com")
+	if LooksLikePKCS12(cert.Raw) {
+		t.Error("a certificate was mistaken for a PKCS#12 file")
+	}
+
+	for _, input := range [][]byte{nil, []byte("hello"), {0x30, 0x00}} {
+		if LooksLikePKCS12(input) {
+			t.Errorf("%q was mistaken for a PKCS#12 file", input)
+		}
+	}
+}
+
+// TestPKCS12ShapedButUndecodable is the case the shape check exists for: the
+// file is a PKCS#12 file and cannot be read, and saying "not a certificate"
+// would send the reader looking at the wrong thing.
+func TestPKCS12ShapedButUndecodable(t *testing.T) {
+	data, _ := p12Fixture(t, "")
+
+	_ = data
+
+	// A well-formed SEQUENCE opening with the version INTEGER, and nothing
+	// usable after it: the shape of a PKCS#12 file this cannot decode.
+	var body []byte
+	body = append(body, mustMarshalASN1(t, 3)...)
+	body = append(body, mustMarshalASN1(t, asn1.RawValue{
+		Class: asn1.ClassUniversal, Tag: asn1.TagSequence, IsCompound: true,
+	})...)
+	shaped := mustMarshalASN1(t, asn1.RawValue{
+		Class: asn1.ClassUniversal, Tag: asn1.TagSequence, IsCompound: true, Bytes: body,
+	})
+
+	if !LooksLikePKCS12(shaped) {
+		t.Fatal("the fixture is not PKCS#12-shaped, so it tests nothing")
+	}
+	if _, err := ParsePKCS12(shaped, ""); err == nil {
+		t.Error("an undecodable PKCS#12-shaped file parsed")
+	}
+}
+
+func mustMarshalASN1(t *testing.T, v any) []byte {
+	t.Helper()
+	b, err := asn1.Marshal(v)
+	if err != nil {
+		t.Fatalf("marshalling: %v", err)
+	}
+	return b
 }
