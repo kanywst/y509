@@ -429,8 +429,41 @@ func ParseCertificatesReport(data []byte) ([]*Info, []ParseFailure, error) {
 		return nil, nil, fmt.Errorf("no certificates found in input: the PEM data contains no CERTIFICATE blocks")
 	}
 
+	// Not PEM. Before treating it as bare DER, try the containers people
+	// actually have a chain inside: a PKCS#7 bundle, or a Kubernetes TLS
+	// secret as kubectl prints it. Both are tried by shape rather than by
+	// filename, so a pipe works the same as a path.
+	if looksLikeJSON(data) {
+		certs, failures, err := parseKubernetesSecret(data)
+		if err == nil {
+			return certs, failures, nil
+		}
+		logger.Debug("Input is JSON but not a certificate-bearing Secret", zap.Error(err))
+		return nil, nil, fmt.Errorf("no certificates found in input: %w", err)
+	}
+
+	if certs, failures, err := parsePKCS7(data); err == nil {
+		return certs, failures, nil
+	}
+
 	certs, err := parseDERCertificates(data)
 	return certs, nil, err
+}
+
+// looksLikeJSON reports whether the input opens like a JSON object, skipping
+// leading whitespace.
+func looksLikeJSON(data []byte) bool {
+	for _, b := range data {
+		switch b {
+		case ' ', '\t', '\r', '\n':
+			continue
+		case '{':
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // parsePEMCertificates walks the PEM blocks in data. sawPEM reports whether any
@@ -501,7 +534,7 @@ func parseDERCertificates(data []byte) ([]*Info, error) {
 			// container, not a certificate. Testing the first byte alone would
 			// misfire on any text starting with '0' (0x30).
 			return nil, fmt.Errorf("input is a DER structure but not a certificate "+
-				"(PKCS#7 and PKCS#12 bundles are not supported): %w", err)
+				"(PKCS#12 bundles are not supported): %w", err)
 		case len(data) > 0 && data[0] == derSequenceTag:
 			// Begins like DER but does not form a complete SEQUENCE: a
 			// truncated or corrupt certificate rather than a container.

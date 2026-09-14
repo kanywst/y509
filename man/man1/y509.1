@@ -20,8 +20,12 @@ y509 \- inspect and validate X.509 certificate chains
 .B y509 version
 .SH DESCRIPTION
 .B y509
-opens a certificate chain in a terminal UI. The chain can come from a PEM or DER
-file, from standard input, or from a live server, including one behind STARTTLS.
+opens a certificate chain in a terminal UI. The chain can come from a PEM, DER
+or PKCS#7 file, from a Kubernetes TLS secret as
+.B kubectl get secret \-o json
+prints it, from standard input, or from a live server, including one behind
+STARTTLS. Containers are recognised by their shape rather than their filename,
+so a pipe works the same as a path.
 .PP
 An argument that names an existing file is always read as a file. Anything else
 is treated as an address; pass

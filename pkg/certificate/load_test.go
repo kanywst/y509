@@ -223,7 +223,7 @@ func TestParseCertificates_Errors(t *testing.T) {
 				}
 				return der
 			}(),
-			want: "PKCS#7 and PKCS#12",
+			want: "PKCS#12",
 		},
 		{
 			name: "text that merely starts with 0x30",
@@ -290,7 +290,7 @@ func TestParseCertificates_Errors(t *testing.T) {
 				t.Errorf("error = %q, want it to mention %q", err, tt.want)
 			}
 			// Only a genuine complete SEQUENCE may be called a PKCS container.
-			if tt.want != "PKCS#7 and PKCS#12" && strings.Contains(err.Error(), "PKCS") {
+			if tt.want != "PKCS#12" && strings.Contains(err.Error(), "PKCS") {
 				t.Errorf("error = %q wrongly claims a PKCS container", err)
 			}
 		})
