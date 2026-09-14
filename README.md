@@ -73,6 +73,33 @@ server sent them**, which is not necessarily a valid chain — a server shipping
 its root, or omitting an intermediate, is the classic "works in the browser,
 breaks in curl" bug.
 
+### Comparing two chains
+
+`diff` answers "did this change" without anyone reading two dumps side by side.
+Certificates are matched by the SHA-256 of their DER, not by subject, because a
+renewed certificate keeps its name and changes everything else:
+
+```bash
+y509 diff before.pem after.pem
+y509 diff node1.example.com:443 node2.example.com:443
+```
+
+```text
+Chain differences:
+  - leaf.example.com
+  + leaf.example.com
+    Example Intermediate CA
+
+The leaf was replaced:
+  • serial: 8149... -> 9e2c...
+  • not after: 2026-09-30 -> 2026-12-29
+  • dns names: example.com -> example.com, www.example.com
+```
+
+It follows `diff(1)`: exit 0 when the chains are identical, 1 when they differ,
+so a scheduled check can ask whether a rotation happened. Two CDN nodes serving
+different chains for one name is the bug this is for.
+
 ### Validating from a script
 
 `validate` verifies against the system trust store and exits non-zero on

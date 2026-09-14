@@ -404,6 +404,42 @@ _y509_completion()
     noun_aliases=()
 }
 
+_y509_diff()
+{
+    last_command="y509_diff"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--connect=")
+    two_word_flags+=("--connect")
+    flags+=("--debug")
+    flags+=("--input=")
+    two_word_flags+=("--input")
+    two_word_flags+=("-i")
+    flags+=("--log-file=")
+    two_word_flags+=("--log-file")
+    flags+=("--servername=")
+    two_word_flags+=("--servername")
+    flags+=("--starttls=")
+    two_word_flags+=("--starttls")
+    flags_with_completion+=("--starttls")
+    flags_completion+=("__y509_handle_go_custom_completion")
+    flags+=("--timeout=")
+    two_word_flags+=("--timeout")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
 _y509_export()
 {
     last_command="y509_export"
@@ -571,6 +607,7 @@ _y509_root_command()
 
     commands=()
     commands+=("completion")
+    commands+=("diff")
     commands+=("export")
     commands+=("help")
     commands+=("validate")
