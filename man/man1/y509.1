@@ -6,7 +6,7 @@ y509 \- inspect and validate X.509 certificate chains
 [\fIOPTIONS\fR] [\fIFILE\fR | \fIHOST\fR:\fIPORT\fR]
 .br
 .B y509 validate
-[\fIOPTIONS\fR] [\fIFILE\fR | \fIHOST\fR:\fIPORT\fR]
+[\fIOPTIONS\fR] [\fITARGET\fR...]
 .br
 .B y509 export
 [\fIOPTIONS\fR] [\fIINDEX\fR] [\fIFORMAT\fR] [\fIFILENAME\fR]
@@ -41,7 +41,10 @@ is the entry point that verifies.
 .TP
 .B validate
 Verify the chain against the system trust store and exit non-zero on anything a
-TLS client would reject. Reports separately on how the chain was
+TLS client would reject. Several targets may be given, each a file or a live
+server; all are checked before anything exits, and with \fB\-\-json\fR one
+target produces a single object while several produce
+.BR {\(dqtargets\(dq:\ [...]} . Reports separately on how the chain was
 .I served
 \(em a missing intermediate, a redundant root, certificates sent out of order,
 duplicates and strangers in the bundle \(em because a chain can verify in a

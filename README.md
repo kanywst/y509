@@ -122,6 +122,17 @@ y509 validate chain.pem --roots internal-ca.pem
 | self-anchored | 1 | links up, but its root is not trusted (an internal PKI, or a missing root) |
 | broken | 1 | does not link up: expired, bad signature, missing issuer, wrong hostname |
 
+Several targets can be given at once. All of them are checked before anything
+exits, so one unreachable host does not hide the rest, and the status is
+non-zero if any failed:
+
+```bash
+y509 validate www.example.com:443 api.example.com:443 smtp.example.com:587
+```
+
+With `--json`, one target produces the object it always did and several produce
+`{"targets": [...]}`, so an existing consumer keeps working.
+
 ### How the chain was served
 
 Verifying a chain and *serving it correctly* are different questions, and y509
