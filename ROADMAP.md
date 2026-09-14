@@ -19,12 +19,19 @@ What the evidence says people burn time on. It is the filter for everything belo
 
 ## Near term
 
-- **Presentation findings in the TUI.** `validate` reports the missing intermediate, the redundant root, the wrong order. The TUI reports almost none of it: `ValidateChainLinks` marks a certificate whose issuer is absent, so a missing intermediate shows up as an unlabelled icon with its explanation never rendered, while a redundant root and a wrong order are invisible because the list sorts the chain before drawing it. `AnalyzeChain` has exactly one caller and it is not in `internal/model`. The report has to be plumbed into the model — `NewModel` takes certificates and config, and the `v` key builds its chain ad hoc — and then rendered, either as a tab beside `Misc` or as a banner across the top of the detail pane. Pick one before starting: a tab has to survive `renderTabs`' collapse behaviour, a banner has to come out of the viewport's height instead.
-- **Show the fields already in hand.** The `Misc` tab prints serial, fingerprint, signature algorithm and key, and omits X.509 version, key usage, extended key usage, path length, AKI/SKI, AIA, CRL distribution points and policy OIDs — every one a named field on `x509.Certificate`. `Issuer` is also missing the OU, province and locality that `Subject` shows, and neither tab touches `pkix.Name.Names`, which carries every parsed DN attribute including the ones Go has no field for.
-- **The SANs, in full.** The `SANs` tab renders DNS, IP and email only, so a URI-only certificate reports "No SANs present" — `cert.URIs` is a field, and adding it is a loop plus the flag that suppresses that fallback line. `otherName` is the harder half: Go's parser surfaces four of RFC 5280's nine GeneralName types and silently drops the rest, so a UPN, SRVName or Kerberos principal never reaches a struct field. Certificates whose only identity is an `otherName` are real, and today y509 calls them empty.
-- **One unparseable certificate must not blank the bundle.** `parsePEMCertificates` returns `nil` on the first `x509.ParseCertificate` error, so a bundle of good/bad/good renders nothing at all and exits 1. Keep a placeholder entry carrying the index, the raw DER and the error. The motivating case is not a corrupt file; it is a valid certificate using an algorithm Go has not caught up with.
-- **A JSON surface for inspection.** `--json` lives only on the trust-checking command, so there is nowhere to put any of the fields above — the parity rule further down is currently unreachable. Today's contract also already drifts from the TUI: `JSONCertificate` has no email addresses while the SANs tab renders them, and it omits the per-certificate chain-link verdict that drives the list icons.
-- **Fix `export`.** It reads only `--input` and stdin, so it ignores the persistent `--connect` that every other path honours: `y509 export --connect host:443` with a bundle on stdin exits 0 and writes the certificate from *stdin* instead — a silent wrong-source export — and with stdin left open it blocks until EOF, because nothing on that path checks for a terminal. A positional path is parsed as an index, so `y509 export chain.pem` reports "invalid certificate index". There is no bundle export either. This is the most broken surface in the tool.
+Everything the first Near term list held has shipped: the Findings tab, the
+fields that were parsed and not rendered, the SANs in full including the forms
+Go drops, a bundle surviving one unreadable certificate, a JSON surface for
+inspection, and `export` reading its input the way every other command does.
+
+What is left at this end:
+
+- **Look at what the stapled OCSP response contained.** `ConnectResult` keeps a
+  bool and drops the bytes, and the TUI never receives `ConnectResult` at all,
+  so this costs a field plus model plumbing. Design it knowing a growing share
+  of servers will never staple one, and that the absence is not a finding.
+- **Redial in the TUI.** When the input was a live server, `r` should re-run the
+  handshake instead of forcing a restart.
 
 ## Keeping up with X.509
 
@@ -58,12 +65,19 @@ The design rules, so that adding a field does not mean adding noise.
 
 ## Later
 
-- **Diff two chains.** `y509 diff before.pem after.pem`, and the same across two endpoints. CDN nodes serving different chains for one name is a real bug class nothing surfaces — and trust anchor negotiation turns it into expected behaviour, which makes the diff more useful, not less.
-- **Several targets in one run.** A host list, so a fleet check does not need a CI matrix to fan out. The JSON needs a distinct shape for it: today's output is a single object and the Action parses it as one.
-- **Inventory-shaped export.** A cryptographic inventory over a list of endpoints — algorithm, key size, lifetime, issuer. It serves the first question rather than the second, and it is what the PCI DSS and post-quantum migration audience assembles by hand today.
-- **More input formats.** PKCS#7 (`.p7b`) and PKCS#12 (`.p12`), which are already recognised as certificate files by the input router and already told apart from a failed certificate by `isPKCSContainer` — the detection exists, the parsing does not. PKCS#12 also brings the tool's first password prompt, which needs a decision about the stdin path. A Kubernetes TLS secret piped in as JSON belongs here too.
-- **Test fixtures for the malformed cases.** `testdata/` holds one generated bundle plus a stale shell generator that `make` no longer calls. The unparseable-certificate entry, `otherName` re-parsing and "a malformed certificate is a finding" all need a corpus, and CI gates coverage.
-- **Packaging.** nixpkgs, AUR and winget, to go with Homebrew, Scoop and the FreeBSD port — after the Scoop manifest stops being hand-copied.
+`diff`, several targets in one run, the inventory export and the PKCS#7,
+PKCS#12 and Kubernetes-secret inputs have all shipped. What remains:
+
+- **Packaging.** nixpkgs, AUR and winget. Each needs a credential or a
+  companion repository that has to exist before the release pipeline can
+  publish to it, and the Scoop manifest is still hand-copied for the same
+  reason. Tracked separately, because the blocker is provisioning rather than
+  code.
+- **Fixtures for the malformed cases.** Every test that needs a malformed
+  certificate builds one, which is the right default here: a committed
+  certificate expires, and noticing expiry is this tool's job. What is worth
+  having is one shared helper rather than each package re-inventing "a valid
+  PEM envelope around bytes `crypto/x509` refuses".
 
 ## Non-goals
 
