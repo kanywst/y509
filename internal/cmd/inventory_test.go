@@ -122,3 +122,66 @@ func TestInventoryTextHasAHeader(t *testing.T) {
 		}
 	}
 }
+
+// TestInventoryCountsCertificatesItCannotRead is the hole an audit would never
+// notice: a target that cannot be read at all is named, but a certificate
+// inside a readable target that fails to parse would otherwise vanish, and the
+// inventory would quietly count one fewer than the input holds.
+func TestInventoryCountsCertificatesItCannotRead(t *testing.T) {
+	path := bundleWithAnUnreadableBlock(t)
+
+	out, err := runRoot(t, "inventory", path, "--json")
+	if err != nil {
+		t.Fatalf("inventory: %v", err)
+	}
+
+	var report struct {
+		Certificates []struct {
+			Position   int    `json:"position"`
+			CommonName string `json:"commonName"`
+			Unreadable string `json:"unreadable"`
+		} `json:"certificates"`
+	}
+	if err := json.NewDecoder(strings.NewReader(out)).Decode(&report); err != nil {
+		t.Fatalf("the JSON does not parse: %v\n%s", err, out)
+	}
+
+	// Two readable certificates and the block between them.
+	if len(report.Certificates) != 3 {
+		t.Fatalf("inventory holds %d rows, want one per certificate in the input", len(report.Certificates))
+	}
+	if report.Certificates[1].Unreadable == "" {
+		t.Errorf("the unreadable block has no reason: %+v", report.Certificates[1])
+	}
+	// In the position it occupied, not sorted to the end.
+	if report.Certificates[1].Position != 1 {
+		t.Errorf("the unreadable row is at position %d, want 1", report.Certificates[1].Position)
+	}
+	// And the rows that are real certificates carry no reason.
+	if report.Certificates[0].Unreadable != "" {
+		t.Errorf("a readable certificate carries an unreadable reason: %+v", report.Certificates[0])
+	}
+}
+
+func TestInventoryCSVCarriesTheUnreadableColumn(t *testing.T) {
+	path := bundleWithAnUnreadableBlock(t)
+
+	out, err := runRoot(t, "inventory", path, "--csv")
+	if err != nil {
+		t.Fatalf("inventory --csv: %v", err)
+	}
+
+	records, err := csv.NewReader(strings.NewReader(out)).ReadAll()
+	if err != nil {
+		t.Fatalf("the CSV does not parse: %v\n%s", err, out)
+	}
+	if records[0][len(records[0])-1] != "unreadable" {
+		t.Fatalf("header has no unreadable column: %v", records[0])
+	}
+	if len(records) != 4 {
+		t.Fatalf("CSV holds %d rows, want a header and three certificates", len(records))
+	}
+	if records[2][len(records[2])-1] == "" {
+		t.Errorf("the unreadable row has an empty reason: %v", records[2])
+	}
+}

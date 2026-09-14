@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -62,7 +63,13 @@ and keys, and a post-quantum migration starts by finding every RSA key.
 				failures = append(failures, fmt.Sprintf("%s: %v", displayTarget(target), err))
 				continue
 			}
-			rows = append(rows, inventoryRows(displayTarget(target), source)...)
+			targetRows := inventoryRows(displayTarget(target), source)
+			// By position, so an unreadable certificate sits where it was in
+			// the input rather than at the top.
+			sort.SliceStable(targetRows, func(i, j int) bool {
+				return targetRows[i].Position < targetRows[j].Position
+			})
+			rows = append(rows, targetRows...)
 		}
 
 		switch {
@@ -86,7 +93,15 @@ and keys, and a post-quantum migration starts by finding every RSA key.
 }
 
 // inventoryRow is one certificate, reduced to what an audit asks about.
+//
+// A certificate that could not be parsed still gets a row, carrying Unreadable
+// and nothing else. An inventory that silently counts fewer certificates than
+// the input holds is the one failure an auditor would never notice.
 type inventoryRow struct {
+	// Unreadable is the parser's error for a CERTIFICATE block that could not
+	// be read, and empty for every row that describes a real certificate.
+	Unreadable string `json:"unreadable,omitempty"`
+
 	Target             string `json:"target"`
 	Position           int    `json:"position"`
 	CommonName         string `json:"commonName"`
@@ -111,9 +126,22 @@ func displayTarget(target string) string {
 }
 
 // inventoryRows turns one target's chain into rows, in the order it was
-// presented.
+// presented, including a row for each certificate that could not be read.
 func inventoryRows(target string, source *input) []inventoryRow {
-	rows := make([]inventoryRow, 0, len(source.Certs))
+	rows := make([]inventoryRow, 0, len(source.Certs)+len(source.Unparsed))
+	for _, failure := range source.Unparsed {
+		row := inventoryRow{
+			Target:     target,
+			Position:   failure.Block,
+			CommonName: "(unreadable)",
+			Unreadable: "could not be parsed",
+		}
+		if failure.Err != nil {
+			row.Unreadable = failure.Err.Error()
+		}
+		rows = append(rows, row)
+	}
+
 	for i, info := range source.Certs {
 		cert := info.Certificate
 		rows = append(rows, inventoryRow{
@@ -159,7 +187,7 @@ func writeInventoryCSV(w io.Writer, rows []inventoryRow) error {
 	header := []string{
 		"target", "position", "common_name", "issuer", "key_algorithm", "key_bits",
 		"signature_algorithm", "not_after", "days_until_expiry", "lifetime_days",
-		"is_ca", "fingerprint_sha256",
+		"is_ca", "fingerprint_sha256", "unreadable",
 	}
 	if err := out.Write(header); err != nil {
 		return fmt.Errorf("failed to write CSV: %w", err)
@@ -170,7 +198,7 @@ func writeInventoryCSV(w io.Writer, rows []inventoryRow) error {
 			r.Target, strconv.Itoa(r.Position), r.CommonName, r.Issuer,
 			r.KeyAlgorithm, keyBitsField(r.KeyBits), r.SignatureAlgorithm,
 			r.NotAfter, strconv.Itoa(r.DaysUntilExpiry), strconv.Itoa(r.LifetimeDays),
-			strconv.FormatBool(r.IsCA), r.FingerprintSHA256,
+			strconv.FormatBool(r.IsCA), r.FingerprintSHA256, r.Unreadable,
 		}
 		if err := out.Write(record); err != nil {
 			return fmt.Errorf("failed to write CSV: %w", err)
@@ -243,6 +271,9 @@ func writeInventoryText(rows []inventoryRow, failures []string) {
 // keyDescription is the algorithm and size together, which is the pair an
 // inventory is actually looking for.
 func keyDescription(r inventoryRow) string {
+	if r.Unreadable != "" {
+		return "unreadable"
+	}
 	if r.KeyBits == 0 {
 		return r.KeyAlgorithm
 	}
