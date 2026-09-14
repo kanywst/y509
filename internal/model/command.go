@@ -19,6 +19,13 @@ import (
 func (m Model) handleValidateCommand() Model {
 	logger.Log.Debug("validating selected certificate")
 
+	// Before the empty-list guard: when every block in the input failed to
+	// parse there are no certificates at all, and the unreadable rows are the
+	// only thing on screen. Checking the count first would leave the key doing
+	// nothing on the only rows there are.
+	if failure, ok := m.selectedUnparsed(); ok {
+		return m.alert(unreadableMessage(failure))
+	}
 	if len(m.certificates) == 0 {
 		return m
 	}
@@ -155,7 +162,7 @@ func (m Model) applyFilter() Model {
 	}
 
 	m.certificates = filtered
-	m.list.SetItems(toListItems(filtered))
+	m.list.SetItems(toListItems(filtered, m.unparsed))
 	m.list.Select(0)
 	m.viewMode = ViewNormal
 	m = m.refreshViewportContent()
@@ -207,7 +214,7 @@ func matchSearch(cert *x509.Certificate, query string) bool {
 func (m Model) resetView() Model {
 	m = m.resetAllFields()
 	m.certificates = m.allCertificates
-	m.list.SetItems(toListItems(m.allCertificates))
+	m.list.SetItems(toListItems(m.allCertificates, m.unparsed))
 	m.list.Select(0)
 	m = m.refreshViewportContent()
 	return m
@@ -229,6 +236,9 @@ func (m Model) resetAllFields() Model {
 // to the system clipboard via OSC52, then opens an alert popup so the
 // user knows the copy succeeded (or why it didn't).
 func (m Model) handleYankCommand() (Model, tea.Cmd) {
+	if failure, ok := m.selectedUnparsed(); ok {
+		return m.alert(unreadableMessage(failure)), nil
+	}
 	if len(m.certificates) == 0 {
 		return m, nil
 	}
@@ -264,11 +274,12 @@ func (m Model) handleExportCommand(filename string) Model {
 		return m
 	}
 
+	if failure, ok := m.selectedUnparsed(); ok {
+		return m.alert(unreadableMessage(failure))
+	}
+
 	if len(m.certificates) == 0 {
-		m.popupMessage = "❌ No certificate selected to export"
-		m.viewMode = ViewPopup
-		m.popupType = PopupAlert
-		return m
+		return m.alert("❌ No certificate selected to export")
 	}
 
 	cert := m.certificates[m.list.Index()].Certificate
@@ -284,4 +295,22 @@ func (m Model) handleExportCommand(filename string) Model {
 	m.viewMode = ViewPopup
 	m.popupType = PopupAlert
 	return m
+}
+
+// alert puts a message on screen. The three commands that act on a certificate
+// all need the same three fields set, and setting only the message -- which is
+// what the export path used to do -- leaves the popup state to whatever was
+// there before.
+func (m Model) alert(message string) Model {
+	m.viewMode = ViewPopup
+	m.popupType = PopupAlert
+	m.popupMessage = message
+	return m
+}
+
+// unreadableMessage explains why a row has nothing behind it, for the commands
+// that act on a certificate and find they have not been given one.
+func unreadableMessage(failure certificate.ParseFailure) string {
+	return fmt.Sprintf("⚠ Certificate #%d could not be parsed (%d bytes)\n\n%v",
+		failure.Block+1, len(failure.Raw), failure.Err)
 }
