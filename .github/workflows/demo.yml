@@ -39,10 +39,31 @@ jobs:
           sudo mv /tmp/ttyd /usr/local/bin/ttyd
 
       - name: Install vhs
-        run: go install github.com/charmbracelet/vhs@latest
+        # Pinned so a render here matches a render on a maintainer's machine.
+        # vhs builds with a newer Go than y509's own floor, so this step — and
+        # only this step — lets the toolchain fetch what vhs asks for; setup-go
+        # otherwise pins GOTOOLCHAIN to the go.mod version for the whole job.
+        env:
+          GOTOOLCHAIN: auto
+        run: go install github.com/charmbracelet/vhs@v0.12.0
 
       - name: Render demo.gif
-        run: vhs demo.tape
+        # vhs can print "Creating demo.gif..." and exit 0 having written nothing
+        # -- an ffmpeg it cannot drive fails silently. Without this check the
+        # next step reads the untouched file as "unchanged", and the job goes
+        # green while demo.gif quietly rots.
+        # Remove it first and inspect what comes back, rather than comparing
+        # timestamps: a truncated or half-encoded file has a fresh mtime too,
+        # and would be committed just as happily.
+        run: |
+          rm -f demo.gif
+          vhs demo.tape
+          if [ ! -s demo.gif ] ||
+             [ "$(head -c 4 demo.gif)" != "GIF8" ] ||
+             [ "$(tail -c 1 demo.gif)" != ";" ]; then
+            echo "::error::vhs did not write a usable demo.gif"
+            exit 1
+          fi
 
       - name: Commit and push if demo.gif changed
         run: |
