@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"io"
 	"net"
@@ -302,6 +303,56 @@ func TestLoadInputTreatsAHostPortArgumentAsAServer(t *testing.T) {
 	}
 	if len(got.Certs) != 2 {
 		t.Errorf("fetched %d certificates, want 2", len(got.Certs))
+	}
+}
+
+// TestLoadInputCarriesARedial covers what the TUI's r key runs. The closure has
+// to reach the same server on a context of its own, long after the command's
+// own context would do.
+func TestLoadInputCarriesARedial(t *testing.T) {
+	chain := newTestChain(t, "localhost")
+	addr := startTLSServer(t, chain)
+
+	cmd := newInputFlags(t)
+	set(t, cmd, "connect", addr)
+
+	got, err := loadInput(cmd, nil)
+	if err != nil {
+		t.Fatalf("loadInput() error = %v", err)
+	}
+	if got.Redial == nil {
+		t.Fatal("a live chain came back with no way to redial it")
+	}
+
+	again, err := got.Redial(context.Background())
+	if err != nil {
+		t.Fatalf("Redial() error = %v", err)
+	}
+	if len(again.Certificates) != len(got.Certs) {
+		t.Errorf("redial fetched %d certificates, want the %d the first dial saw",
+			len(again.Certificates), len(got.Certs))
+	}
+	if again.Address != got.Conn.Address {
+		t.Errorf("redial went to %q, want the address the first dial used, %q",
+			again.Address, got.Conn.Address)
+	}
+}
+
+// TestLoadInputFromAFileHasNoRedial is the other half: a file has no handshake
+// to repeat, and the TUI reads a nil here as "do not bind r".
+func TestLoadInputFromAFileHasNoRedial(t *testing.T) {
+	chain := newTestChain(t, "localhost")
+	path := write(t, "chain.pem", chain.ChainPEM)
+
+	cmd := newInputFlags(t)
+	set(t, cmd, "input", path)
+
+	got, err := loadInput(cmd, nil)
+	if err != nil {
+		t.Fatalf("loadInput() error = %v", err)
+	}
+	if got.Redial != nil {
+		t.Error("a file-backed chain came back with a redial, which would bind r to a dial that never happened")
 	}
 }
 

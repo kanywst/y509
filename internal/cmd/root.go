@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
@@ -152,6 +153,11 @@ func init() {
 		// And a row each, so the list accounts for everything the input held
 		// rather than only what could be read.
 		model.SetUnparsed(source.Unparsed)
+		// Only a live chain can be redialled. For a file the binding stays
+		// disabled, and never appears in the help.
+		if source.Redial != nil {
+			model.SetRedial(source.Conn.Address, source.Redial)
+		}
 		p := tea.NewProgram(model)
 
 		if _, err := p.Run(); err != nil {
@@ -183,6 +189,10 @@ type input struct {
 	// stdin. It carries the negotiated version, the cipher suite and whether
 	// OCSP was stapled, none of which the certificates themselves record.
 	Conn *certificate.ConnectResult
+	// Redial repeats the handshake the certificates arrived over, nil for a
+	// file or stdin. It is built here because this is the only place that knows
+	// which target and which flags produced them.
+	Redial func(context.Context) (*certificate.ConnectResult, error)
 	// Unparsed are the CERTIFICATE blocks that could not be read. They are
 	// carried rather than dropped so a command can say the input held more
 	// than it is showing.
@@ -209,11 +219,20 @@ func loadInput(cmd *cobra.Command, args []string) (*input, error) {
 	}
 
 	if explicitConnect || looksLikeHost(target) {
-		result, err := connectFromFlags(cmd, target)
+		result, err := connectFromFlags(cmd.Context(), cmd, target)
 		if err != nil {
 			return nil, err
 		}
-		return &input{Certs: result.Certificates, Host: result.ServerName, Conn: result}, nil
+		return &input{
+			Certs: result.Certificates,
+			Host:  result.ServerName,
+			Conn:  result,
+			// Close over the same flags this dial used, so r in the TUI asks
+			// the same question again rather than a subtly different one.
+			Redial: func(ctx context.Context) (*certificate.ConnectResult, error) {
+				return connectFromFlags(ctx, cmd, target)
+			},
+		}, nil
 	}
 
 	if target == "" {
@@ -327,7 +346,11 @@ func unparsedSummary(failures []certificate.ParseFailure) string {
 }
 
 // connectFromFlags fetches a chain from a live server.
-func connectFromFlags(cmd *cobra.Command, target string) (*certificate.ConnectResult, error) {
+//
+// The context is a parameter rather than cmd.Context() because a redial from
+// the TUI happens long after the command started, and has to be able to dial
+// again on a context of its own.
+func connectFromFlags(ctx context.Context, cmd *cobra.Command, target string) (*certificate.ConnectResult, error) {
 	var opts certificate.ConnectOptions
 	var err error
 
@@ -341,7 +364,7 @@ func connectFromFlags(cmd *cobra.Command, target string) (*certificate.ConnectRe
 		return nil, err
 	}
 
-	return certificate.FetchChain(cmd.Context(), target, opts)
+	return certificate.FetchChain(ctx, target, opts)
 }
 
 // looksLikeHost decides whether an argument names a server rather than a file.

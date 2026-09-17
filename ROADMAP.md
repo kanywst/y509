@@ -23,6 +23,8 @@ Everything the first Near term list held has shipped: the Findings tab, the
 fields that were parsed and not rendered, the SANs in full including the forms
 Go drops, a bundle surviving one unreadable certificate, a JSON surface for
 inspection, and `export` reading its input the way every other command does.
+Redial has shipped since: `r` re-runs the handshake when the chain came from a
+live server, and leaves the previous chain on screen when the dial fails.
 
 What is left at this end:
 
@@ -30,8 +32,8 @@ What is left at this end:
   bool and drops the bytes, and the TUI never receives `ConnectResult` at all,
   so this costs a field plus model plumbing. Design it knowing a growing share
   of servers will never staple one, and that the absence is not a finding.
-- **Redial in the TUI.** When the input was a live server, `r` should re-run the
-  handshake instead of forcing a restart.
+  Redial shipped without needing the result itself, so the plumbing is still
+  owed.
 
 ## Keeping up with X.509
 

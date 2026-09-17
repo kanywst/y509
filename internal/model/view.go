@@ -94,6 +94,15 @@ func (m Model) renderHeader() string {
 	var crumbs []string
 	crumbs = append(crumbs, m.Styles.Breadcrumb.Render(fmt.Sprintf("%d certs", len(m.allCertificates))))
 
+	// Name the server when there is one. A live chain and a file look
+	// identical once parsed, and only one of them can be redialled.
+	if m.address != "" {
+		crumbs = append(crumbs, m.Styles.Title.Render(truncateText(m.address, 40)))
+	}
+	if m.redialing {
+		crumbs = append(crumbs, m.Styles.StatusWarning.Render("redialing…"))
+	}
+
 	if m.filterActive {
 		crumbs = append(crumbs, m.Styles.Title.Render(m.filterType))
 	}
