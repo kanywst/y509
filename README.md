@@ -325,6 +325,7 @@ jobs:
 |     `/`     | Search                                         |
 |     `f`     | Filter (expired, expiring, valid, self-signed) |
 |     `v`     | Validate certificate                           |
+|     `r`     | Redial the server (live connections only)      |
 |     `e`     | Export certificate (filename + format form)    |
 |     `y`     | Copy selected certificate as PEM (OSC52)       |
 |    `esc`    | Clear filter / close popup                     |

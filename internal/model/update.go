@@ -40,6 +40,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case redialResultMsg:
+		return m.applyRedial(msg), nil
+
 	case SplashDoneMsg:
 		// The splash is also dismissed by any key press, and the timer message
 		// is still in flight when that happens. Only let it retire the splash,
@@ -179,6 +182,8 @@ func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Validate):
 		m = m.handleValidateCommand()
 		return m, nil
+	case key.Matches(msg, m.keys.Redial):
+		return m.startRedial()
 	case key.Matches(msg, m.keys.Export):
 		m.viewMode = ViewPopup
 		m.popupType = PopupExport

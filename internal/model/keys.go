@@ -13,6 +13,7 @@ type keyMap struct {
 	Search   key.Binding
 	Filter   key.Binding
 	Validate key.Binding
+	Redial   key.Binding
 	Export   key.Binding
 	Help     key.Binding
 	Back     key.Binding
@@ -54,6 +55,14 @@ func defaultKeyMap() keyMap {
 			key.WithKeys("v"),
 			key.WithHelp("v", "validate"),
 		),
+		// Disabled until SetRedial says there is a server to dial. A disabled
+		// binding neither matches nor appears in the help, so a file-backed
+		// session never advertises a key that would do nothing.
+		Redial: key.NewBinding(
+			key.WithKeys("r"),
+			key.WithHelp("r", "redial"),
+			key.WithDisabled(),
+		),
 		Export: key.NewBinding(
 			key.WithKeys("e"),
 			key.WithHelp("e", "export"),
@@ -86,7 +95,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right, k.Tab},
-		{k.Search, k.Filter, k.Validate, k.Export, k.Yank, k.Back},
+		{k.Search, k.Filter, k.Validate, k.Redial, k.Export, k.Yank, k.Back},
 		{k.Help, k.Quit},
 	}
 }

@@ -181,6 +181,11 @@ Filter by expired, expiring, valid or self-signed.
 .B v
 Validate the chain.
 .TP
+.B r
+Redial the server and replace the chain with what it serves now. Only bound
+when the chain came from a live connection; a failed redial leaves the previous
+chain on screen.
+.TP
 .B e
 Export the selected certificate.
 .TP

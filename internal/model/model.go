@@ -153,6 +153,13 @@ type Model struct {
 	// accounts for everything the input held.
 	unparsed []certificate.ParseFailure
 
+	// address is the server the chain came from, empty for a file or stdin.
+	// dial re-runs that handshake; see SetRedial. redialing is true while one
+	// is in flight, which both the header and the r binding read.
+	address   string
+	dial      Redialer
+	redialing bool
+
 	// Internal state for logic
 	detailField  string
 	detailValue  string
