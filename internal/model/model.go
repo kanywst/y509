@@ -215,6 +215,58 @@ func (m Model) GetHeight() int {
 	return m.height
 }
 
+// buildChain analyses the chain as presented, then returns it sorted along
+// with the report. Both are needed together and in that order, which is why
+// they are produced in one place.
+func buildChain(certs []*certificate.Info) ([]*certificate.Info, *certificate.ChainReport) {
+	if len(certs) == 0 {
+		return nil, nil
+	}
+
+	rawCerts := make([]*x509.Certificate, len(certs))
+	for i, c := range certs {
+		rawCerts[i] = c.Certificate
+	}
+	// Analyze before sorting. AnalyzeChain reads the order the chain was
+	// presented in, and everything below reorders it -- so this call has
+	// to come first or the findings it exists to report are gone.
+	chainReport := certificate.AnalyzeChain(rawCerts)
+
+	// Reuse the sort AnalyzeChain already did: it keeps the result in
+	// Sorted so a caller does not repeat the O(n^2) signature checks on
+	// every model load.
+	sortedRawCerts := chainReport.Sorted
+
+	// Map raw certificates to their Info wrappers for efficient lookup.
+	// Use fingerprint as key, and a slice of wrappers to handle potential duplicates
+	// in the input (preserving their distinct metadata like original index).
+	certMap := make(map[string][]*certificate.Info)
+	for _, c := range certs {
+		fingerprint := certificate.FormatFingerprint(c.Certificate)
+		certMap[fingerprint] = append(certMap[fingerprint], c)
+	}
+
+	// Build sorted list of Info
+	sortedCerts := make([]*certificate.Info, len(sortedRawCerts))
+	for i, rawCert := range sortedRawCerts {
+		fingerprint := certificate.FormatFingerprint(rawCert)
+		if infos, ok := certMap[fingerprint]; ok && len(infos) > 0 {
+			// Take the first available wrapper for this fingerprint
+			sortedCerts[i] = infos[0]
+			// Remove it from the map slice so duplicates use the next available wrapper
+			certMap[fingerprint] = infos[1:]
+		} else {
+			// Safeguard: Create a new wrapper if not found in map (should not happen if SortChain only reorders)
+			sortedCerts[i] = &certificate.Info{
+				Certificate: rawCert,
+			}
+		}
+	}
+	certificate.ValidateChainLinks(sortedCerts)
+
+	return sortedCerts, chainReport
+}
+
 // NewModel creates a new model with certificates
 func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 	// Defensive check for config
@@ -232,51 +284,7 @@ func NewModel(certs []*certificate.Info, cfg *config.Config) *Model {
 		cfg.ExpiryWarningDays = config.DefaultExpiryWarningDays
 	}
 
-	// Sort and validate the certificate chain
-	var sortedCerts []*certificate.Info
-	var chainReport *certificate.ChainReport
-	if len(certs) > 0 {
-		rawCerts := make([]*x509.Certificate, len(certs))
-		for i, c := range certs {
-			rawCerts[i] = c.Certificate
-		}
-		// Analyze before sorting. AnalyzeChain reads the order the chain was
-		// presented in, and everything below reorders it -- so this call has
-		// to come first or the findings it exists to report are gone.
-		chainReport = certificate.AnalyzeChain(rawCerts)
-
-		// Reuse the sort AnalyzeChain already did: it keeps the result in
-		// Sorted so a caller does not repeat the O(n^2) signature checks on
-		// every model load.
-		sortedRawCerts := chainReport.Sorted
-
-		// Map raw certificates to their Info wrappers for efficient lookup.
-		// Use fingerprint as key, and a slice of wrappers to handle potential duplicates
-		// in the input (preserving their distinct metadata like original index).
-		certMap := make(map[string][]*certificate.Info)
-		for _, c := range certs {
-			fingerprint := certificate.FormatFingerprint(c.Certificate)
-			certMap[fingerprint] = append(certMap[fingerprint], c)
-		}
-
-		// Build sorted list of Info
-		sortedCerts = make([]*certificate.Info, len(sortedRawCerts))
-		for i, rawCert := range sortedRawCerts {
-			fingerprint := certificate.FormatFingerprint(rawCert)
-			if infos, ok := certMap[fingerprint]; ok && len(infos) > 0 {
-				// Take the first available wrapper for this fingerprint
-				sortedCerts[i] = infos[0]
-				// Remove it from the map slice so duplicates use the next available wrapper
-				certMap[fingerprint] = infos[1:]
-			} else {
-				// Safeguard: Create a new wrapper if not found in map (should not happen if SortChain only reorders)
-				sortedCerts[i] = &certificate.Info{
-					Certificate: rawCert,
-				}
-			}
-		}
-		certificate.ValidateChainLinks(sortedCerts)
-	}
+	sortedCerts, chainReport := buildChain(certs)
 
 	tabs := []string{"Subject", "Issuer", "Validity", "SANs", "Misc", "Findings"}
 
