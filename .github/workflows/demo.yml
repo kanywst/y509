@@ -39,22 +39,24 @@ jobs:
           sudo mv /tmp/ttyd /usr/local/bin/ttyd
 
       - name: Install vhs
-        # Pinned so a render here matches a render on a maintainer's machine.
-        # vhs builds with a newer Go than y509's own floor, so this step — and
-        # only this step — lets the toolchain fetch what vhs asks for; setup-go
-        # otherwise pins GOTOOLCHAIN to the go.mod version for the whole job.
+        # Held at v0.11.0: v0.12.0 encodes nothing. It plays the whole tape,
+        # prints "Creating demo.gif..." and exits 0 without writing the file,
+        # on this runner and against ffmpeg 6 and 9 alike, so it is vhs rather
+        # than the encoder. Revisit when a release renders again.
+        #
+        # GOTOOLCHAIN is scoped to this step because vhs can require a newer Go
+        # than y509's own floor, and setup-go otherwise pins it to the go.mod
+        # version for the whole job.
         env:
           GOTOOLCHAIN: auto
-        run: go install github.com/charmbracelet/vhs@v0.12.0
+        run: go install github.com/charmbracelet/vhs@v0.11.0
 
       - name: Render demo.gif
-        # vhs can print "Creating demo.gif..." and exit 0 having written nothing
-        # -- an ffmpeg it cannot drive fails silently. Without this check the
-        # next step reads the untouched file as "unchanged", and the job goes
-        # green while demo.gif quietly rots.
-        # Remove it first and inspect what comes back, rather than comparing
-        # timestamps: a truncated or half-encoded file has a fresh mtime too,
-        # and would be committed just as happily.
+        # vhs can print "Creating demo.gif..." and exit 0 having written
+        # nothing, which is how v0.12.0 went unnoticed: the next step reads the
+        # untouched file as "unchanged" and the job goes green while demo.gif
+        # rots. Remove it first and inspect what comes back, rather than
+        # comparing timestamps -- a half-encoded file has a fresh mtime too.
         run: |
           rm -f demo.gif
           vhs demo.tape
