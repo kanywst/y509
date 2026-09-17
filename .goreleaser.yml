@@ -50,12 +50,20 @@ homebrew_casks:
   - name: y509
     binaries:
       - y509
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/y509"]
-          end
+    # Casks are fetched with curl, so Homebrew tags the payload with
+    # com.apple.quarantine and Gatekeeper refuses to run an unsigned binary.
+    # Stripping it is the path goreleaser documents, but its `hooks:` option
+    # emits the legacy Ruby `postflight do` block, which Homebrew deprecated
+    # (it warns on every `brew` invocation). `custom_block` is the only way to
+    # emit the declarative replacement, `postflight_steps`, from here.
+    # The braces are escaped because goreleaser templates this value and
+    # {{staged_path}} is a Homebrew install-time token, not a Go template field.
+    custom_block: |
+      postflight_steps do
+        on_macos do
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{" }}staged_path{{ "}}" }}/y509"]
+        end
+      end
     manpages:
       - man/man1/y509.1
     completions:
