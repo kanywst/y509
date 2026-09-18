@@ -16,7 +16,8 @@ import (
 func redialModel(t *testing.T, certs []*certificate.Info, dial Redialer) Model {
 	t.Helper()
 	m := NewModel(certs, loadTestConfig(t))
-	m.SetRedial("example.com:443", dial)
+	m.SetConnection(&certificate.ConnectResult{Address: "example.com:443"})
+	m.SetRedial(dial)
 	out := pump(t, *m, tea.WindowSizeMsg{Width: 120, Height: 40})
 	// Leave the splash, so r reaches updateNormalMode.
 	return pump(t, out, keyPress('x'))

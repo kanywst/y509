@@ -26,14 +26,20 @@ inspection, and `export` reading its input the way every other command does.
 Redial has shipped since: `r` re-runs the handshake when the chain came from a
 live server, and leaves the previous chain on screen when the dial fails.
 
+The stapled OCSP response has shipped too. `ConnectResult` keeps the parsed
+response rather than a bool, the TUI receives `ConnectResult` and shows the
+handshake on the leaf's Misc tab, and `ocspStaple` is in the JSON. The absence
+of a staple is recorded as an absence and never as a finding.
+
 What is left at this end:
 
-- **Look at what the stapled OCSP response contained.** `ConnectResult` keeps a
-  bool and drops the bytes, and the TUI never receives `ConnectResult` at all,
-  so this costs a field plus model plumbing. Design it knowing a growing share
-  of servers will never staple one, and that the absence is not a finding.
-  Redial shipped without needing the result itself, so the plumbing is still
-  owed.
+- **Decide whether a staple can fail the build.** A revoked or stale response
+  predicts a client failure as squarely as anything in the advisory class, but
+  `ChainReport.OK()` is `len(Findings) == 0` and the Action gates on
+  `presentation.ok`, so dropping one into that slice would trip every existing
+  `fail-on: mis-served` gate on a chain that is served correctly. It needs its
+  own key and its own `ok` first, which is the same problem the conformance
+  findings below have to solve.
 
 ## Keeping up with X.509
 
@@ -41,7 +47,7 @@ X.509 is moving under the tool, on a calendar someone else controls. The bar: a 
 
 Both dated obligations this section carried have shipped. The lifetime limit is a date-indexed table now — `CABMaxValidityDaysAt` evaluates the 2027-03-15 and 2029-03-15 steps against the certificate's own `NotBefore`, so a compliant 2026 certificate does not turn non-compliant in 2027, and `CABMaxLifetimeFor` gives the finding the limit that actually applied. The expiry window is derived from the certificate's own validity period by `ExpiryWarningDaysFor`, with the configured day count kept as a ceiling, so a 6-day certificate is no longer inside the warning at birth. The landing page carries the same table. What is left here is opportunistic:
 
-- **Revocation: read what arrives, never fetch by default.** The stapled OCSP response is discarded at the point of capture — `ConnectResult` keeps a bool and drops the bytes — and the TUI never receives `ConnectResult` at all, so this costs a field plus model plumbing rather than being free. Then be careful what counts as a finding: `id-ad-ocsp` is optional for *every* subscriber certificate now, not just short-lived ones, so a missing OCSP pointer is never a finding; AIA itself is still required for all of them, including short-lived, so a missing AIA is; and CRL distribution points are optional in a short-lived certificate and required only in one that is neither short-lived nor carrying an OCSP pointer. Anything that checks revocation over the network must be CRL-based, discovered from the certificate, off by default and cached.
+- **Revocation: read what arrives, never fetch by default.** Reading the stapled response has shipped: `ConnectResult` carries it parsed, the TUI shows it, and the JSON reports it. What remains is the finding question, and it is the careful half: `id-ad-ocsp` is optional for *every* subscriber certificate now, not just short-lived ones, so a missing OCSP pointer is never a finding; AIA itself is still required for all of them, including short-lived, so a missing AIA is; and CRL distribution points are optional in a short-lived certificate and required only in one that is neither short-lived nor carrying an OCSP pointer. Anything that checks revocation over the network must be CRL-based, discovered from the certificate, off by default and cached.
 - **Conformance findings, inside the advisory class.** Checks a certificate can fail while verifying and while being served correctly, but which still predict a client failure: SHA-1 signatures, RSA under 2048 bits, a CN with no SAN, an extension the profile forbids, and the date-aware lifetime check that already ships. Pre-issuance linting has been mandatory since 2025-03-15 — though the requirement is to run a linter, not to block on what it says — so a `CABF_BR` failure today is a real signal. Two things to settle first. The finding needs its own JSON key and its own `ok`: `ChainReport.OK()` is `len(Findings) == 0`, and the Action fails on `presentation.ok`, so a SHA-1 finding dropped into that slice would trip every existing `fail-on: mis-served` gate. And zlint is a Go library whose `e_`/`w_`/`n_` prefixes (error, warning, notice) are a finer grain than the two severity classes below, so importing it means deciding which prefixes block — against the alternative of hand-rolling the few rules that catch real misconfiguration.
 - **Name the algorithm even when Go cannot.** `x509.UnknownSignatureAlgorithm.String()` returns the literal string `"0"`, so an SLH-DSA certificate — standardised in RFC 9909 — renders its signature algorithm as `0`. `Certificate.RawSignatureAlgorithm` holds the DER `AlgorithmIdentifier` even for algorithms Go does not decode — it is new in Go 1.27, so this item waits on the floor below — and `pqcAlgorithmNames` already exists with five OIDs on the public-key side. The work is to grow that table to SLH-DSA's 24 OIDs and composite ML-DSA, and reuse it for the signature algorithm — not to build one.
 - **Post-quantum is closer than it looks.** Go 1.27 ships `crypto/mldsa`, parses and verifies ML-DSA certificates, and prints `ML-DSA-65` by itself, so ML-DSA support is a toolchain bump — one that also makes the three ML-DSA rows in `pqcAlgorithmNames` dead code, since Go no longer falls into the unknown-key path. Bumping the floor from 1.26 is user-visible, though: go.mod, the README, CONTRIBUTING, the landing page and the FreeBSD port all state it, while CI needs no edit because it reads go.mod. What y509 *asks for* has already moved, separately from that floor: Go 1.27 puts `MLDSA44/65/87` at the top of its default signature algorithms with no GODEBUG gate, and y509's client config sets no `SignatureSchemes`, so a build from source on Go 1.27 already offers post-quantum authentication — the first ML-DSA certificate it meets may well arrive because it asked. Released binaries are built from the `go` directive by the workflows, so none of them offer it yet, and until the floor moves y509 could be handed a certificate it cannot name. Nothing for FN-DSA until its OIDs stabilise; the current ones are not even compatible with old Falcon.

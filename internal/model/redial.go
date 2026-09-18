@@ -24,19 +24,29 @@ type redialResultMsg struct {
 	err    error
 }
 
-// SetRedial records how to dial the server again, and the address to name
-// while doing it. Without it the r binding stays disabled, because there is
-// nothing to redial: a file does not change under you in a way a handshake
-// would reveal, and re-reading it is what a shell is for.
+// SetConnection records the handshake the chain arrived over: the address, the
+// negotiated version and suite, and the stapled OCSP response. None of it is
+// in the certificates, and without it a live chain and a file look identical.
 //
 // It is a setter rather than a constructor argument for the same reason as
 // SetNotice: it is about where the input came from, which only the command
 // that fetched it knows.
-func (m *Model) SetRedial(address string, dial Redialer) {
+func (m *Model) SetConnection(conn *certificate.ConnectResult) {
+	if conn == nil {
+		return
+	}
+	m.conn = conn
+	m.address = conn.Address
+}
+
+// SetRedial records how to dial the server again. Without it the r binding
+// stays disabled, because there is nothing to redial: a file does not change
+// under you in a way a handshake would reveal, and re-reading it is what a
+// shell is for.
+func (m *Model) SetRedial(dial Redialer) {
 	if dial == nil {
 		return
 	}
-	m.address = address
 	m.dial = dial
 	m.keys.Redial.SetEnabled(true)
 }
@@ -81,6 +91,10 @@ func (m Model) applyRedial(msg redialResultMsg) Model {
 
 	m.allCertificates, m.chainReport = buildChain(msg.result.Certificates)
 	m.certificates = m.allCertificates
+	// The handshake facts belong to the chain that arrived with them. Keeping
+	// the old ones would report a TLS version and a staple from a connection
+	// that is no longer the one on screen.
+	m.conn = msg.result
 
 	// Drop the filter and the search rather than re-applying them. They were
 	// answers about the old chain, and a redial exists to show what the server

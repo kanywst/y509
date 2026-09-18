@@ -38,7 +38,8 @@ func TestRedialAgainstARealServer(t *testing.T) {
 	}
 
 	m := NewModel(first.Certificates, loadTestConfig(t))
-	m.SetRedial(addr, dial)
+	m.SetConnection(first)
+	m.SetRedial(dial)
 	out := pump(t, *m, tea.WindowSizeMsg{Width: 120, Height: 40})
 	out = pump(t, out, keyPress('x'))
 
