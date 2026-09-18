@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -53,6 +54,15 @@ type ConnectResult struct {
 	CipherSuite uint16
 	// OCSPStapled reports whether the server stapled an OCSP response.
 	OCSPStapled bool
+	// Staple is what that response said, nil when none was stapled. Reading it
+	// is not revocation checking: the bytes came in the handshake, and nothing
+	// goes to the network for them.
+	Staple *Staple
+	// StapleErr is set when a response was stapled but could not be read. It is
+	// kept rather than returned, because a handshake that presented a chain
+	// still succeeded -- refusing the whole fetch over an unreadable staple
+	// would hide the certificates the user asked to see.
+	StapleErr error
 }
 
 // TLSVersionName renders the negotiated version.
@@ -175,14 +185,40 @@ func FetchChain(ctx context.Context, addr string, opts ConnectOptions) (*Connect
 		}
 	}
 
-	return &ConnectResult{
+	result := &ConnectResult{
 		Certificates: certs,
 		Address:      address,
 		ServerName:   serverName,
 		Version:      state.Version,
 		CipherSuite:  state.CipherSuite,
 		OCSPStapled:  len(state.OCSPResponse) > 0,
-	}, nil
+	}
+
+	// The response covers the leaf, and its signature is checked against the
+	// leaf's issuer -- which is only here if the server sent it. A server that
+	// omitted the intermediate still gets its staple read, unverified.
+	if result.OCSPStapled {
+		leaf := state.PeerCertificates[0]
+		var issuer *x509.Certificate
+		switch {
+		case len(state.PeerCertificates) > 1:
+			issuer = state.PeerCertificates[1]
+		case leaf.Subject.String() == leaf.Issuer.String():
+			// A self-signed leaf is its own issuer. Reporting the signature as
+			// unchecked here would be a claim about the chain when the issuer
+			// is in fact right there.
+			issuer = leaf
+		}
+		staple, err := ParseStaple(state.OCSPResponse, leaf, issuer)
+		if err != nil {
+			logger.Warn("stapled OCSP response could not be read", zap.Error(err))
+			result.StapleErr = err
+		} else {
+			result.Staple = staple
+		}
+	}
+
+	return result, nil
 }
 
 // normalizeAddress turns the many ways a user names a server into a host:port
