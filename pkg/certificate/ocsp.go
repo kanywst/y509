@@ -74,6 +74,11 @@ func (s *Staple) Expired(now time.Time) bool {
 // the intermediate, which is the misconfiguration this tool exists to find --
 // the response is still parsed, and Verified says the signature was not
 // checked. Refusing to read it at all would hide two problems behind one.
+//
+// Every read goes through ParseResponseForCert, including the unverified ones.
+// ParseResponse is that function with a nil certificate, and a nil certificate
+// makes it reject any response carrying more than one status instead of picking
+// the one whose serial matches.
 func ParseStaple(der []byte, leaf, issuer *x509.Certificate) (*Staple, error) {
 	if len(der) == 0 {
 		return nil, nil
@@ -95,10 +100,10 @@ func ParseStaple(der []byte, leaf, issuer *x509.Certificate) (*Staple, error) {
 			// the caller needs to see, and verifyErr keeps that apart from the
 			// case where there was no issuer to check against at all.
 			verifyErr = err
-			resp, err = ocsp.ParseResponse(der, nil)
+			resp, err = ocsp.ParseResponseForCert(der, leaf, nil)
 		}
 	} else {
-		resp, err = ocsp.ParseResponse(der, nil)
+		resp, err = ocsp.ParseResponseForCert(der, leaf, nil)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("stapled OCSP response could not be read: %w", err)

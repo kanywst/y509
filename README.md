@@ -243,6 +243,12 @@ it. `nextUpdate` is absent when the
 responder gave none, which means the response must not be cached rather than
 that it never goes stale.
 
+When a response was stapled but could not be read, `ocspStaple` is absent and
+`ocspStapleError` carries why. Bytes that do not parse are a fact about the
+server, so they are reported rather than dropped — and never at the cost of the
+chain, which is returned either way. Exactly one of the two keys is ever
+present.
+
 This exists because the exit code cannot carry the answer. It collapses
 `self-anchored` and `broken` into the same non-zero, so a script cannot tell an
 internal PKI from a chain that does not link up — and it says nothing at all
