@@ -153,11 +153,13 @@ func init() {
 		// And a row each, so the list accounts for everything the input held
 		// rather than only what could be read.
 		model.SetUnparsed(source.Unparsed)
+		// What the handshake revealed, which no certificate records: the
+		// address, the negotiated TLS version and suite, and the stapled OCSP
+		// response. Nil for a file or stdin.
+		model.SetConnection(source.Conn)
 		// Only a live chain can be redialled. For a file the binding stays
 		// disabled, and never appears in the help.
-		if source.Redial != nil {
-			model.SetRedial(source.Conn.Address, source.Redial)
-		}
+		model.SetRedial(source.Redial)
 		p := tea.NewProgram(model)
 
 		if _, err := p.Run(); err != nil {

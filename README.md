@@ -212,7 +212,16 @@ y509 validate example.com:443 --json | jq .
   "connection": {
     "tlsVersion": "TLS 1.3",
     "cipherSuite": "TLS_AES_128_GCM_SHA256",
-    "ocspStapled": true
+    "ocspStapled": true,
+    "ocspStaple": {
+      "status": "good",
+      "serialNumber": "03d8…",
+      "producedAt": "2026-09-14T09:00:00Z",
+      "thisUpdate": "2026-09-14T09:00:00Z",
+      "nextUpdate": "2026-09-21T08:59:59Z",
+      "expired": false,
+      "verified": true
+    }
   }
 }
 ```
@@ -220,6 +229,17 @@ y509 validate example.com:443 --json | jq .
 `connection` is what the handshake revealed rather than what the certificates
 say, so it is absent entirely for a file or stdin input. Testing for the key is
 how a consumer tells a live check from an offline one.
+
+`ocspStaple` is the response the server attached, read rather than fetched:
+nothing here goes to the network for it, which is why this is in scope while
+AIA chasing is not. It is absent when nothing was stapled, and that absence is
+not a finding — a stapled response is optional for every subscriber certificate
+now, and a growing share of servers will never send one. `verified` says
+whether the signature was checked against the issuer the server presented; it
+is false when the issuer was missing from the chain, which is a fact about the
+server rather than about the certificate. `nextUpdate` is absent when the
+responder gave none, which means the response must not be cached rather than
+that it never goes stale.
 
 This exists because the exit code cannot carry the answer. It collapses
 `self-anchored` and `broken` into the same non-zero, so a script cannot tell an

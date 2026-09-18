@@ -1,6 +1,7 @@
 package model
 
 import (
+	"crypto/tls"
 	"crypto/x509/pkix"
 	"fmt"
 	"strings"
@@ -557,6 +558,17 @@ func (m Model) renderTabContent(width int) string {
 			for _, policy := range policies {
 				kv("", policy)
 			}
+		}
+
+		// What the handshake revealed, which the certificates cannot say. It
+		// describes the connection rather than the selected certificate, and
+		// the staple covers the leaf, so it belongs to the leaf's view only.
+		if m.conn != nil && m.list.Index() == 0 {
+			b.WriteString("\n")
+			b.WriteString(m.Styles.SectionTitle.Render("Handshake") + "\n")
+			kv("TLS", m.conn.TLSVersionName())
+			kv("Cipher", tls.CipherSuiteName(m.conn.CipherSuite))
+			m.renderStaple(kv)
 		}
 
 		// Chain position visualization

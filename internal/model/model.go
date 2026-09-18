@@ -156,8 +156,14 @@ type Model struct {
 	// address is the server the chain came from, empty for a file or stdin.
 	// dial re-runs that handshake; see SetRedial. redialing is true while one
 	// is in flight, which both the header and the r binding read.
+	// conn is the handshake the chain arrived over, nil for a file or stdin.
+	// It carries the negotiated version, the cipher suite and the stapled OCSP
+	// response, none of which the certificates themselves record. A redial
+	// replaces it along with the chain.
+	//
 	// pendingRedial is a finished handshake waiting for the user to be back at
 	// the list; see Update.
+	conn          *certificate.ConnectResult
 	address       string
 	dial          Redialer
 	redialing     bool
