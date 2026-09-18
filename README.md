@@ -237,7 +237,9 @@ not a finding — a stapled response is optional for every subscriber certificat
 now, and a growing share of servers will never send one. `verified` says
 whether the signature was checked against the issuer the server presented; it
 is false when the issuer was missing from the chain, which is a fact about the
-server rather than about the certificate. `nextUpdate` is absent when the
+server rather than about the certificate. A `verifyError` alongside it means
+something worse: the issuer *was* there and the response did not verify against
+it. `nextUpdate` is absent when the
 responder gave none, which means the response must not be cached rather than
 that it never goes stale.
 

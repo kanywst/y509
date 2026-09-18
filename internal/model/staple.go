@@ -3,11 +3,35 @@ package model
 import (
 	"fmt"
 	"time"
+
+	"github.com/kanywst/y509/pkg/certificate"
 )
 
 // stapleTimeFormat is minute precision in UTC. A staple's freshness is the
 // question here, and seconds add width without answering it.
 const stapleTimeFormat = "2006-01-02 15:04 MST"
+
+// isPresentedLeaf reports whether cert is the one the server led with.
+//
+// The staple covers that certificate, and the handshake facts arrived with it.
+// It is matched by identity rather than by list position because a filter or a
+// search reorders what is on screen and selects position zero, which would
+// otherwise put the handshake under whatever happened to survive the predicate.
+//
+// The certificate the server sent first is used rather than the sorted leaf: a
+// server presenting its chain out of order is the bug this tool exists to find,
+// and in that case the two are not the same certificate. The handshake belongs
+// to what was actually served.
+func (m Model) isPresentedLeaf(cert *certificate.Info) bool {
+	if m.conn == nil || cert == nil || cert.Certificate == nil {
+		return false
+	}
+	if len(m.conn.Certificates) == 0 || m.conn.Certificates[0] == nil {
+		return false
+	}
+	presented := m.conn.Certificates[0].Certificate
+	return presented != nil && presented.Equal(cert.Certificate)
+}
 
 // renderStaple writes what a stapled OCSP response said, through the caller's
 // aligned key/value writer.
@@ -35,9 +59,16 @@ func (m Model) renderStaple(kv func(key, value string)) {
 
 	status := staple.Status
 	// An unverified response was read but not authenticated, which is a claim
-	// about the server rather than about the certificate. Saying so next to the
-	// status keeps the two apart.
-	if !staple.Verified {
+	// about the server rather than about the certificate. The two ways that
+	// happens deserve different words: an absent issuer is the ordinary
+	// missing-intermediate case, while a response that fails against the issuer
+	// the server itself presented is a much louder signal, and an operator told
+	// the first when it was the second would go and fix the wrong thing.
+	switch {
+	case staple.Verified:
+	case staple.VerifyErr != nil:
+		status += " (SIGNATURE DID NOT VERIFY against the presented issuer: " + staple.VerifyErr.Error() + ")"
+	default:
 		status += " (signature not checked: issuer not in the chain)"
 	}
 	kv("OCSP Staple", status)

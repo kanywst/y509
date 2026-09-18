@@ -562,8 +562,14 @@ func (m Model) renderTabContent(width int) string {
 
 		// What the handshake revealed, which the certificates cannot say. It
 		// describes the connection rather than the selected certificate, and
-		// the staple covers the leaf, so it belongs to the leaf's view only.
-		if m.conn != nil && m.list.Index() == 0 {
+		// the staple covers the certificate the server led with, so it belongs
+		// to that one's view only.
+		//
+		// Matched by certificate rather than by list position: a filter or a
+		// search calls list.Select(0), so position zero is whatever survived
+		// the predicate, and keying off it would render the handshake under a
+		// root as though it were the root's own.
+		if m.isPresentedLeaf(cert) {
 			b.WriteString("\n")
 			b.WriteString(m.Styles.SectionTitle.Render("Handshake") + "\n")
 			kv("TLS", m.conn.TLSVersionName())

@@ -42,11 +42,19 @@ type Staple struct {
 	// Responder names who signed the response, when the response says so by
 	// name rather than by key hash.
 	Responder string
-	// Verified reports whether the response's signature was checked against
-	// the issuer. It is false when the issuer was not in the chain the server
-	// presented, which is itself worth knowing: an unverifiable response is
-	// evidence about the server, not about the certificate.
+	// Verified reports whether the response's signature was checked against the
+	// issuer, and passed.
 	Verified bool
+	// VerifyErr is why the check failed, set only when an issuer was available
+	// and the signature did not verify against it. It stays nil when there was
+	// no issuer to check against.
+	//
+	// The two are very different claims and must not collapse into one bool. A
+	// missing issuer means the server omitted the intermediate, which is a
+	// common misconfiguration. A response that fails against the issuer the
+	// server itself presented is a much louder signal, and an operator told the
+	// first when it was the second would go and fix the wrong thing.
+	VerifyErr error
 }
 
 // Expired reports whether the response is past the point the responder said it
@@ -71,18 +79,22 @@ func ParseStaple(der []byte, leaf, issuer *x509.Certificate) (*Staple, error) {
 		return nil, nil
 	}
 
-	verified := issuer != nil
 	var (
-		resp *ocsp.Response
-		err  error
+		resp      *ocsp.Response
+		err       error
+		verified  bool
+		verifyErr error
 	)
-	if verified {
+	if issuer != nil {
 		resp, err = ocsp.ParseResponseForCert(der, leaf, issuer)
-		if err != nil {
-			// Fall back to an unverified read rather than reporting nothing.
-			// A response that fails to verify against the presented issuer is
-			// worth seeing, and the caller learns that from Verified.
-			verified = false
+		if err == nil {
+			verified = true
+		} else {
+			// Fall back to an unverified read rather than reporting nothing. A
+			// response that fails against the presented issuer is exactly what
+			// the caller needs to see, and verifyErr keeps that apart from the
+			// case where there was no issuer to check against at all.
+			verifyErr = err
 			resp, err = ocsp.ParseResponse(der, nil)
 		}
 	} else {
@@ -98,6 +110,7 @@ func ParseStaple(der []byte, leaf, issuer *x509.Certificate) (*Staple, error) {
 		ThisUpdate: resp.ThisUpdate,
 		NextUpdate: resp.NextUpdate,
 		Verified:   verified,
+		VerifyErr:  verifyErr,
 		Responder:  responderName(resp.RawResponderName),
 	}
 	if resp.SerialNumber != nil {
