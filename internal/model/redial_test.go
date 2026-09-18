@@ -162,6 +162,80 @@ func TestRedialClearsTheFilter(t *testing.T) {
 	}
 }
 
+// TestRedialWaitsForAnOpenPopup covers the window the handshake opens: a real
+// round trip takes time, and nothing stops the user opening the export form in
+// the meantime. Installing the new chain then would tear the form down and
+// discard what they had typed into it.
+func TestRedialWaitsForAnOpenPopup(t *testing.T) {
+	fresh := createTestCertificates(3)
+	m := redialModel(t, createTestCertificates(1), func(context.Context) (*certificate.ConnectResult, error) {
+		return &certificate.ConnectResult{Certificates: fresh}, nil
+	})
+
+	// Press r, then open the export form before the result is delivered.
+	next, cmd := m.Update(keyPress('r'))
+	m = next.(Model)
+	m = pump(t, m, keyPress('e'))
+	if !m.exportFormOpen() {
+		t.Fatal("the export form did not open, so the test cannot show it surviving")
+	}
+
+	// Now let the handshake land.
+	m = pump(t, m, settle(cmd))
+
+	if !m.exportFormOpen() {
+		t.Error("the redial closed the export form the user had open")
+	}
+	if got := len(m.allCertificates); got != 1 {
+		t.Errorf("the redial was applied behind the form: expected the old chain of 1, got %d", got)
+	}
+	if m.pendingRedial == nil {
+		t.Fatal("the result was neither applied nor held")
+	}
+
+	// Escape closes the form, and the held result lands on the same message.
+	m = pump(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
+	if m.exportFormOpen() {
+		t.Fatal("the export form did not close")
+	}
+	if got := len(m.allCertificates); got != len(fresh) {
+		t.Errorf("the held redial was not applied once the form closed: got %d certificates, want %d",
+			got, len(fresh))
+	}
+	if m.pendingRedial != nil {
+		t.Error("the held result was applied but not cleared, so it will be applied again")
+	}
+}
+
+// TestRedialFailureWaitsForAnOpenPopup is the same rule for the error path: the
+// alert must not steal the screen from whatever the user opened.
+func TestRedialFailureWaitsForAnOpenPopup(t *testing.T) {
+	m := redialModel(t, createTestCertificates(2), func(context.Context) (*certificate.ConnectResult, error) {
+		return nil, errors.New("connection refused")
+	})
+
+	next, cmd := m.Update(keyPress('r'))
+	m = next.(Model)
+	m = pump(t, m, keyPress('/'))
+	if m.popupType != PopupSearch {
+		t.Fatalf("the search popup did not open, got popup type %v", m.popupType)
+	}
+
+	m = pump(t, m, settle(cmd))
+
+	if m.popupType != PopupSearch {
+		t.Errorf("the redial alert replaced the search popup, got popup type %v", m.popupType)
+	}
+
+	m = pump(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
+	if m.popupType != PopupAlert {
+		t.Errorf("the held failure was not reported once the popup closed, got popup type %v", m.popupType)
+	}
+	if !strings.Contains(m.popupMessage, "connection refused") {
+		t.Errorf("the alert does not carry the dial error: %q", m.popupMessage)
+	}
+}
+
 // TestRedialAppearsInTheHelpOnlyWhenBound covers the ? overlay, which is
 // generated from the same key map Update dispatches on. A key listed there and
 // dead on press would be worse than no key at all.
