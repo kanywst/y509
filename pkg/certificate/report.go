@@ -127,10 +127,80 @@ type JSONConnection struct {
 	TLSVersion string `json:"tlsVersion"`
 	// CipherSuite is the negotiated suite by its IANA name.
 	CipherSuite string `json:"cipherSuite"`
-	// OCSPStapled reports whether the server stapled an OCSP response. It says
-	// nothing about what that response contained; y509 does no revocation
-	// checking.
+	// OCSPStapled reports whether the server stapled an OCSP response.
 	OCSPStapled bool `json:"ocspStapled"`
+	// Staple is what that response said, absent when none was stapled. Its
+	// absence is not a finding: a stapled response is optional, and a growing
+	// share of servers will never send one.
+	//
+	// Reading it is not revocation checking. The bytes arrived in the
+	// handshake; nothing here goes to the network to fetch them, and y509 does
+	// not treat the result as a verdict on the certificate.
+	Staple *JSONStaple `json:"ocspStaple,omitempty"`
+	// StapleError is why a stapled response could not be read, absent when
+	// there was nothing wrong or nothing stapled. It is reported rather than
+	// dropped: bytes that do not parse are a fact about the server.
+	StapleError string `json:"ocspStapleError,omitempty"`
+}
+
+// JSONStaple is a stapled OCSP response, as reported.
+//
+// Times cross as RFC 3339 strings and the status as its name, for the same
+// reason the rest of this file translates: the numeric OCSP status constants
+// would otherwise become an API.
+type JSONStaple struct {
+	// Status is "good", "revoked" or "unknown".
+	Status string `json:"status"`
+	// SerialNumber is the certificate the response is about. A response for a
+	// different serial than the certificate being served is a real
+	// misconfiguration, and invisible without this.
+	SerialNumber string `json:"serialNumber,omitempty"`
+	// ProducedAt, ThisUpdate and NextUpdate are the response's own freshness.
+	// NextUpdate is absent when the responder gave none, which means the
+	// response is not to be cached rather than that it never expires.
+	ProducedAt time.Time  `json:"producedAt"`
+	ThisUpdate time.Time  `json:"thisUpdate"`
+	NextUpdate *time.Time `json:"nextUpdate,omitempty"`
+	// Expired reports whether NextUpdate has passed. False for a response that
+	// carries none.
+	Expired bool `json:"expired"`
+	// RevokedAt and RevocationReason are present only for a revoked
+	// certificate.
+	RevokedAt        *time.Time `json:"revokedAt,omitempty"`
+	RevocationReason string     `json:"revocationReason,omitempty"`
+	// Responder names who signed the response, when it identified its signer
+	// by name rather than by key hash.
+	Responder string `json:"responder,omitempty"`
+	// Verified reports whether the signature was checked against the issuer the
+	// server presented. False means the issuer was missing from the chain, so
+	// the response was read but not authenticated.
+	Verified bool `json:"verified"`
+}
+
+// NewJSONStaple renders a stapled response, or nil when there was none.
+func NewJSONStaple(staple *Staple) *JSONStaple {
+	if staple == nil {
+		return nil
+	}
+	out := &JSONStaple{
+		Status:       staple.Status,
+		SerialNumber: staple.SerialNumber,
+		ProducedAt:   staple.ProducedAt,
+		ThisUpdate:   staple.ThisUpdate,
+		Expired:      staple.Expired(time.Now()),
+		Responder:    staple.Responder,
+		Verified:     staple.Verified,
+	}
+	if !staple.NextUpdate.IsZero() {
+		next := staple.NextUpdate
+		out.NextUpdate = &next
+	}
+	if !staple.RevokedAt.IsZero() {
+		revoked := staple.RevokedAt
+		out.RevokedAt = &revoked
+		out.RevocationReason = staple.RevocationReason
+	}
+	return out
 }
 
 // NewJSONConnection renders a handshake for the report, or nil when there was
@@ -141,11 +211,16 @@ func NewJSONConnection(result *ConnectResult) *JSONConnection {
 	if result == nil {
 		return nil
 	}
-	return &JSONConnection{
+	conn := &JSONConnection{
 		TLSVersion:  result.TLSVersionName(),
 		CipherSuite: tls.CipherSuiteName(result.CipherSuite),
 		OCSPStapled: result.OCSPStapled,
+		Staple:      NewJSONStaple(result.Staple),
 	}
+	if result.StapleErr != nil {
+		conn.StapleError = result.StapleErr.Error()
+	}
+	return conn
 }
 
 // JSONTrust is the verification outcome.
