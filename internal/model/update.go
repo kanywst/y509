@@ -11,8 +11,30 @@ import (
 	"go.uber.org/zap"
 )
 
-// Update handles messages and updates the model accordingly
+// Update handles messages and updates the model accordingly.
+//
+// A finished redial is applied here rather than where it arrives. The
+// handshake takes a real network round trip, and nothing stops the user
+// opening the export form or the search box in the meantime; installing a new
+// chain would tear that down and discard whatever they had typed. So the
+// result waits until they are back at the list, which is the first message
+// after they close what they opened.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	updated, cmd := m.update(msg)
+
+	next, ok := updated.(Model)
+	if !ok {
+		return updated, cmd
+	}
+	if next.pendingRedial != nil && next.viewMode == ViewNormal {
+		pending := *next.pendingRedial
+		next.pendingRedial = nil
+		next = next.applyRedial(pending)
+	}
+	return next, cmd
+}
+
+func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -41,7 +63,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case redialResultMsg:
-		return m.applyRedial(msg), nil
+		// The dial is over either way, so the header stops saying otherwise.
+		// Whether the result lands now is Update's decision, not this one's.
+		m.redialing = false
+		m.pendingRedial = &msg
+		return m, nil
 
 	case SplashDoneMsg:
 		// The splash is also dismissed by any key press, and the timer message

@@ -156,9 +156,12 @@ type Model struct {
 	// address is the server the chain came from, empty for a file or stdin.
 	// dial re-runs that handshake; see SetRedial. redialing is true while one
 	// is in flight, which both the header and the r binding read.
-	address   string
-	dial      Redialer
-	redialing bool
+	// pendingRedial is a finished handshake waiting for the user to be back at
+	// the list; see Update.
+	address       string
+	dial          Redialer
+	redialing     bool
+	pendingRedial *redialResultMsg
 
 	// Internal state for logic
 	detailField  string

@@ -64,15 +64,14 @@ func (m Model) startRedial() (Model, tea.Cmd) {
 }
 
 // applyRedial installs a fresh handshake, or explains why the old one is still
-// on screen.
+// on screen. Update decides when it runs, which is only ever with the list in
+// front of the user.
 //
 // A failed redial never clears the view. The chain you were looking at is
 // still the last thing the server actually served, and replacing it with
 // nothing would destroy the evidence on the strength of one refused
 // connection.
 func (m Model) applyRedial(msg redialResultMsg) Model {
-	m.redialing = false
-
 	switch {
 	case msg.err != nil:
 		return m.alert(fmt.Sprintf("❌  Redial failed\n\n%v\n\nShowing the previous chain.", msg.err))
