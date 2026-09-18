@@ -172,9 +172,14 @@ type JSONStaple struct {
 	// by name rather than by key hash.
 	Responder string `json:"responder,omitempty"`
 	// Verified reports whether the signature was checked against the issuer the
-	// server presented. False means the issuer was missing from the chain, so
-	// the response was read but not authenticated.
+	// server presented, and passed.
 	Verified bool `json:"verified"`
+	// VerifyError is why that check failed, present only when an issuer was
+	// available and the signature did not verify against it. Its absence
+	// alongside verified:false means there was no issuer to check against,
+	// which is the ordinary missing-intermediate case rather than a response
+	// that failed.
+	VerifyError string `json:"verifyError,omitempty"`
 }
 
 // NewJSONStaple renders a stapled response, or nil when there was none.
@@ -190,6 +195,9 @@ func NewJSONStaple(staple *Staple) *JSONStaple {
 		Expired:      staple.Expired(time.Now()),
 		Responder:    staple.Responder,
 		Verified:     staple.Verified,
+	}
+	if staple.VerifyErr != nil {
+		out.VerifyError = staple.VerifyErr.Error()
 	}
 	if !staple.NextUpdate.IsZero() {
 		next := staple.NextUpdate

@@ -17,7 +17,12 @@ import (
 func stapleModel(t *testing.T, conn *certificate.ConnectResult) Model {
 	t.Helper()
 
-	m := NewModel(createTestCertificates(2), loadTestConfig(t))
+	certs := createTestCertificates(2)
+	// The handshake belongs to the certificate the server led with, so the
+	// connection has to name it.
+	conn.Certificates = certs
+
+	m := NewModel(certs, loadTestConfig(t))
 	m.SetConnection(conn)
 	out := pump(t, *m, tea.WindowSizeMsg{Width: 140, Height: 44})
 	out = pump(t, out, keyPress('x')) // leave the splash
@@ -195,11 +200,15 @@ func TestRedialReplacesTheHandshakeFacts(t *testing.T) {
 		},
 	}
 
-	m := NewModel(createTestCertificates(1), loadTestConfig(t))
+	before := createTestCertificates(1)
+	after.Certificates = fresh
+
+	m := NewModel(before, loadTestConfig(t))
 	m.SetConnection(&certificate.ConnectResult{
-		Address:     "example.com:443",
-		Version:     tls.VersionTLS12,
-		OCSPStapled: false,
+		Certificates: before,
+		Address:      "example.com:443",
+		Version:      tls.VersionTLS12,
+		OCSPStapled:  false,
 	})
 	m.SetRedial(func(context.Context) (*certificate.ConnectResult, error) {
 		return after, nil
@@ -223,6 +232,75 @@ func TestRedialReplacesTheHandshakeFacts(t *testing.T) {
 	}
 	if !strings.Contains(got, "revoked") {
 		t.Error("the staple from the redialled connection is not shown")
+	}
+}
+
+// TestHandshakeFollowsTheCertificateNotTheCursor covers a filter putting a
+// different certificate at position zero. Keying the section off the list index
+// rendered the connection's TLS version and staple under whatever survived the
+// predicate, as though they were that certificate's own.
+func TestHandshakeFollowsTheCertificateNotTheCursor(t *testing.T) {
+	m := stapleModel(t, &certificate.ConnectResult{
+		Version:     tls.VersionTLS13,
+		OCSPStapled: true,
+		Staple: &certificate.Staple{
+			Status:     "good",
+			ThisUpdate: time.Now().Add(-time.Hour),
+			NextUpdate: time.Now().Add(time.Hour),
+			Verified:   true,
+		},
+	})
+	if !strings.Contains(m.View().Content, "Handshake") {
+		t.Fatal("the handshake section is missing before the filter, so the test proves nothing")
+	}
+
+	// Select the second certificate. The handshake belongs to the first.
+	m.list.Select(1)
+	m = m.refreshViewportContent()
+
+	if strings.Contains(m.View().Content, "Handshake") {
+		t.Error("the handshake section is shown under a certificate the server did not lead with")
+	}
+
+	// And with only that certificate left by a filter, it is still at index 0
+	// and must still not claim the handshake.
+	m.certificates = m.allCertificates[1:]
+	m.list.SetItems(toListItems(m.certificates, nil))
+	m.list.Select(0)
+	m.filterActive = true
+	m = m.refreshViewportContent()
+
+	if strings.Contains(m.View().Content, "Handshake") {
+		t.Error("a filter that leaves a non-leaf at position zero gives it the handshake section")
+	}
+}
+
+// TestStapleDistinguishesAFailedSignatureFromAMissingIssuer covers two very
+// different claims that a single Verified bool collapsed into one. An operator
+// told "the issuer is not in the chain" when the real answer is "the response
+// does not verify against the issuer the server sent" fixes the wrong thing.
+func TestStapleDistinguishesAFailedSignatureFromAMissingIssuer(t *testing.T) {
+	m := stapleModel(t, &certificate.ConnectResult{
+		Version:     tls.VersionTLS13,
+		OCSPStapled: true,
+		Staple: &certificate.Staple{
+			Status:     "good",
+			ThisUpdate: time.Now().Add(-time.Hour),
+			NextUpdate: time.Now().Add(time.Hour),
+			Verified:   false,
+			VerifyErr:  errors.New("ocsp: signature verification failed"),
+		},
+	})
+
+	got := m.View().Content
+	if strings.Contains(got, "issuer not in the chain") {
+		t.Error("a response that failed against the presented issuer is reported as a missing issuer")
+	}
+	if !strings.Contains(got, "DID NOT VERIFY") {
+		t.Error("a response that failed against the presented issuer is not called out")
+	}
+	if !strings.Contains(got, "signature verification failed") {
+		t.Error("the verification error itself is not shown")
 	}
 }
 

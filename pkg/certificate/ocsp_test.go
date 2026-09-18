@@ -155,6 +155,49 @@ func TestParseStapleWithoutTheIssuer(t *testing.T) {
 	}
 }
 
+// TestParseStapleWithABadSignature covers the case that must not be confused
+// with a missing issuer: the issuer was there, and the response did not verify
+// against it. Verified is false for both, so VerifyErr is what tells them apart.
+func TestParseStapleWithABadSignature(t *testing.T) {
+	fx := newStapleFixture(t, ocsp.Response{Status: ocsp.Good, NextUpdate: time.Now().Add(time.Hour)})
+
+	// A second, unrelated CA signs a response about the same leaf. Handing the
+	// real issuer to ParseStaple then fails verification rather than skipping it.
+	imposter := newStapleFixture(t, ocsp.Response{
+		Status:       ocsp.Good,
+		SerialNumber: fx.Leaf.SerialNumber,
+		NextUpdate:   time.Now().Add(time.Hour),
+	})
+
+	staple, err := ParseStaple(imposter.DER, fx.Leaf, fx.Issuer)
+	if err != nil {
+		t.Fatalf("ParseStaple: %v, want the response read anyway", err)
+	}
+	if staple.Verified {
+		t.Error("a response signed by an unrelated CA verified against the real issuer")
+	}
+	if staple.VerifyErr == nil {
+		t.Fatal("VerifyErr is nil, so this is indistinguishable from having had no issuer at all")
+	}
+	if staple.Status != "good" {
+		t.Errorf("Status = %q, want the response still read", staple.Status)
+	}
+}
+
+// TestParseStapleWithoutTheIssuerLeavesVerifyErrNil is the other half of the
+// pair: nothing failed, there was simply nothing to check against.
+func TestParseStapleWithoutTheIssuerLeavesVerifyErrNil(t *testing.T) {
+	fx := newStapleFixture(t, ocsp.Response{Status: ocsp.Good, NextUpdate: time.Now().Add(time.Hour)})
+
+	staple, err := ParseStaple(fx.DER, fx.Leaf, nil)
+	if err != nil {
+		t.Fatalf("ParseStaple: %v", err)
+	}
+	if staple.VerifyErr != nil {
+		t.Errorf("VerifyErr = %v, want nil: no issuer was supplied, so no check failed", staple.VerifyErr)
+	}
+}
+
 // TestParseStapleExpiredResponse covers the freshness question a staple exists
 // to answer.
 func TestParseStapleExpiredResponse(t *testing.T) {
