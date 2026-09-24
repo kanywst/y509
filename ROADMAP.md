@@ -76,11 +76,7 @@ The design rules, so that adding a field does not mean adding noise.
 `diff`, several targets in one run, the inventory export and the PKCS#7,
 PKCS#12 and Kubernetes-secret inputs have all shipped. What remains:
 
-- **Packaging.** nixpkgs, AUR and winget. Each needs a credential or a
-  companion repository that has to exist before the release pipeline can
-  publish to it, and the Scoop manifest is still hand-copied for the same
-  reason. Tracked separately, because the blocker is provisioning rather than
-  code.
+- **Packaging.** winget is waiting on upstream review (#138); AUR and nix each need a credential or a companion repository that has to exist before the release pipeline can publish to it (#139). Scoop already updates itself: the bucket's autoupdate reads the release checksums.
 - **Fixtures for the malformed cases.** Every test that needs a malformed
   certificate builds one, which is the right default here: a committed
   certificate expires, and noticing expiry is this tool's job. What is worth
