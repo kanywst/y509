@@ -8,7 +8,7 @@ body:
       label: The problem
       description: >-
         What were you trying to find out about a certificate when you hit this?
-        The situation matters more than the feature, since it usually what decides
+        The situation matters more than the feature, since it is usually what decides
         whether the right answer is the one you had in mind.
     validations:
       required: true
