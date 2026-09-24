@@ -290,7 +290,7 @@ runs:
             echo "| Check | Result |"
             echo "| :--- | :--- |"
             echo "| Trust | \`$level\` |"
-            echo "| Served correctly | \`$presentation_ok\`${problems:+ — $problems} |"
+            echo "| Served correctly | \`$presentation_ok\`${problems:+ ($problems)} |"
             echo "| Leaf expires in | ${days:-unknown} days |"
           } >> "$GITHUB_STEP_SUMMARY"
         fi

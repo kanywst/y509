@@ -7,7 +7,7 @@ Everything y509 reads (files, stdin, a server's handshake) is untrusted input, a
 | Version | Supported |
 | :--- | :--- |
 | Latest release | Yes |
-| Anything older | No — upgrade first |
+| Anything older | No, upgrade first |
 
 Fixes ship as a new release. There are no backport branches.
 
@@ -18,7 +18,7 @@ Fixes ship as a new release. There are no backport branches.
 Include what you can of:
 
 - The version (`y509 version`) and the OS
-- The certificate, chain, or host that triggers it — a minimal PEM is ideal
+- The certificate, chain, or host that triggers it (a minimal PEM is ideal)
 - The exact command line
 - What you expected versus what happened
 
