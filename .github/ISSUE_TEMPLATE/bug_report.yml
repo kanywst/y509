@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: >-
-        For a suspected vulnerability, do not use this form — open a
+        For a suspected vulnerability, do not use this form. Open a
         [private advisory](https://github.com/kanywst/y509/security/advisories/new)
         instead.
 
@@ -35,7 +35,7 @@ body:
       label: The chain
       description: >-
         The certificate or chain that triggers it, which is worth more than a
-        description of it — `y509 export` will write one out. A chain a public
+        description of it. `y509 export` will write one out. A chain a public
         server presents is public data, so it is normally safe to paste. If it
         is from an internal PKI and you would rather not, say what shape it is
         instead: how many certificates, which one is missing, what the issuers

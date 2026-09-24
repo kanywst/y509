@@ -878,7 +878,7 @@ footer { padding-block: 44px 60px; color: var(--text-mute); font-size: 13.5px; }
     <p class="eyebrow">X.509 chain inspector · terminal-native</p>
     <h1>Read the chain the server <em>actually sent</em>.</h1>
     <p class="lede">
-      y509 opens a certificate chain from a file, a live TLS handshake, or stdin — then
+      y509 opens a certificate chain from a file, a live TLS handshake, or stdin, then
       answers the question an exit code can't carry: not just whether the chain verifies,
       but whether it was <strong>served correctly</strong>.
     </p>
@@ -915,7 +915,7 @@ footer { padding-block: 44px 60px; color: var(--text-mute); font-size: 13.5px; }
          aria-label="Interactive replica of the y509 terminal interface">
       <div class="term__bar">
         <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-        <span class="term__title">y509 — testdata/demo/certs.pem</span>
+        <span class="term__title">y509: testdata/demo/certs.pem</span>
       </div>
       <div class="term__screen">
 
@@ -962,7 +962,7 @@ footer { padding-block: 44px 60px; color: var(--text-mute); font-size: 13.5px; }
     </div>
     </div>
     <p class="stage__hint">
-      <span>Live, not a recording —</span>
+      <span>Live, not a recording:</span>
       <kbd>j</kbd><kbd>k</kbd> <span>select a certificate,</span>
       <kbd>tab</kbd> <span>step through detail tabs,</span>
       <kbd>esc</kbd> <span>release focus</span>
@@ -984,8 +984,8 @@ footer { padding-block: 44px 60px; color: var(--text-mute); font-size: 13.5px; }
           actually on the wire.
         </p>
         <p class="lede" style="margin-top:20px">
-          The chain below <em>verified</em> — on macOS the platform verifier fetched the missing
-          intermediate over the network — and it is still misconfigured. That gap is the whole
+          The chain below <em>verified</em> (on macOS the platform verifier fetched the missing
+          intermediate over the network) and it is still misconfigured. That gap is the whole
           point: the check is structural, so it cannot be papered over.
         </p>
       </div>
@@ -1023,7 +1023,7 @@ Chain as presented:
         <div class="pair__item bad">
           <span class="pair__q">Question two</span>
           <h3>Was it served correctly?</h3>
-          <p>Missing intermediate, redundant root, wrong order, duplicates, strangers in the bundle — structural findings that verification papers over.</p>
+          <p>Missing intermediate, redundant root, wrong order, duplicates, strangers in the bundle: structural findings that verification papers over.</p>
           <span class="mark">✖ missing issuer · *.badssl.com</span>
         </div>
       </div>
@@ -1041,7 +1041,7 @@ Chain as presented:
           <p class="lede">
             An argument naming an existing file is always read as a file; anything else is treated
             as an address. Pass <code>--connect</code> to force it. The handshake deliberately
-            verifies nothing — a chain that fails to verify is usually the reason you came.
+            verifies nothing, since a chain that fails to verify is usually the reason you came.
           </p>
           <p class="lede" style="margin-top:18px">
             Certificates come back <strong>in the order the server sent them</strong>, which is not
@@ -1125,7 +1125,7 @@ Chain as presented:
           <thead><tr><th>Outcome</th><th style="text-align:center">Exit</th><th>Meaning</th></tr></thead>
           <tbody>
             <tr class="t0"><td>trusted</td><td class="code">0</td><td>verifies against the trust anchors</td></tr>
-            <tr class="t1"><td>self-anchored</td><td class="code">1</td><td>links up, but its root is not trusted — an internal PKI, or a missing root</td></tr>
+            <tr class="t1"><td>self-anchored</td><td class="code">1</td><td>links up, but its root is not trusted (an internal PKI, or a missing root)</td></tr>
             <tr class="t2"><td>broken</td><td class="code">1</td><td>does not link up: expired, bad signature, missing issuer, wrong hostname</td></tr>
           </tbody>
         </table>
@@ -1169,7 +1169,7 @@ Chain as presented:
         <div>
           <p class="lede">
             <code>--json</code> exists because that number cannot carry the answer. A script reading
-            only the exit code cannot tell an internal PKI from a chain that does not link up — and
+            only the exit code cannot tell an internal PKI from a chain that does not link up, and
             it learns nothing at all about how the chain was served, which is the finding you most
             likely came for.
           </p>
@@ -1212,8 +1212,8 @@ Chain as presented:
         <div class="key"><span class="key__k"><kbd>/</kbd></span><span class="key__d">Search by common name</span></div>
         <div class="key"><span class="key__k"><kbd>f</kbd></span><span class="key__d">Filter: expired, expiring, valid, self-signed</span></div>
         <div class="key"><span class="key__k"><kbd>v</kbd></span><span class="key__d">Validate this certificate</span></div>
-        <div class="key"><span class="key__k"><kbd>r</kbd></span><span class="key__d">Redial the server — live connections only</span></div>
-        <div class="key"><span class="key__k"><kbd>e</kbd></span><span class="key__d">Export — filename and format</span></div>
+        <div class="key"><span class="key__k"><kbd>r</kbd></span><span class="key__d">Redial the server (live connections only)</span></div>
+        <div class="key"><span class="key__k"><kbd>e</kbd></span><span class="key__d">Export (filename and format)</span></div>
         <div class="key"><span class="key__k"><kbd>y</kbd></span><span class="key__d">Copy as PEM over OSC52</span></div>
         <div class="key"><span class="key__k"><kbd>esc</kbd></span><span class="key__d">Clear the filter, close the popup</span></div>
         <div class="key"><span class="key__k"><kbd>?</kbd></span><span class="key__d">Help</span></div>
@@ -1290,7 +1290,7 @@ Chain as presented:
           <h3 style="font-family:var(--font-mono);font-size:21px;font-weight:700;margin-top:16px;letter-spacing:-.03em">~/.y509.yaml</h3>
           <p class="lede" style="margin-top:14px">
             Catppuccin Mocha ships as the default. Lower <code>expiry_warning_days</code> as
-            CA/Browser Forum maximum lifetimes shrink — 200 days from March 2026, 100 from
+            CA/Browser Forum maximum lifetimes shrink: 200 days from March 2026, 100 from
             March 2027, 47 from March 2029.
           </p>
         </div>
@@ -1314,7 +1314,7 @@ Chain as presented:
   <section class="band">
     <div class="wrap cta reveal">
       <h2>Point it at a host.<br>See what it really sends.</h2>
-      <p class="lede">Built on the Charm v2 stack — Bubble Tea, Lip Gloss, Bubbles and huh. Apache 2.0.</p>
+      <p class="lede">Built on the Charm v2 stack: Bubble Tea, Lip Gloss, Bubbles and huh. Apache 2.0.</p>
       <div class="cta__row">
         <a class="btn btn--fill" href="https://github.com/kanywst/y509">github.com/kanywst/y509</a>
         <a class="btn" href="https://github.com/kanywst/y509/releases">Download</a>

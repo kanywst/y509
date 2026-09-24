@@ -230,13 +230,13 @@ Downloads a release binary, verifies its checksum, and fails the job on the find
 
 | Input | Default | |
 | :--- | :--- | :--- |
-| `target` | — | host, `host:port`, or a PEM/DER path in the workspace |
+| `target` |  | host, `host:port`, or a PEM/DER path in the workspace |
 | `version` | `latest` | a release tag; pin it for a reproducible check |
 | `fail-on` | `untrusted,mis-served` | any of `untrusted`, `mis-served`, `expiring`, or `none` |
 | `expiry-days` | `30` | threshold for `expiring` |
-| `starttls` | — | `smtp`, `imap`, `ftp`, `ldap`, `mysql`, `postgres` |
-| `servername` | — | SNI name, when it differs from the host dialled |
-| `roots` | — | PEM file of extra trust anchors, for an internal PKI |
+| `starttls` |  | `smtp`, `imap`, `ftp`, `ldap`, `mysql`, `postgres` |
+| `servername` |  | SNI name, when it differs from the host dialled |
+| `roots` |  | PEM file of extra trust anchors, for an internal PKI |
 | `no-system-roots` | `false` | trust only `roots` |
 | `summary` | `true` | write a report to the job summary |
 
