@@ -1,8 +1,6 @@
 # Contributing
 
-Bug reports and patches are both welcome. This file is the short version of what the maintainer will look for, so you can find out before you write the code rather than after.
-
-For a suspected vulnerability, use the [security policy](SECURITY.md) instead. Do not open a public issue.
+Bug reports and patches are welcome. For a suspected vulnerability, use the [security policy](SECURITY.md), not a public issue.
 
 ## Getting set up
 
@@ -32,19 +30,17 @@ CI runs the same three. `make test-coverage` gates at 80%; a patch that drops be
 
 ## Things worth knowing about the codebase
 
-Four invariants that are easy to break by accident:
-
-- `View()` is pure. It returns a `tea.View` and never mutates the model. Resizing and re-rendering belong in `Update`, via `resizeComponents()` and `refreshViewportContent()`.
-- Key bindings go through `internal/model/keys.go`, which also generates the `?` overlay. A binding added anywhere else will not appear in the help.
-- `pkg/certificate` never writes to stderr by default. It keeps its own logger, defaulting to a no-op, because a stray line corrupts the TUI.
-- The `--json` contract in `pkg/certificate/report.go` is a translation layer, not json tags on the internal structs. `TrustLevel` and `ChainProblem` are iota constants, so marshalling them directly would publish their numbers as an API. Everything crossing that boundary is a string, a timestamp, or a bool, and slices are initialised so they marshal as `[]` rather than `null`.
+- `View()` is pure: it never mutates the model. Resizing and re-rendering go in `Update`, via `resizeComponents()` and `refreshViewportContent()`.
+- Key bindings go through `internal/model/keys.go`, which also generates the `?` overlay.
+- `pkg/certificate` never writes to stderr by default; a stray line corrupts the TUI. Its logger is a no-op until the app sets one.
+- The `--json` contract in `pkg/certificate/report.go` is a separate translation layer, not json tags on internal structs. `TrustLevel` and `ChainProblem` are iota constants and must not leak as numbers. Only strings, timestamps and bools cross it, and slices marshal as `[]`, never `null`.
 
 ## Reporting a bug
 
-The issue template asks for the fields. The one worth going out of your way for is the certificate itself: `y509 export` will write one out, and a chain a public server presents is public data, so it is normally safe to attach.
+Attach the certificate if you can. `y509 export` writes one out, and a chain from a public server is public data.
 
 ## Adding a STARTTLS protocol
 
-Every prelude lives in `pkg/certificate/connect.go` and is one function of the shape `func(net.Conn) error`. Add it to the `startTLSNegotiators` table and to `StartTLSProtocols`; the `--starttls` help text and the "unsupported protocol" error both read from that slice, so they update themselves.
+Write a `func(net.Conn) error` prelude in `pkg/certificate/connect.go` and add it to `startTLSNegotiators` and `StartTLSProtocols`. The `--starttls` help and the "unsupported protocol" error update themselves.
 
-Test it against a fake server over `net.Pipe`, like the existing ones, and cover the awkward case as well as the happy one: a multi-line greeting, an untagged response, a server that refuses. That case is usually the whole reason the prelude is not a one-liner.
+Test it against a fake server over `net.Pipe`, including the awkward cases: a multi-line greeting, an untagged response, a refusal.
