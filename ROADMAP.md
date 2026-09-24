@@ -1,92 +1,59 @@
 # Roadmap
 
-Where y509 is going, in themes rather than dates. Nothing here is a commitment, and the [issue tracker](https://github.com/kanywst/y509/issues) is the source of truth for what is being worked on.
+Themes, not dates. Nothing here is a commitment; the [issue tracker](https://github.com/kanywst/y509/issues) is the source of truth.
 
-What decides whether an idea belongs: y509 answers two questions — *does this chain verify* and *was it served correctly* — and the second one is why it exists. A conformance check earns its place only where it predicts a client failure. Ideas that sharpen those answers are in scope; ideas that turn this into a general TLS scanner are not.
+y509 answers two questions: *does this chain verify*, and *was it served correctly*. A check belongs here only if it predicts a client failure. It is not a general TLS scanner.
 
 Current release: v1.4.0. Landscape last reviewed 2026-09-17.
 
-## The problem, as it actually shows up
+## Why it exists
 
-What the evidence says people burn time on. It is the filter for everything below.
+- **Missing intermediates.** Browsers fetch or cache them; curl, Go, Java, Python and Node do not. The same chain works in a browser and fails in a client.
+- **Expiry outages.** Over a third of organisations had one in the past year (DigiCert, September 2026).
+- **Rotation nobody picks up.** What is served can differ from what was issued, and cert-manager leaves that out of scope.
+- **Existing tools miss it.** `openssl s_client` exits 0 when verification fails. SSL Labs cannot reach an internal host.
+- **Lifetimes are shrinking.** 200 days today, 100 from 2027-03-15. Less slack for a missed renewal.
+- **Inventory is a compliance requirement.** PCI DSS 4.0.1 since 2025-03-31, plus post-quantum migration.
 
-- **Missing intermediates are the best-documented failure mode in the space.** Chrome and Edge chase AIA, Firefox preloads and caches instead, and curl, Go, Java, Python and Node do none of it — so the same chain works in a browser and fails in a client, with open reports in curl's, CPython's, OpenSSL's and Node's trackers to match.
-- **Expiry outages are common and expensive.** In DigiCert's September 2026 Certificate Management Outlook (1,001 IT and security decision-makers), over a third of organisations had an outage caused by an expired certificate in the past year.
-- **Rotation that nothing picks up.** cert-manager declined the request to restart workloads whose certificate was renewed back in 2019, as out of scope, and still points users at a third-party controller. Noticing that what is *served* differs from what was *issued* sits in that gap.
-- **The existing answers fail in specific ways.** `openssl s_client -connect host:443` exits zero even when verification failed, and checks no hostname unless told to; making the exit code follow the verification takes `-verify_return_error`, and even that keeps the connection going on some builds. SSL Labs and whatsmychaincert cannot reach an internal host at all.
-- **Shrinking lifetimes create monitoring demand, not just issuance demand.** Manual renewal was already failing when certificates lasted 398 days. The cap is 200 days today and 100 from 2027-03-15, which removes the slack that let a missed renewal go unnoticed for weeks.
-- **Inventory became a compliance obligation.** PCI DSS 4.0.1's inventory of certificates and keys protecting transmitted cardholder data has been mandatory since 2025-03-31, and post-quantum migration mandates are driving cryptographic inventory work on top of it.
+## Next
 
-## Near term
-
-Everything the first Near term list held has shipped: the Findings tab, the
-fields that were parsed and not rendered, the SANs in full including the forms
-Go drops, a bundle surviving one unreadable certificate, a JSON surface for
-inspection, and `export` reading its input the way every other command does.
-Redial has shipped since: `r` re-runs the handshake when the chain came from a
-live server, and leaves the previous chain on screen when the dial fails.
-
-The stapled OCSP response has shipped too. `ConnectResult` keeps the parsed
-response rather than a bool, the TUI receives `ConnectResult` and shows the
-handshake on the leaf's Misc tab, and `ocspStaple` is in the JSON. The absence
-of a staple is recorded as an absence and never as a finding.
-
-What is left at this end:
-
-- **Decide whether a staple can fail the build.** A revoked or stale response
-  predicts a client failure as squarely as anything in the advisory class, but
-  `ChainReport.OK()` is `len(Findings) == 0` and the Action gates on
-  `presentation.ok`, so dropping one into that slice would trip every existing
-  `fail-on: mis-served` gate on a chain that is served correctly. It needs its
-  own key and its own `ok` first, which is the same problem the conformance
-  findings below have to solve.
+- **Can a stapled OCSP response fail the build?** A revoked or stale one predicts a client failure, but adding it to `Findings` would trip every existing `fail-on: mis-served` gate. It needs its own JSON key and `ok`, the same problem conformance findings have.
 
 ## Keeping up with X.509
 
-X.509 is moving under the tool, on a calendar someone else controls. The bar: a **valid** certificate must render completely and honestly, and the checks must stay meaningful as the shape of a certificate changes. A malformed certificate is a finding, not something to render prettily.
+A valid certificate must render completely. A malformed one is a finding.
 
-Both dated obligations this section carried have shipped. The lifetime limit is a date-indexed table now — `CABMaxValidityDaysAt` evaluates the 2027-03-15 and 2029-03-15 steps against the certificate's own `NotBefore`, so a compliant 2026 certificate does not turn non-compliant in 2027, and `CABMaxLifetimeFor` gives the finding the limit that actually applied. The expiry window is derived from the certificate's own validity period by `ExpiryWarningDaysFor`, with the configured day count kept as a ceiling, so a 6-day certificate is no longer inside the warning at birth. The landing page carries the same table. What is left here is opportunistic:
+- **Revocation findings.** Stapled responses are already read. A missing OCSP pointer is never a finding; a missing AIA is; a missing CRL distribution point is only when the certificate is neither short-lived nor has an OCSP pointer. Any network check is CRL-only, opt-in and cached.
+- **Conformance findings.** SHA-1, RSA under 2048 bits, CN without SAN, forbidden extensions. Needs its own key and `ok` (see Next). Decide between importing zlint and hand-rolling the few rules that matter.
+- **Name unknown signature algorithms.** Go prints `0` for SLH-DSA. Read `RawSignatureAlgorithm` (Go 1.27) and extend `pqcAlgorithmNames` with SLH-DSA and composite ML-DSA.
+- **Go 1.27 floor.** Brings ML-DSA natively and makes the ML-DSA rows in `pqcAlgorithmNames` dead code. The bump touches go.mod, README, CONTRIBUTING, the landing page and the FreeBSD port.
+- **Large post-quantum certificates are normal.** An ML-DSA-87 signature is 4,627 bytes, SLH-DSA-256f 49,856. Private CAs issue them today.
+- **Extensions view.** Nothing reads `cert.Extensions` yet. List OID, name and the critical bit, and flag the ones that are findings: CT poison in a served certificate, `acmeIdentifier` on a leaf, `nameConstraints` or `policyConstraints` on a leaf, Must-Staple, unhandled critical extensions.
+- **Certificate Transparency, offline.** Count SCTs and name their logs from a bundled log list. Do not depend on a live log API.
+- **International names.** Show punycode next to Unicode. Column width must use display width (`uniseg`), not rune count.
+- **No-expiry sentinel.** Detect a `9999-12-31` `NotAfter` instead of showing a 2.9-million-day lifetime.
+- **Watch.** Merkle Tree Certificates (experimental). TLS trust anchor identifiers (near approval) make serving different chains to different clients correct, so design for it now.
 
-- **Revocation: read what arrives, never fetch by default.** Reading the stapled response has shipped: `ConnectResult` carries it parsed, the TUI shows it, and the JSON reports it. What remains is the finding question, and it is the careful half: `id-ad-ocsp` is optional for *every* subscriber certificate now, not just short-lived ones, so a missing OCSP pointer is never a finding; AIA itself is still required for all of them, including short-lived, so a missing AIA is; and CRL distribution points are optional in a short-lived certificate and required only in one that is neither short-lived nor carrying an OCSP pointer. Anything that checks revocation over the network must be CRL-based, discovered from the certificate, off by default and cached.
-- **Conformance findings, inside the advisory class.** Checks a certificate can fail while verifying and while being served correctly, but which still predict a client failure: SHA-1 signatures, RSA under 2048 bits, a CN with no SAN, an extension the profile forbids, and the date-aware lifetime check that already ships. Pre-issuance linting has been mandatory since 2025-03-15 — though the requirement is to run a linter, not to block on what it says — so a `CABF_BR` failure today is a real signal. Two things to settle first. The finding needs its own JSON key and its own `ok`: `ChainReport.OK()` is `len(Findings) == 0`, and the Action fails on `presentation.ok`, so a SHA-1 finding dropped into that slice would trip every existing `fail-on: mis-served` gate. And zlint is a Go library whose `e_`/`w_`/`n_` prefixes (error, warning, notice) are a finer grain than the two severity classes below, so importing it means deciding which prefixes block — against the alternative of hand-rolling the few rules that catch real misconfiguration.
-- **Name the algorithm even when Go cannot.** `x509.UnknownSignatureAlgorithm.String()` returns the literal string `"0"`, so an SLH-DSA certificate — standardised in RFC 9909 — renders its signature algorithm as `0`. `Certificate.RawSignatureAlgorithm` holds the DER `AlgorithmIdentifier` even for algorithms Go does not decode — it is new in Go 1.27, so this item waits on the floor below — and `pqcAlgorithmNames` already exists with five OIDs on the public-key side. The work is to grow that table to SLH-DSA's 24 OIDs and composite ML-DSA, and reuse it for the signature algorithm — not to build one.
-- **Post-quantum is closer than it looks.** Go 1.27 ships `crypto/mldsa`, parses and verifies ML-DSA certificates, and prints `ML-DSA-65` by itself, so ML-DSA support is a toolchain bump — one that also makes the three ML-DSA rows in `pqcAlgorithmNames` dead code, since Go no longer falls into the unknown-key path. Bumping the floor from 1.26 is user-visible, though: go.mod, the README, CONTRIBUTING, the landing page and the FreeBSD port all state it, while CI needs no edit because it reads go.mod. What y509 *asks for* has already moved, separately from that floor: Go 1.27 puts `MLDSA44/65/87` at the top of its default signature algorithms with no GODEBUG gate, and y509's client config sets no `SignatureSchemes`, so a build from source on Go 1.27 already offers post-quantum authentication — the first ML-DSA certificate it meets may well arrive because it asked. Released binaries are built from the `go` directive by the workflows, so none of them offer it yet, and until the floor moves y509 could be handed a certificate it cannot name. Nothing for FN-DSA until its OIDs stabilise; the current ones are not even compatible with old Falcon.
-- **Expect post-quantum certificates to be big.** An ML-DSA-87 key is 2,592 bytes with a 4,627-byte signature, and an SLH-DSA-256f signature is 49,856 bytes. That is a size a certificate view, an export and any "unusually large" heuristic all have to treat as normal. No public CA issues these yet, but DigiCert, Sectigo and AWS Private CA all issue them for private PKI today — an internal endpoint is the realistic first encounter.
-- **An extensions view, with a fixed opinion about a few of them.** Nothing reads `cert.Extensions`, so every extension outside Go's named fields is invisible. Beyond listing OID, name and the critical bit, some are findings in themselves: a CT poison extension in a served certificate is a misissuance signal, an `acmeIdentifier` on a normal leaf is anomalous, `nameConstraints` is forbidden on a subscriber certificate and `policyConstraints` is CA-only, and Must-Staple is now "NOT RECOMMENDED" in the profile and actively broken against a CA that dropped OCSP. Unhandled critical extensions belong here too — Go's own verifier rejects a certificate over one, and `UnhandledCriticalExtensions` is unreferenced today.
-- **Certificate Transparency, offline.** Counting embedded SCTs and naming their logs is cheap, but an SCT carries a log ID — the SHA-256 of the log's public key — not a name, so it needs a bundled, refreshable log list. Do not assume a live log query API: static tile-based logs are taking over, Let's Encrypt's own RFC 6962 logs shut down on 2026-02-28, and Chrome has not required an SCT from an RFC 6962 log since 2026-04-15. Plenty of queryable logs are still usable, so this is about not depending on one.
-- **International names.** Go does no IDNA normalisation anywhere in parsing or hostname verification — a name comes back exactly as encoded, A-label or U-label — so showing punycode alongside the Unicode form is entirely y509's job. The width bug is also not the one you would guess: `truncateText` and `generateCertificateLabel` already count *runes* rather than bytes, which stops a name being cut mid-character but still overflows a column, because a CJK rune is two cells wide. Display-width maths has to go through the `uniseg` lipgloss already depends on, which makes a currently indirect dependency direct.
-- **Label the no-expiry convention.** The validity arithmetic is already overflow-safe for a `9999-12-31` `NotAfter`, but nothing detects the sentinel, so such a certificate reports a lifetime of roughly 2.9 million days and a bar that reads 100%. Go does not special-case it either; the comparison has to be ours.
-- **Watch, or design around.** Merkle Tree Certificates are a genuine watch item — an experimental draft in a Google and Cloudflare trial of about a thousand certificates, with an X.509 fallback per connection. TLS trust anchor identifiers is further along: a Standards Track draft at the approval stage, whose whole mechanism is a server picking among candidate chains per client. That one is worth designing around now rather than waiting for, because it makes "this endpoint serves a different chain to different clients" correct behaviour rather than a bug.
+## Presentation rules
 
-## How certificates should be presented
-
-The design rules, so that adding a field does not mean adding noise.
-
-- **Two severity classes, kept genuinely separate.** "Does not verify" blocks; "verifies but is fragile or non-conforming as served" advises. They are different claims and deserve different words and colours. Hardenize and whatsmychaincert both live in that second space, which is where y509 competes, and it belongs in the TUI rather than only in `validate`.
-- **Name the problem from a fixed vocabulary.** The five that exist — "missing issuer", "redundant root", "out of order", "duplicate", "unrelated" — are a short fixed phrase plus one clause of why and the remediation. Anything added joins that shape. Never a bare boolean and never a colour alone.
-- **Say which question was answered.** A chain can verify on one platform and fail on another, and a platform verifier may have fetched a missing intermediate over the network to get there. State the claim being made, as the README already does for the macOS verifier.
-- **Label what cannot be decoded; never drop it.** `openssl x509 -text` meeting an extension it does not know prints the OID followed by unlabelled mangled bytes, with no length. `unrecognized extension (OID 1.2.3.4, 47 bytes)` costs nothing and is honest.
-- **Promote what is actionable; keep the rest one keystroke away.** Uniform visual weight is the `openssl x509 -text` failure — the validity period and the raw signature bytes should not look equally important. Three tiers stay: footer hints, the `?` overlay generated from the same keymap, and the docs.
-- **Truncate with a marker rather than hiding.** A long extension value should show that it continues, not vanish.
-- **JSON stays a parallel first-class output.** Anything a certificate view shows should be reachable as JSON, because the inventory and compliance audience only ever consumes the JSON. That depends on the inspection surface above existing.
-- **Changes land in more than one place.** The landing page replicates the tab list and the lifetime constant, the man page and the committed completions replicate the flags, and the site has drifted from the binary once already.
+- **Two severities.** "Does not verify" blocks. "Verifies but fragile" advises. Different words, different colours.
+- **Fixed vocabulary.** A short phrase ("missing issuer"), one clause of why, and the fix. Never a bare boolean or a colour alone.
+- **Say which question was answered.** Which verifier, and whether it fetched anything to get there.
+- **Label what cannot be decoded.** `unrecognized extension (OID 1.2.3.4, 47 bytes)`, never silence.
+- **Promote what is actionable.** Footer hints, then the `?` overlay, then the docs.
+- **Truncate with a marker**, never hide.
+- **JSON is first-class.** Anything shown is reachable as JSON.
+- **Changes land in several places.** The landing page, man page and completions copy the tabs, flags and constants.
 
 ## Later
 
-`diff`, several targets in one run, the inventory export and the PKCS#7,
-PKCS#12 and Kubernetes-secret inputs have all shipped. What remains:
-
-- **Packaging.** winget is waiting on upstream review (#138); AUR and nix each need a credential or a companion repository that has to exist before the release pipeline can publish to it (#139). Scoop already updates itself: the bucket's autoupdate reads the release checksums.
-- **Fixtures for the malformed cases.** Every test that needs a malformed
-  certificate builds one, which is the right default here: a committed
-  certificate expires, and noticing expiry is this tool's job. What is worth
-  having is one shared helper rather than each package re-inventing "a valid
-  PEM envelope around bytes `crypto/x509` refuses".
+- **Packaging.** winget (#138), AUR and nix (#139). Scoop already updates itself.
+- **Malformed-certificate fixtures.** One shared helper instead of every package building its own.
 
 ## Non-goals
 
-- **Not a TLS scanner.** `testssl.sh` and `sslyze` own cipher and protocol auditing. y509 reports what one handshake per target revealed; it does not probe for what else a server would accept.
-- **No AIA chasing.** Fetching a missing intermediate to repair a chain would hide the exact misconfiguration y509 exists to find. A CRL is different in kind — it adds a fact about a certificate rather than papering over what the server failed to send — which is why revocation can be opt-in while this stays a flat no.
+- **Not a TLS scanner.** Use `testssl.sh` or `sslyze` for ciphers and protocols.
+- **No AIA chasing.** It would hide the exact misconfiguration y509 exists to find. Opt-in CRL checks are different: they add facts, they do not fill gaps.
 - **No issuance.** No CA, no key generation, no CSRs.
-- **Nothing that mutates a remote.** y509 connects, reads, and reports.
-- **No second certificate parser.** Where `crypto/x509` declines to decode something, y509 reads the raw ASN.1 far enough to label it and name its OIDs, and decodes the contents of an individual extension or name where that is the whole point of the feature. It does not grow a certificate parser to compete with the standard library. `isPKCSContainer` is the existing precedent for how shallow that reading should be.
+- **Read-only.** Nothing mutates a remote.
+- **No second certificate parser.** Read raw ASN.1 only far enough to label it, as `isPKCSContainer` does.
