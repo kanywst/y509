@@ -4,9 +4,9 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Built with Bubble Tea](https://img.shields.io/badge/Built%20with-Bubble%20Tea-B7A0E8.svg)](https://github.com/charmbracelet/bubbletea)
 
-A TUI for X.509 certificate chains. It verifies a chain against the system trust store, and — separately — reports how the chain was actually *served*: the missing intermediate, the redundant root, the wrong order. That second question is the one behind "works in the browser, breaks in `curl`", and the one `openssl s_client` leaves you to answer by eye.
+A TUI for X.509 certificate chains. It checks whether a chain verifies, and separately whether it was *served* correctly: missing intermediates, redundant roots, wrong order. That second check explains "works in the browser, breaks in `curl`".
 
-Built on the [Charm](https://charm.sh) v2 stack — [Bubble Tea](https://charm.land/bubbletea/v2), [Lip Gloss](https://charm.land/lipgloss/v2), [Bubbles](https://charm.land/bubbles/v2), and [huh](https://charm.land/huh/v2).
+Built on the [Charm](https://charm.sh) v2 stack: [Bubble Tea](https://charm.land/bubbletea/v2), [Lip Gloss](https://charm.land/lipgloss/v2), [Bubbles](https://charm.land/bubbles/v2), [huh](https://charm.land/huh/v2).
 
 ![y509 Demo](demo.gif?v=2)
 
@@ -29,19 +29,10 @@ scoop bucket add kanywst https://github.com/kanywst/scoop-bucket
 scoop install kanywst/y509
 ```
 
-Every [release](https://github.com/kanywst/y509/releases) attaches binaries for
-macOS, Linux and Windows — `.tar.gz` for the first two, `.zip` for Windows —
-plus `.deb` and `.rpm` packages for Linux, with checksums, cosign signatures and
-an SBOM.
+[Releases](https://github.com/kanywst/y509/releases) also ship binaries for macOS, Linux and Windows, `.deb` and `.rpm` packages, checksums, cosign signatures and an SBOM.
 
-On Windows, Scoop is the easy path; otherwise unpack the zip and put `y509.exe`
-on your `PATH`. Any terminal that supports ANSI works, and Windows Terminal is
-the safe choice. Shell completion comes from `y509 completion powershell`.
-
-On FreeBSD, y509 is [`security/y509`](https://www.freshports.org/security/y509/)
-in the ports tree, packaged and maintained there rather than here. Until the
-binary package reaches your repository, build it with
-`make -C /usr/ports/security/y509 install clean`.
+- **Windows:** without Scoop, unzip and put `y509.exe` on your `PATH`. Use Windows Terminal or any ANSI terminal. Completion: `y509 completion powershell`.
+- **FreeBSD:** maintained as the [`security/y509`](https://www.freshports.org/security/y509/) port. If the binary package has not reached your repo yet: `make -C /usr/ports/security/y509 install clean`.
 
 ## Usage
 
@@ -53,19 +44,11 @@ cat chain.pem | y509                      # stdin
 kubectl get secret tls -o json | y509     # a Kubernetes TLS secret
 ```
 
-A `.p7b` or `.p7c` bundle, a `.p12`/`.pfx` and a Kubernetes TLS secret are
-recognised by their shape rather than by their filename, so a pipe works the
-same as a path. A secret is read from `tls.crt` and then `ca.crt`, so the leaf
-comes first.
+PKCS#7 (`.p7b`, `.p7c`), PKCS#12 (`.p12`, `.pfx`) and Kubernetes TLS secrets are detected by content, so pipes work too. A secret is read from `tls.crt`, then `ca.crt`.
 
-A PKCS#12 file is tried without a password first, since a bundle exported to
-move certificates around often has none. When one is needed it comes from
-`Y509_PKCS12_PASSWORD`, from `--password-file`, or from a prompt on the
-terminal, never from a flag, because a flag value is visible in `ps` to every
-user on the host. Only the certificates are read; the private key in the file
-is left alone.
+PKCS#12 is tried without a password first. If one is needed, it comes from `Y509_PKCS12_PASSWORD`, `--password-file`, or a prompt. Never a flag, since flags show up in `ps`. Private keys are ignored.
 
-### Talking to a live server
+### Live servers
 
 ```bash
 y509 example.com:443
@@ -75,22 +58,11 @@ y509 ldap.example.com:389 --starttls ldap
 y509 db.example.com:3306 --starttls mysql
 ```
 
-An argument naming an existing file is always read as a file; anything else is
-treated as an address. Pass `--connect` to force it. `--starttls` understands
-`smtp`, `lmtp`, `imap`, `nntp`, `ftp`, `ldap`, `mysql` and `postgres`
-(`mariadb` and `postgresql` are accepted as aliases).
+An existing file path is read as a file; anything else is an address. `--connect` forces an address. `--starttls` supports `smtp`, `lmtp`, `imap`, `nntp`, `ftp`, `ldap`, `mysql` and `postgres` (aliases: `mariadb`, `postgresql`).
 
-The handshake deliberately verifies nothing, because a chain that fails to
-verify is usually the reason you came. Certificates come back **in the order the
-server sent them**, which is not necessarily a valid chain — a server shipping
-its root, or omitting an intermediate, is the classic "works in the browser,
-breaks in curl" bug.
+The TUI handshake verifies nothing on purpose, so you can inspect a broken chain. Certificates are shown **in the order the server sent them**.
 
 ### Comparing two chains
-
-`diff` answers "did this change" without anyone reading two dumps side by side.
-Certificates are matched by the SHA-256 of their DER, not by subject, because a
-renewed certificate keeps its name and changes everything else:
 
 ```bash
 y509 diff before.pem after.pem
@@ -109,14 +81,11 @@ The leaf was replaced:
   • dns names: example.com -> example.com, www.example.com
 ```
 
-It follows `diff(1)`: exit 0 when the chains are identical, 1 when they differ,
-so a scheduled check can ask whether a rotation happened. Two CDN nodes serving
-different chains for one name is the bug this is for.
+Certificates are matched by SHA-256 of their DER, not by subject, since a renewal keeps the name. Exit 0 if identical, 1 if different, like `diff(1)`. Useful for spotting a rotation, or two CDN nodes serving different chains.
 
 ### Validating from a script
 
-`validate` verifies against the system trust store and exits non-zero on
-anything a TLS client would reject, so it can gate CI:
+`validate` checks against the system trust store and exits non-zero on anything a TLS client would reject:
 
 ```bash
 y509 validate chain.pem                        # 0 = trusted
@@ -130,25 +99,15 @@ y509 validate chain.pem --roots internal-ca.pem
 | self-anchored | 1 | links up, but its root is not trusted (an internal PKI, or a missing root) |
 | broken | 1 | does not link up: expired, bad signature, missing issuer, wrong hostname |
 
-Several targets can be given at once. All of them are checked before anything
-exits, so one unreachable host does not hide the rest, and the status is
-non-zero if any failed:
+Multiple targets are all checked before exiting; the exit is non-zero if any failed. With `--json`, a single target gives the usual object and several give `{"targets": [...]}`.
 
 ```bash
 y509 validate www.example.com:443 api.example.com:443 smtp.example.com:587
 ```
 
-With `--json`, one target produces the object it always did and several produce
-`{"targets": [...]}`, so an existing consumer keeps working.
-
 ### How the chain was served
 
-Verifying a chain and *serving it correctly* are different questions, and y509
-answers both. A server can present a chain that your browser accepts and that
-`curl` refuses — because browsers chase the AIA URL to fetch a missing
-intermediate and `curl`, Go and Java do not.
-
-y509 reports that separately, from what was actually sent:
+Browsers fetch a missing intermediate from the AIA URL; `curl`, Go and Java do not. So a chain can verify and still be broken for clients. y509 reports that from what the server actually sent:
 
 ```text
 $ y509 validate incomplete-chain.badssl.com:443
@@ -163,26 +122,17 @@ Chain as presented:
     fetch from: http://yr2.i.lencr.org/
 ```
 
-Note that the chain *verified* — on macOS the platform verifier fetched the
-missing intermediate over the network — and it is still misconfigured. That gap
-is the whole point: the check is structural, so it cannot be papered over.
-
-It also reports a redundant root (a root the server should not be sending),
-certificates sent out of order, duplicates, and strangers in the bundle.
+The chain verified (the macOS verifier fetched the intermediate) but is still misconfigured. y509 also reports redundant roots, wrong order, duplicates and unrelated certificates.
 
 ### Machine-readable output
 
-`y509 <target> --json` prints the chain itself, with no trust verdict, for when
-the question is what a certificate holds rather than whether it verifies:
+`y509 <target> --json` prints the chain without a trust verdict:
 
 ```bash
 y509 chain.pem --json | jq '.chain[0].otherNames'
 ```
 
-`validate --json` writes the whole verification result to stdout, and nothing
-else does. The text
-report is replaced rather than added to, and the failure message goes to stderr,
-so the stream parses even when the check fails. The exit codes are unchanged.
+`validate --json` prints the full result to stdout and nothing else. Errors go to stderr, so the output always parses. Exit codes are unchanged.
 
 ```bash
 y509 validate example.com:443 --json | jq .
@@ -226,33 +176,15 @@ y509 validate example.com:443 --json | jq .
 }
 ```
 
-`connection` is what the handshake revealed rather than what the certificates
-say, so it is absent entirely for a file or stdin input. Testing for the key is
-how a consumer tells a live check from an offline one.
+- `chain` is in the order **presented**, not sorted.
+- `level` and `problem` are strings; `findings` is always an array, never `null`.
+- `connection` exists only for a live server, not a file or stdin.
+- `ocspStaple` is what the server stapled. Nothing is fetched. No staple is not a finding.
+  - `verified: false` on its own means the issuer was not in the chain. With `verifyError`, the issuer was there and the response did not verify.
+  - No `nextUpdate` means the responder gave none: do not cache it.
+  - If the staple was unreadable, `ocspStapleError` replaces `ocspStaple`. Only one of the two is ever present.
 
-`ocspStaple` is the response the server attached, read rather than fetched:
-nothing here goes to the network for it, which is why this is in scope while
-AIA chasing is not. It is absent when nothing was stapled, and that absence is
-not a finding — a stapled response is optional for every subscriber certificate
-now, and a growing share of servers will never send one. `verified` says
-whether the signature was checked against the issuer the server presented; it
-is false when the issuer was missing from the chain, which is a fact about the
-server rather than about the certificate. A `verifyError` alongside it means
-something worse: the issuer *was* there and the response did not verify against
-it. `nextUpdate` is absent when the
-responder gave none, which means the response must not be cached rather than
-that it never goes stale.
-
-When a response was stapled but could not be read, `ocspStaple` is absent and
-`ocspStapleError` carries why. Bytes that do not parse are a fact about the
-server, so they are reported rather than dropped — and never at the cost of the
-chain, which is returned either way. Exactly one of the two keys is ever
-present.
-
-This exists because the exit code cannot carry the answer. It collapses
-`self-anchored` and `broken` into the same non-zero, so a script cannot tell an
-internal PKI from a chain that does not link up — and it says nothing at all
-about how the chain was served, which is the finding you most likely came for:
+The exit code alone cannot tell `self-anchored` from `broken`, or say anything about how the chain was served. JSON can:
 
 ```bash
 # Fail the build on a chain that verifies but is mis-served.
@@ -265,14 +197,9 @@ y509 validate example.com:443 --json | jq '.chain[0].daysUntilExpiry < 30'
 y509 validate example.com:443 --json | jq -e '.connection.tlsVersion | test("1\\.[23]$")'
 ```
 
-`chain` is in the order the certificates were **presented**, not sorted, because
-sorting is what destroys the evidence `presentation` reports on. `level` and
-`problem` are strings, and `findings` is always an array, never `null`.
-
 ### Taking an inventory
 
-`inventory` answers "what have we got" rather than "is it valid". Nothing is
-verified against a trust store and it exits 0 for anything it could read:
+`inventory` lists what you have, without verifying anything. It exits 0 for anything it could read:
 
 ```bash
 y509 inventory www.example.com:443 api.example.com:443
@@ -285,15 +212,11 @@ www.example.com:443      www.example.com   ECDSA 256  ECDSA-SHA256         2026-
 www.example.com:443      R11               RSA 2048   SHA256-RSA           2027-03-12  179
 ```
 
-This is the shape an audit asks for: PCI DSS 4.0.1 wants an inventory of
-certificates and keys, and a post-quantum migration starts by finding every RSA
-key. `--csv` goes straight into a spreadsheet; `--json` carries the fingerprint
-and lifetime as well.
+Good for PCI DSS 4.0.1 inventories or finding RSA keys ahead of a post-quantum migration. `--json` adds fingerprints and lifetimes.
 
 ### GitHub Actions
 
-The same check as a step. It downloads a release binary, verifies its checksum,
-and fails the job on whichever findings you name:
+Downloads a release binary, verifies its checksum, and fails the job on the findings you pick:
 
 ```yaml
 - uses: kanywst/y509@v1
@@ -303,9 +226,7 @@ and fails the job on whichever findings you name:
     expiry-days: 30
 ```
 
-The interesting gate is `mis-served`, which catches the chain that *verifies*
-and is still broken for `curl`, Go and Java. Nothing else in a normal CI run
-looks for it, because the exit code of every other tool says the chain is fine.
+`mis-served` is the one other tools miss: a chain that verifies but breaks `curl`, Go and Java.
 
 | Input | Default | |
 | :--- | :--- | :--- |
@@ -319,11 +240,9 @@ looks for it, because the exit code of every other tool says the chain is fine.
 | `no-system-roots` | `false` | trust only `roots` |
 | `summary` | `true` | write a report to the job summary |
 
-Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`,
-`problems`, and `report` (a path to the full JSON).
+Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, and `report` (path to the full JSON).
 
-Anything not listed under `fail-on` is still reported, as a warning rather than
-an error, so `fail-on: none` turns the step into a monitor:
+Findings not in `fail-on` still show up as warnings, so `fail-on: none` makes a monitor:
 
 ```yaml
 on:
@@ -362,13 +281,12 @@ jobs:
 
 ## Configuration
 
-`~/.y509.yaml` — Catppuccin Mocha theme by default.
+`~/.y509.yaml`. Catppuccin Mocha by default.
 
 ```yaml
-# Ceiling on the "expiring soon" window, in days (default 30). The window
-# actually used is the smaller of this and a third of the certificate's own
-# lifetime, so a 6-day certificate warns with 2 days left rather than from the
-# moment it is issued.
+# Max "expiring soon" window in days (default 30). The actual window is the
+# smaller of this and a third of the certificate's lifetime, so a 6-day
+# certificate warns at 2 days left.
 expiry_warning_days: 30
 
 theme:
@@ -402,20 +320,19 @@ make lint        # Run golangci-lint
 make vulncheck   # Run govulncheck
 ```
 
-[ROADMAP.md](ROADMAP.md) covers what is planned, what the WebPKI calendar forces
-on the tool next, and what is deliberately out of scope.
+See [ROADMAP.md](ROADMAP.md) for plans and non-goals, and [CONTRIBUTING.md](CONTRIBUTING.md) before sending a patch.
 
 ## Verifying releases
 
-Release archives carry Sigstore-signed checksums, a CycloneDX SBOM, and SLSA
-build provenance. Verify provenance with the GitHub CLI:
+Releases include Sigstore-signed checksums, a CycloneDX SBOM and SLSA build provenance.
+
+Provenance:
 
 ```bash
 gh attestation verify y509-<version>-<os>-<arch>.tar.gz -R kanywst/y509
 ```
 
-The checksum file is signed keyless via GitHub OIDC. Signature and certificate
-travel together in one Sigstore bundle, `y509-<version>-checksums.txt.sigstore.json`:
+Checksums (signed keyless via GitHub OIDC, bundled in `y509-<version>-checksums.txt.sigstore.json`):
 
 ```bash
 TAG=v<version>
@@ -430,9 +347,7 @@ cosign verify-blob \
 sha256sum -c "y509-${TAG#v}-checksums.txt" --ignore-missing
 ```
 
-Releases up to and including v1.0.2 predate the bundle format and ship a `.sig`
-plus a `.pem` instead. Verify those with `--signature` and `--certificate`, and
-with a cosign 2.x binary, since cosign 3.x dropped both flags.
+v1.0.2 and earlier ship a `.sig` and `.pem` instead. Verify those with `--signature` and `--certificate` on cosign 2.x (3.x dropped both flags).
 
 ## License
 
