@@ -1,6 +1,6 @@
 # Security Policy
 
-y509 reads X.509 certificates from files, from stdin, and from whatever a remote server chooses to send during a TLS handshake. All of that is untrusted input, and `y509 validate` is built to gate CI on its exit code.
+Everything y509 reads (files, stdin, a server's handshake) is untrusted input, and CI gates on the exit code of `y509 validate`.
 
 ## Supported versions
 
@@ -13,9 +13,9 @@ Fixes ship as a new release. There are no backport branches.
 
 ## Reporting a vulnerability
 
-Report privately through GitHub: **[open a draft advisory](https://github.com/kanywst/y509/security/advisories/new)**. That is the only channel; please do not open a public issue for a suspected vulnerability.
+**[Open a draft advisory](https://github.com/kanywst/y509/security/advisories/new)** on GitHub. That is the only channel; do not open a public issue.
 
-Please include what you have of:
+Include what you can of:
 
 - The version (`y509 version`) and the OS
 - The certificate, chain, or host that triggers it — a minimal PEM is ideal
@@ -40,10 +40,10 @@ In scope:
 
 Out of scope, because it is the documented design:
 
-- The TUI handshake deliberately verifies nothing. `y509 example.com:443` is an inspection tool, and refusing to show you a broken chain would defeat the purpose. `validate` is the entry point that verifies
+- The TUI handshake verifying nothing. It is an inspection tool; `validate` is what verifies
 - Reporting a chain as `self-anchored`, `broken`, or misconfigured. That is the tool working
-- Vulnerabilities in Go's standard library or in third-party dependencies. Report those to their maintainers. If y509 needs a version bump to pick up a fix, a normal issue or pull request is the right place
+- Bugs in Go or in dependencies. Report those upstream; if y509 needs a version bump, a normal issue or PR is fine
 
 ## Downstream packagers
 
-y509 is packaged outside this repository, including the FreeBSD [`security/y509`](https://www.freshports.org/security/y509/) port and the [`kanywst/tap`](https://github.com/kanywst/homebrew-tap) Homebrew cask. Advisories are published here first; packaging bugs specific to a distribution belong with that packager.
+Advisories are published here first. Packaging bugs belong with the packager: the FreeBSD [`security/y509`](https://www.freshports.org/security/y509/) port, the [`kanywst/tap`](https://github.com/kanywst/homebrew-tap) Homebrew cask, and others.
