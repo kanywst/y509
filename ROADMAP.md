@@ -4,7 +4,7 @@ Where y509 is going, in themes rather than dates. Nothing here is a commitment, 
 
 What decides whether an idea belongs: y509 answers two questions — *does this chain verify* and *was it served correctly* — and the second one is why it exists. A conformance check earns its place only where it predicts a client failure. Ideas that sharpen those answers are in scope; ideas that turn this into a general TLS scanner are not.
 
-Current release: v1.3.0. Landscape last reviewed 2026-09-17.
+Current release: v1.4.0. Landscape last reviewed 2026-09-17.
 
 ## The problem, as it actually shows up
 
