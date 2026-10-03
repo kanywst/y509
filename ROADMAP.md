@@ -25,10 +25,10 @@ A valid certificate must render completely. A malformed one is a finding.
 
 - **Revocation findings.** Stapled responses are already read. A missing OCSP pointer is never a finding; a missing AIA is; a missing CRL distribution point is only when the certificate is neither short-lived nor has an OCSP pointer. Any network check is CRL-only, opt-in and cached.
 - **Conformance findings.** SHA-1, RSA under 2048 bits, CN without SAN, forbidden extensions. Needs its own key and `ok` (see Next). Decide between importing zlint and hand-rolling the few rules that matter.
-- **Name unknown signature algorithms.** Go prints `0` for SLH-DSA. Read `RawSignatureAlgorithm` (Go 1.27) and extend `pqcAlgorithmNames` with SLH-DSA and composite ML-DSA.
+- **Name unknown signature algorithms.** Go prints `0` for SLH-DSA. Read `RawSignatureAlgorithm` (Go 1.27) and extend `pqcAlgorithmNames` beyond SLH-DSA-SHA2-128s/f to the other SLH-DSA parameter sets and composite ML-DSA.
 - **Go 1.27 floor.** Brings ML-DSA natively and makes the ML-DSA rows in `pqcAlgorithmNames` dead code. The bump touches go.mod, README, CONTRIBUTING, the landing page and the FreeBSD port.
 - **Large post-quantum certificates are normal.** An ML-DSA-87 signature is 4,627 bytes, SLH-DSA-256f 49,856. Private CAs issue them today.
-- **Extensions view.** Nothing reads `cert.Extensions` yet. List OID, name and the critical bit, and flag the ones that are findings: CT poison in a served certificate, `acmeIdentifier` on a leaf, `nameConstraints` or `policyConstraints` on a leaf, Must-Staple, unhandled critical extensions.
+- **Extensions view.** Only `OtherSANs` reads `cert.Extensions` today, for otherName SANs. List OID, name and the critical bit, and flag the ones that are findings: CT poison in a served certificate, `acmeIdentifier` on a leaf, `nameConstraints` or `policyConstraints` on a leaf, Must-Staple, unhandled critical extensions.
 - **Certificate Transparency, offline.** Count SCTs and name their logs from a bundled log list. Do not depend on a live log API.
 - **International names.** Show punycode next to Unicode. Column width must use display width (`uniseg`), not rune count.
 - **No-expiry sentinel.** Detect a `9999-12-31` `NotAfter` instead of showing a 2.9-million-day lifetime.
