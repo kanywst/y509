@@ -26,8 +26,10 @@ inputs:
       Which findings fail the job, comma separated. "untrusted" is a chain the
       system trust store rejects; "mis-served" is a chain that verifies but was
       presented wrongly -- a missing intermediate, a redundant root, the wrong
-      order; "expiring" is a leaf inside expiry-days. Use "none" to report
-      without ever failing.
+      order; "expiring" is a leaf inside expiry-days; "revocation" is a stapled
+      OCSP response that is revoked, stale, future-dated, unknown, badly signed
+      or unreadable.
+      Use "none" to report without ever failing.
     required: false
     default: "untrusted,mis-served"
   expiry-days:
@@ -77,6 +79,11 @@ outputs:
   problems:
     description: "Comma separated presentation problems, empty when there are none."
     value: ${{ steps.check.outputs.problems }}
+  revocation-ok:
+    description: >-
+      Whether the stapled OCSP response is sound. "true" when nothing was
+      stapled, for a file target, and for a release older than the check.
+    value: ${{ steps.check.outputs.revocation-ok }}
   report:
     description: "Path to the full JSON report."
     value: ${{ steps.check.outputs.report }}
@@ -219,6 +226,11 @@ runs:
         presentation_ok=$(jq -r '.presentation.ok' "$report")
         days=$(jq -r '.chain[0].daysUntilExpiry // empty' "$report")
         problems=$(jq -r '[.presentation.findings[].problem] | join(", ")' "$report")
+        # A release older than the revocation key, or a file target, has no
+        # verdict to read: treat that as ok rather than as a failure. "// true"
+        # would also swallow a real false, so test for the key instead.
+        revocation_ok=$(jq -r 'if .revocation == null then "true" else (.revocation.ok | tostring) end' "$report")
+        revocation_problems=$(jq -r '[.revocation.findings[]?.problem] | join(", ")' "$report")
 
         {
           echo "trust-level=$level"
@@ -226,6 +238,7 @@ runs:
           echo "presentation-ok=$presentation_ok"
           echo "days-until-expiry=${days:-}"
           echo "problems=$problems"
+          echo "revocation-ok=$revocation_ok"
           echo "report=$report"
         } >> "$GITHUB_OUTPUT"
 
@@ -242,8 +255,8 @@ runs:
         gates=""
         for keyword in $(printf '%s' "$INPUT_FAIL_ON" | tr ',[:upper:]' ' [:lower:]'); do
           case "$keyword" in
-            untrusted|mis-served|expiring|none) gates="${gates}${keyword}," ;;
-            *) echo "::error::unknown fail-on keyword '$keyword' (expected untrusted, mis-served, expiring or none)"; exit 1 ;;
+            untrusted|mis-served|expiring|revocation|none) gates="${gates}${keyword}," ;;
+            *) echo "::error::unknown fail-on keyword '$keyword' (expected untrusted, mis-served, expiring, revocation or none)"; exit 1 ;;
           esac
         done
         gates=",${gates}"
@@ -283,6 +296,17 @@ runs:
           fi
         fi
 
+        if [ "$revocation_ok" != "true" ]; then
+          jq -r '.revocation.findings[] | "\(.problem): \(.subject)\n  \(.detail)"' "$report" |
+            while IFS= read -r line; do echo "  $line"; done
+          if wants revocation; then
+            echo "::error::stapled OCSP response: $revocation_problems"
+            failed=1
+          else
+            echo "::warning::stapled OCSP response: $revocation_problems"
+          fi
+        fi
+
         if [ "$INPUT_SUMMARY" = "true" ]; then
           {
             echo "### y509: \`$INPUT_TARGET\`"
@@ -292,6 +316,9 @@ runs:
             echo "| Trust | \`$level\` |"
             echo "| Served correctly | \`$presentation_ok\`${problems:+ ($problems)} |"
             echo "| Leaf expires in | ${days:-unknown} days |"
+            if jq -e '.revocation != null' "$report" > /dev/null; then
+              echo "| Stapled OCSP ok | \`$revocation_ok\`${revocation_problems:+ ($revocation_problems)} |"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
         fi
 

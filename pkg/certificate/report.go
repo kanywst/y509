@@ -36,6 +36,11 @@ type JSONReport struct {
 	// for a file or stdin, where there was no handshake and every field would
 	// be an invention.
 	Connection *JSONConnection `json:"connection,omitempty"`
+	// Revocation judges what the server stapled. It has its own ok rather than
+	// adding to Presentation.Findings, so a gate written against
+	// presentation.ok keeps meaning what it meant. Absent, like Connection,
+	// when there was no handshake: a file has nothing stapled to judge.
+	Revocation *JSONRevocation `json:"revocation,omitempty"`
 	// Unparsed lists the CERTIFICATE blocks the input held that could not be
 	// read, so a consumer can tell "this chain is fine" from "this chain is
 	// fine as far as it could be read". Absent when everything parsed, which
@@ -274,6 +279,34 @@ type JSONFinding struct {
 	// FetchURLs are the AIA CA-Issuers URLs that would supply a missing issuer.
 	// Only set for a missing issuer.
 	FetchURLs []string `json:"fetchUrls,omitempty"`
+}
+
+// JSONRevocation is the verdict on the stapled OCSP response.
+type JSONRevocation struct {
+	// OK is false when any finding is present. No staple at all is ok.
+	OK bool `json:"ok"`
+	// Findings use the same shape as the presentation ones. Problem is one of
+	// "revoked", "stale staple", "staple not yet valid", "unknown status",
+	// "staple signature invalid" or "unreadable staple". Always an array, never null.
+	Findings []JSONFinding `json:"findings"`
+}
+
+// NewJSONRevocation judges a handshake for the report, or returns nil when
+// there was none.
+func NewJSONRevocation(result *ConnectResult, now time.Time) *JSONRevocation {
+	if result == nil {
+		return nil
+	}
+	out := &JSONRevocation{OK: true, Findings: []JSONFinding{}}
+	for _, f := range StapleFindings(result, now) {
+		out.OK = false
+		out.Findings = append(out.Findings, JSONFinding{
+			Problem: f.Problem,
+			Subject: f.Subject,
+			Detail:  f.Detail,
+		})
+	}
+	return out
 }
 
 // JSONCertificate is one certificate, reduced to the fields a script is likely
