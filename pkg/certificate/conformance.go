@@ -31,6 +31,8 @@ const (
 	ProblemWeakSignature = "weak signature"
 	ProblemWeakKey       = "weak key"
 	ProblemNoSAN         = "no SAN"
+	ProblemPrecert       = "precertificate"
+	ProblemUnhandledExt  = "unhandled critical extension"
 )
 
 // minRSABits is the smallest RSA modulus browsers and the CA/Browser Forum
@@ -71,6 +73,26 @@ func ConformanceFindings(certs []*x509.Certificate) []ConformanceFinding {
 				Detail: fmt.Sprintf("an RSA key of %d bits, below the %d bits clients require; reissue it with a new key of at least %d bits",
 					pub.N.BitLen(), minRSABits, minRSABits),
 			})
+		}
+
+		for _, ext := range Extensions(cert) {
+			switch {
+			case ext.OID == oidCTPoison:
+				// Named on its own: the fix is not "drop the extension" but
+				// "serve the certificate the CA issued after logging this one".
+				out = append(out, ConformanceFinding{
+					Problem: ProblemPrecert,
+					Subject: name,
+					Detail:  "this is a CT precertificate, whose critical poison extension makes every client reject it; serve the final certificate the CA issued from it",
+				})
+			case ext.Unhandled:
+				out = append(out, ConformanceFinding{
+					Problem: ProblemUnhandledExt,
+					Subject: name,
+					Detail: fmt.Sprintf("%s is marked critical and Go does not process it, so Go clients reject the certificate, as does any client that does not know it; reissue it without the extension or with it non-critical",
+						ext.Label()),
+				})
+			}
 		}
 
 		if lacksSAN(cert) {

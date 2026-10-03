@@ -552,6 +552,23 @@ func (m Model) renderTabContent(width int) string {
 			}
 		}
 
+		// Every extension, including the ones nothing above decodes. An
+		// unknown one is labelled by OID and size rather than left out.
+		if exts := certificate.Extensions(cert.Certificate); len(exts) > 0 {
+			b.WriteString("\n")
+			b.WriteString(m.Styles.SectionTitle.Render("Extensions") + "\n")
+			for _, ext := range exts {
+				switch {
+				case ext.Unhandled:
+					kv("critical", ext.Label()+" (unprocessed, Go rejects it)")
+				case ext.Critical:
+					kv("critical", ext.Label())
+				default:
+					kv("", ext.Label())
+				}
+			}
+		}
+
 		if policies := certificate.PolicyOIDs(cert.Certificate); len(policies) > 0 {
 			b.WriteString("\n")
 			b.WriteString(m.Styles.SectionTitle.Render("Policies") + "\n")

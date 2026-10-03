@@ -185,11 +185,12 @@ y509 validate example.com:443 --json | jq .
   - `verified: false` on its own means the issuer was not in the chain. With `verifyError`, the issuer was there and the response did not verify.
   - No `nextUpdate` means the responder gave none: do not cache it.
   - If the staple was unreadable, `ocspStapleError` replaces `ocspStaple`. Only one of the two is ever present.
-- `conformance` checks each certificate against rules clients enforce on their own, with its own `ok`. Present for files too.
-  - `problem` is one of `weak signature` (SHA-1 or MD5, except a genuine SHA-1 self-signature, which no client checks), `weak key` (RSA under 2048 bits), `no SAN` (a server certificate with a common name but no DNS, IP or URI SAN).
 - `revocation` judges that staple, with its own `ok` so `presentation.ok` keeps its meaning. Present only alongside `connection`.
   - `problem` is one of `revoked`, `stale staple`, `staple not yet valid`, `unknown status`, `staple signature invalid`, `unreadable staple`.
   - A signature left unchecked because the issuer was not sent is not a finding here. That is `missing issuer` under `presentation`.
+- `conformance` checks each certificate against rules clients enforce on their own, with its own `ok`. Present for files too.
+  - `problem` is one of `weak signature` (SHA-1 or MD5, except a genuine SHA-1 self-signature, which no client checks), `weak key` (RSA under 2048 bits), `no SAN` (a server certificate with a common name but no DNS, IP or URI SAN), `precertificate` (a CT precertificate was served), `unhandled critical extension` (a critical extension Go does not process).
+- `chain[].extensions` lists every extension as `{oid, name, critical}`. `name` is absent for one y509 does not know.
 
 The exit code alone cannot tell `self-anchored` from `broken`, or say anything about how the chain was served. JSON can:
 
@@ -253,7 +254,7 @@ Downloads a release binary, verifies its checksum, and fails the job on the find
 | `no-system-roots` | `false` | trust only `roots` |
 | `summary` | `true` | write a report to the job summary |
 
-`revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable. No staple passes. `conformance` fails on a SHA-1 or MD5 signature, an RSA key under 2048 bits, or a host name only in the common name.
+`revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable. No staple passes. `conformance` fails on a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name only in the common name, a served precertificate, or a critical extension Go does not process.
 
 Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, `revocation-ok`, `conformance-ok`, and `report` (path to the full JSON).
 

@@ -29,8 +29,9 @@ inputs:
       order; "expiring" is a leaf inside expiry-days; "revocation" is a stapled
       OCSP response that is revoked, stale, future-dated, unknown, badly signed
       or unreadable; "conformance" is a certificate clients reject on its own
-      terms: a SHA-1 or MD5 signature, an RSA key under 2048 bits, or a host
-      name only in the common name. Use "none" to report without ever failing.
+      terms: a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name
+      only in the common name, a served CT precertificate, or a critical
+      extension Go does not process. Use "none" to report without ever failing.
     required: false
     default: "untrusted,mis-served"
   expiry-days:
