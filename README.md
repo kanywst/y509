@@ -185,7 +185,7 @@ y509 validate example.com:443 --json | jq .
   - No `nextUpdate` means the responder gave none: do not cache it.
   - If the staple was unreadable, `ocspStapleError` replaces `ocspStaple`. Only one of the two is ever present.
 - `revocation` judges that staple, with its own `ok` so `presentation.ok` keeps its meaning. Present only alongside `connection`.
-  - `problem` is one of `revoked`, `stale staple`, `unknown status`, `staple signature invalid`, `unreadable staple`.
+  - `problem` is one of `revoked`, `stale staple`, `staple not yet valid`, `unknown status`, `staple signature invalid`, `unreadable staple`.
   - A signature left unchecked because the issuer was not sent is not a finding here. That is `missing issuer` under `presentation`.
 
 The exit code alone cannot tell `self-anchored` from `broken`, or say anything about how the chain was served. JSON can:
@@ -247,7 +247,7 @@ Downloads a release binary, verifies its checksum, and fails the job on the find
 | `no-system-roots` | `false` | trust only `roots` |
 | `summary` | `true` | write a report to the job summary |
 
-`revocation` fails on a stapled OCSP response that is revoked, stale, unknown, badly signed or unreadable. No staple passes.
+`revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable. No staple passes.
 
 Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, `revocation-ok`, and `report` (path to the full JSON).
 

@@ -26,6 +26,7 @@ type RevocationFinding struct {
 const (
 	ProblemRevoked          = "revoked"
 	ProblemStaleStaple      = "stale staple"
+	ProblemFutureStaple     = "staple not yet valid"
 	ProblemUnknownStatus    = "unknown status"
 	ProblemBadStapleSig     = "staple signature invalid"
 	ProblemUnreadableStaple = "unreadable staple"
@@ -83,6 +84,12 @@ func StapleFindings(result *ConnectResult, now time.Time) []RevocationFinding {
 				staple.VerifyErr.Error()+"); clients discard it, so check the server is stapling for this chain"))
 	}
 
+	if !staple.ThisUpdate.IsZero() && staple.ThisUpdate.After(now.Add(futureStapleSlop)) {
+		out = append(out, finding(ProblemFutureStaple,
+			fmt.Sprintf("the response's thisUpdate is %s, more than a day ahead; clients reject a response from the future, so check the clock on the responder or the server",
+				staple.ThisUpdate.UTC().Format(time.RFC3339))))
+	}
+
 	if staple.Expired(now) {
 		out = append(out, finding(ProblemStaleStaple,
 			fmt.Sprintf("the response passed its nextUpdate at %s; the server has stopped refreshing it, and clients that require stapling reject it, so restart or fix its OCSP fetch",
@@ -91,6 +98,12 @@ func StapleFindings(result *ConnectResult, now time.Time) []RevocationFinding {
 
 	return out
 }
+
+// futureStapleSlop is how far past now a response's thisUpdate may be before
+// it counts as not yet valid. It is mozilla::pkix's SLOP_SECONDS: Firefox
+// rejects a response beyond it with ERROR_OCSP_FUTURE_RESPONSE, and anything
+// tighter would report ordinary clock skew as a broken server.
+const futureStapleSlop = 24 * time.Hour
 
 // FormatStapleFindings renders the findings for the terminal, or an empty
 // string when there are none.

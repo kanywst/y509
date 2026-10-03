@@ -50,6 +50,8 @@ func TestStapleFindings(t *testing.T) {
 		{"revoked", stapledResult(&Staple{Status: "revoked", Verified: true, RevokedAt: now.Add(-time.Hour), RevocationReason: "key compromise"}, nil), []string{ProblemRevoked}},
 		{"unknown", stapledResult(&Staple{Status: "unknown", Verified: true}, nil), []string{ProblemUnknownStatus}},
 		{"stale", stapledResult(&Staple{Status: "good", Verified: true, NextUpdate: now.Add(-time.Minute)}, nil), []string{ProblemStaleStaple}},
+		{"thisUpdate inside the clock-skew slop", stapledResult(&Staple{Status: "good", Verified: true, ThisUpdate: now.Add(23 * time.Hour)}, nil), nil},
+		{"thisUpdate past the slop", stapledResult(&Staple{Status: "good", Verified: true, ThisUpdate: now.Add(25 * time.Hour)}, nil), []string{ProblemFutureStaple}},
 		{"bad signature", stapledResult(&Staple{Status: "good", VerifyErr: errors.New("bad signature")}, nil), []string{ProblemBadStapleSig}},
 		{"unreadable", stapledResult(nil, errors.New("asn1: syntax error")), []string{ProblemUnreadableStaple}},
 		{"revoked, stale and badly signed", stapledResult(&Staple{Status: "revoked", VerifyErr: errors.New("bad signature"), NextUpdate: now.Add(-time.Minute)}, nil),

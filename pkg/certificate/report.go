@@ -286,8 +286,8 @@ type JSONRevocation struct {
 	// OK is false when any finding is present. No staple at all is ok.
 	OK bool `json:"ok"`
 	// Findings use the same shape as the presentation ones. Problem is one of
-	// "revoked", "stale staple", "unknown status", "staple signature invalid"
-	// or "unreadable staple". Always an array, never null.
+	// "revoked", "stale staple", "staple not yet valid", "unknown status",
+	// "staple signature invalid" or "unreadable staple". Always an array, never null.
 	Findings []JSONFinding `json:"findings"`
 }
 

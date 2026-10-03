@@ -27,7 +27,8 @@ inputs:
       system trust store rejects; "mis-served" is a chain that verifies but was
       presented wrongly -- a missing intermediate, a redundant root, the wrong
       order; "expiring" is a leaf inside expiry-days; "revocation" is a stapled
-      OCSP response that is revoked, stale, unknown, badly signed or unreadable.
+      OCSP response that is revoked, stale, future-dated, unknown, badly signed
+      or unreadable.
       Use "none" to report without ever failing.
     required: false
     default: "untrusted,mis-served"
