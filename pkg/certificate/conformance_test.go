@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"math/big"
 	"net"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -66,6 +67,13 @@ func TestConformanceFindings(t *testing.T) {
 		{"cn only", func(c *x509.Certificate) { c.DNSNames = nil }, ProblemNoSAN},
 		{"cn only, no eku", func(c *x509.Certificate) { c.DNSNames = nil; c.ExtKeyUsage = nil }, ProblemNoSAN},
 		{"ip san", func(c *x509.Certificate) { c.DNSNames = nil; c.IPAddresses = []net.IP{net.ParseIP("192.0.2.1")} }, ""},
+		// Hostname verification never reads these, so they do not exempt it.
+		{"cn plus email san", func(c *x509.Certificate) { c.DNSNames = nil; c.EmailAddresses = []string{"ops@leaf.test"} }, ProblemNoSAN},
+		// A SPIFFE workload certificate is matched on its URI, not a host.
+		{"spiffe uri san", func(c *x509.Certificate) {
+			c.DNSNames = nil
+			c.URIs = []*url.URL{{Scheme: "spiffe", Host: "example.org", Path: "/ns/default/sa/web"}}
+		}, ""},
 		{"code signing", func(c *x509.Certificate) {
 			c.DNSNames = nil
 			c.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning}

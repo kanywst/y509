@@ -71,7 +71,7 @@ func ConformanceFindings(certs []*x509.Certificate) []ConformanceFinding {
 			out = append(out, ConformanceFinding{
 				Problem: ProblemNoSAN,
 				Subject: name,
-				Detail: fmt.Sprintf("the name %q is only in the common name, with no subject alternative names; Chrome and Go ignore the common name, so reissue it with the name as a DNS SAN",
+				Detail: fmt.Sprintf("the name %q is only in the common name, with no DNS or IP subject alternative name; Chrome and Go ignore the common name, so reissue it with the name as a DNS SAN",
 					cert.Subject.CommonName),
 			})
 		}
@@ -102,12 +102,16 @@ func isSelfSigned(cert *x509.Certificate) bool {
 // It is limited to certificates a TLS server could present: a CA, or an
 // end-entity certificate for code signing or S/MIME, has no reason to carry a
 // DNS name, and flagging it would be noise.
+//
+// Only a DNS or IP SAN exempts it, because those are all hostname verification
+// reads: an email or otherName SAN leaves the host as unmatched as no SAN at
+// all. A URI SAN exempts it too, for a different reason: a SPIFFE workload
+// certificate is matched on its URI, not on a host, and has no DNS name to add.
 func lacksSAN(cert *x509.Certificate) bool {
 	if cert.IsCA || cert.Subject.CommonName == "" {
 		return false
 	}
-	if len(cert.DNSNames) > 0 || len(cert.IPAddresses) > 0 || len(cert.EmailAddresses) > 0 ||
-		len(cert.URIs) > 0 || len(OtherSANs(cert)) > 0 {
+	if len(cert.DNSNames) > 0 || len(cert.IPAddresses) > 0 || len(cert.URIs) > 0 {
 		return false
 	}
 	if len(cert.ExtKeyUsage) == 0 {
