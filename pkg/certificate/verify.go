@@ -180,15 +180,7 @@ func selfSignedFrom(certs []*x509.Certificate) *x509.CertPool {
 		if cert == nil {
 			continue
 		}
-		if cert.Issuer.String() != cert.Subject.String() {
-			continue
-		}
-		// Verify the self-signature with CheckSignature, not CheckSignatureFrom.
-		// The latter also enforces the CA basic constraint, which would reject a
-		// self-signed *leaf* -- a dev server certificate is exactly that, and it
-		// still needs to anchor its own one-cert chain so the result is
-		// self-anchored rather than broken.
-		if err := cert.CheckSignature(cert.SignatureAlgorithm, cert.RawTBSCertificate, cert.Signature); err != nil {
+		if !isGenuinelySelfSigned(cert) {
 			continue
 		}
 		pool.AddCert(cert)
@@ -199,6 +191,22 @@ func selfSignedFrom(certs []*x509.Certificate) *x509.CertPool {
 		return nil
 	}
 	return pool
+}
+
+// isGenuinelySelfSigned reports a certificate signed by its own key. A matching
+// Issuer and Subject is not enough: the signature has to check out too.
+//
+// It uses CheckSignature, not CheckSignatureFrom. The latter also enforces the
+// CA basic constraint, which would reject a self-signed *leaf* -- a dev server
+// certificate is exactly that, and it still needs to anchor its own one-cert
+// chain so the result is self-anchored rather than broken. CheckSignatureFrom
+// also refuses SHA-1 outright, which would leave every SHA-1 root looking
+// forged. CheckSignature still refuses MD5.
+func isGenuinelySelfSigned(cert *x509.Certificate) bool {
+	if cert.Issuer.String() != cert.Subject.String() {
+		return false
+	}
+	return cert.CheckSignature(cert.SignatureAlgorithm, cert.RawTBSCertificate, cert.Signature) == nil
 }
 
 // anchorName returns the common name of the root that the first verified chain
