@@ -17,7 +17,7 @@ Current release: v1.6.0. Landscape last reviewed 2026-09-17.
 
 ## Next
 
-- **Extensions view, then forbidden extensions.** Read `cert.Extensions` into a view (see below), then report the forbidden ones under `conformance` next to the weak-signature, weak-key and no-SAN rules it already has.
+- **No-expiry sentinel.** Detect a `9999-12-31` `NotAfter` instead of showing a 2.9-million-day lifetime.
 
 ## Keeping up with X.509
 
@@ -28,10 +28,9 @@ A valid certificate must render completely. A malformed one is a finding.
 - **Name unknown signature algorithms.** Go prints `0` for SLH-DSA. Read `RawSignatureAlgorithm` (Go 1.27) and extend `pqcAlgorithmNames` beyond SLH-DSA-SHA2-128s/f to the other SLH-DSA parameter sets and composite ML-DSA.
 - **Go 1.27 floor.** Brings ML-DSA natively and makes the ML-DSA rows in `pqcAlgorithmNames` dead code. The bump touches go.mod, README, CONTRIBUTING, the landing page and the FreeBSD port.
 - **Large post-quantum certificates are normal.** An ML-DSA-87 signature is 4,627 bytes, SLH-DSA-256f 49,856. Private CAs issue them today.
-- **Extensions view.** Only `OtherSANs` reads `cert.Extensions` today, for otherName SANs. List OID, name and the critical bit, and flag the ones that are findings: CT poison in a served certificate, `acmeIdentifier` on a leaf, `nameConstraints` or `policyConstraints` on a leaf, Must-Staple, unhandled critical extensions.
+- **Extensions view.** The Misc tab and `chain[].extensions` list every extension by name or OID, with the critical bit, and name Must-Staple. `conformance` reports a served precertificate and any critical extension Go does not process, which covers a leaf's `acmeIdentifier`. `nameConstraints` or `policyConstraints` on a leaf is not reported: RFC 5280 forbids it, but no client is known to reject it.
 - **Certificate Transparency, offline.** Count SCTs and name their logs from a bundled log list. Do not depend on a live log API.
 - **International names.** Show punycode next to Unicode. Column width must use display width (`uniseg`), not rune count.
-- **No-expiry sentinel.** Detect a `9999-12-31` `NotAfter` instead of showing a 2.9-million-day lifetime.
 - **Watch.** Merkle Tree Certificates (experimental). TLS trust anchor identifiers (near approval) make serving different chains to different clients correct, so design for it now.
 
 ## Presentation rules

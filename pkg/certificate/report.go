@@ -37,7 +37,8 @@ type JSONReport struct {
 	// be an invention.
 	Connection *JSONConnection `json:"connection,omitempty"`
 	// Conformance is what each certificate breaks of the rules clients enforce:
-	// a weak signature, a weak key, a name only in the common name. Its own ok,
+	// a weak signature, a weak key, a name only in the common name, a served
+	// precertificate, a critical extension Go does not process. Its own ok,
 	// for the same reason as Revocation.
 	Conformance JSONConformance `json:"conformance"`
 	// Revocation judges what the server stapled. It has its own ok rather than
@@ -289,12 +290,21 @@ type JSONFinding struct {
 	FetchURLs []string `json:"fetchUrls,omitempty"`
 }
 
+// JSONExtension is one extension. Name is absent for an extension y509 does not
+// know, rather than guessed at; OID always identifies it.
+type JSONExtension struct {
+	OID      string `json:"oid"`
+	Name     string `json:"name,omitempty"`
+	Critical bool   `json:"critical"`
+}
+
 // JSONConformance is the verdict on the certificates themselves.
 type JSONConformance struct {
 	// OK is false when any finding is present.
 	OK bool `json:"ok"`
 	// Findings use the same shape as the presentation ones. Problem is one of
-	// "weak signature", "weak key" or "no SAN". Always an array, never null.
+	// "weak signature", "weak key", "no SAN", "precertificate" or "unhandled
+	// critical extension". Always an array, never null.
 	Findings []JSONFinding `json:"findings"`
 }
 
@@ -379,6 +389,9 @@ type JSONCertificate struct {
 	// rendered as "type: value". Without them a certificate whose only
 	// identity is one of these reports no names at all.
 	OtherNames []string `json:"otherNames,omitempty"`
+	// Extensions lists every X.509v3 extension, in the order the certificate
+	// carries them, so one that is not decoded anywhere else is still visible.
+	Extensions []JSONExtension `json:"extensions"`
 	// KeyAlgorithm and SignatureAlgorithm name the crypto in use, so a script
 	// can flag a deprecated algorithm.
 	KeyAlgorithm       string `json:"keyAlgorithm"`
@@ -484,6 +497,10 @@ func newJSONCertificate(index int, cert *x509.Certificate, now time.Time) JSONCe
 	}
 	for _, ip := range cert.IPAddresses {
 		entry.IPAddresses = append(entry.IPAddresses, ip.String())
+	}
+	entry.Extensions = []JSONExtension{}
+	for _, ext := range Extensions(cert) {
+		entry.Extensions = append(entry.Extensions, JSONExtension{OID: ext.OID, Name: ext.Name, Critical: ext.Critical})
 	}
 
 	return entry

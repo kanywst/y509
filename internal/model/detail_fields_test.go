@@ -146,3 +146,45 @@ func TestIssuerTabMatchesSubject(t *testing.T) {
 		t.Errorf("Subject and Issuer render the same DN differently:\n--- subject ---\n%s\n--- issuer ---\n%s", subject, issuer)
 	}
 }
+
+// TestMiscTabListsEveryExtension covers the extensions nothing else decodes: an
+// unknown one is labelled by OID and size, and a critical one Go does not
+// process says so.
+func TestMiscTabListsEveryExtension(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(9),
+		Subject:      pkix.Name{CommonName: "ext.example.com"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		DNSNames:     []string{"ext.example.com"},
+		ExtraExtensions: []pkix.Extension{
+			{Id: asn1.ObjectIdentifier{1, 2, 3, 4}, Value: []byte{0x05, 0x00}},
+			{Id: asn1.ObjectIdentifier{1, 2, 3, 5}, Critical: true, Value: []byte{0x05, 0x00}},
+		},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := tabContent(t, cert, "Misc")
+	for _, want := range []string{
+		"Extensions",
+		"Subject Alternative Name",
+		"unrecognized extension (OID 1.2.3.4, 2 bytes)",
+		"unrecognized extension (OID 1.2.3.5, 2 bytes)",
+		"(unprocessed, Go rejects it)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("Misc tab does not show %q:\n%s", want, got)
+		}
+	}
+}
