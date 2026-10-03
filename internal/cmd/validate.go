@@ -190,6 +190,13 @@ func printResults(results []targetResult) {
 			fmt.Println(presentation)
 		}
 
+		// So are the certificates themselves.
+		if conformance := certificate.FormatConformanceFindings(
+			certificate.ConformanceFindings(r.Report.Sent)); conformance != "" {
+			fmt.Println()
+			fmt.Println(conformance)
+		}
+
 		// A staple is judged on its own, for the same reason.
 		if staple := certificate.FormatStapleFindings(
 			certificate.StapleFindings(r.Source.Conn, time.Now())); staple != "" {

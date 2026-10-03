@@ -36,6 +36,10 @@ type JSONReport struct {
 	// for a file or stdin, where there was no handshake and every field would
 	// be an invention.
 	Connection *JSONConnection `json:"connection,omitempty"`
+	// Conformance is what each certificate breaks of the rules clients enforce:
+	// a weak signature, a weak key, a name only in the common name. Its own ok,
+	// for the same reason as Revocation.
+	Conformance JSONConformance `json:"conformance"`
 	// Revocation judges what the server stapled. It has its own ok rather than
 	// adding to Presentation.Findings, so a gate written against
 	// presentation.ok keeps meaning what it meant. Absent, like Connection,
@@ -102,6 +106,9 @@ type JSONInspection struct {
 	// Presentation is how the chain was served, judged structurally. This is
 	// the question an inspection can answer without a trust store.
 	Presentation JSONPresentation `json:"presentation"`
+	// Conformance is what each certificate breaks of the rules clients enforce.
+	// It needs no trust store either.
+	Conformance JSONConformance `json:"conformance"`
 	// Chain is the certificates in the order they were presented.
 	Chain []JSONCertificate `json:"chain"`
 	// Connection describes the handshake, absent for a file or stdin.
@@ -117,6 +124,7 @@ func NewJSONInspection(host string, report *ChainReport) *JSONInspection {
 	return &JSONInspection{
 		Host:         full.Host,
 		Presentation: full.Presentation,
+		Conformance:  full.Conformance,
 		Chain:        full.Chain,
 	}
 }
@@ -281,6 +289,15 @@ type JSONFinding struct {
 	FetchURLs []string `json:"fetchUrls,omitempty"`
 }
 
+// JSONConformance is the verdict on the certificates themselves.
+type JSONConformance struct {
+	// OK is false when any finding is present.
+	OK bool `json:"ok"`
+	// Findings use the same shape as the presentation ones. Problem is one of
+	// "weak signature", "weak key" or "no SAN". Always an array, never null.
+	Findings []JSONFinding `json:"findings"`
+}
+
 // JSONRevocation is the verdict on the stapled OCSP response.
 type JSONRevocation struct {
 	// OK is false when any finding is present. No staple at all is ok.
@@ -384,6 +401,7 @@ func NewJSONReport(host string, report *ChainReport, result *VerifyResult) *JSON
 		// gets an unhelpful surprise in most languages, and "no findings" is
 		// the common case.
 		Presentation: JSONPresentation{OK: true, Findings: []JSONFinding{}},
+		Conformance:  JSONConformance{OK: true, Findings: []JSONFinding{}},
 		Chain:        []JSONCertificate{},
 	}
 
@@ -409,6 +427,15 @@ func NewJSONReport(host string, report *ChainReport, result *VerifyResult) *JSON
 			Subject:   finding.Subject,
 			Detail:    finding.Detail,
 			FetchURLs: finding.FetchURLs,
+		})
+	}
+
+	for _, f := range ConformanceFindings(report.Sent) {
+		out.Conformance.OK = false
+		out.Conformance.Findings = append(out.Conformance.Findings, JSONFinding{
+			Problem: f.Problem,
+			Subject: f.Subject,
+			Detail:  f.Detail,
 		})
 	}
 

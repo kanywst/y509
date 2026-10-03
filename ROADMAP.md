@@ -17,13 +17,14 @@ Current release: v1.5.0. Landscape last reviewed 2026-09-17.
 
 ## Next
 
-- **Conformance findings.** SHA-1, RSA under 2048 bits, CN without SAN, forbidden extensions. Give them their own JSON key and `ok`, as `revocation` did for the stapled OCSP response. Decide between importing zlint and hand-rolling the few rules that matter.
+- **Extensions view, then forbidden extensions.** Read `cert.Extensions` into a view (see below), then report the forbidden ones under `conformance` next to the weak-signature, weak-key and no-SAN rules it already has.
 
 ## Keeping up with X.509
 
 A valid certificate must render completely. A malformed one is a finding.
 
 - **Revocation findings.** Stapled responses are judged under `revocation`, gated by `fail-on: revocation`. A missing OCSP pointer is never a finding; a missing AIA is; a missing CRL distribution point is only when the certificate is neither short-lived nor has an OCSP pointer. Any network check is CRL-only, opt-in and cached.
+- **Conformance findings.** Hand-rolled rather than zlint, which mostly checks a CA's obligations and predicts no client failure. `conformance` reports a SHA-1 or MD5 signature, RSA under 2048 bits and a CN-only server certificate, gated by `fail-on: conformance`.
 - **Name unknown signature algorithms.** Go prints `0` for SLH-DSA. Read `RawSignatureAlgorithm` (Go 1.27) and extend `pqcAlgorithmNames` beyond SLH-DSA-SHA2-128s/f to the other SLH-DSA parameter sets and composite ML-DSA.
 - **Go 1.27 floor.** Brings ML-DSA natively and makes the ML-DSA rows in `pqcAlgorithmNames` dead code. The bump touches go.mod, README, CONTRIBUTING, the landing page and the FreeBSD port.
 - **Large post-quantum certificates are normal.** An ML-DSA-87 signature is 4,627 bytes, SLH-DSA-256f 49,856. Private CAs issue them today.
