@@ -49,7 +49,7 @@ func ConformanceFindings(certs []*x509.Certificate) []ConformanceFinding {
 		// A self-signed certificate's own signature is never checked by a
 		// client: it is trusted because it is in the store, not because of how
 		// it was signed. A SHA-1 self-signature on a root is harmless.
-		if weakSignatureAlgorithm(cert.SignatureAlgorithm) && !isSelfSigned(cert) {
+		if weakSignatureAlgorithm(cert.SignatureAlgorithm) && !verifiesSelfSigned(cert) {
 			out = append(out, ConformanceFinding{
 				Problem: ProblemWeakSignature,
 				Subject: name,
@@ -89,11 +89,22 @@ func weakSignatureAlgorithm(alg x509.SignatureAlgorithm) bool {
 	return false
 }
 
-// isSelfSigned is a name match, like JSONCertificate.SelfSigned. Checking the
-// signature would also catch a certificate that merely claims to be self-issued,
-// but that one fails to verify anyway, and trust already says so.
-func isSelfSigned(cert *x509.Certificate) bool {
-	return cert.Subject.String() == cert.Issuer.String()
+// verifiesSelfSigned reports a certificate that is genuinely signed by its own
+// key, not one that merely sets its issuer to its subject.
+//
+// A name match is not enough here, unlike JSONCertificate.SelfSigned: an
+// inspection never runs a verifier, so a SHA-1 certificate that copied its
+// subject into its issuer would pass conformance with nothing else to catch it.
+//
+// It uses CheckSignature rather than CheckSignatureFrom, which refuses SHA-1
+// outright and would leave every SHA-1 root unexempted. CheckSignature still
+// refuses MD5, so an MD5 self-signed root is reported. Those are rare enough
+// that being wrong about one costs less than being forgeable.
+func verifiesSelfSigned(cert *x509.Certificate) bool {
+	if cert.Subject.String() != cert.Issuer.String() {
+		return false
+	}
+	return cert.CheckSignature(cert.SignatureAlgorithm, cert.RawTBSCertificate, cert.Signature) == nil
 }
 
 // lacksSAN reports a server certificate that names its host only in the common

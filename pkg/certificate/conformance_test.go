@@ -2,6 +2,7 @@ package certificate
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -11,6 +12,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 // rsaKey is a public key whose modulus has exactly bits bits. Nothing is
@@ -53,12 +55,13 @@ func TestConformanceFindings(t *testing.T) {
 		{"sha-1 leaf", func(c *x509.Certificate) { c.SignatureAlgorithm = x509.SHA1WithRSA }, ProblemWeakSignature},
 		{"ecdsa sha-1", func(c *x509.Certificate) { c.SignatureAlgorithm = x509.ECDSAWithSHA1 }, ProblemWeakSignature},
 		{"md5", func(c *x509.Certificate) { c.SignatureAlgorithm = x509.MD5WithRSA }, ProblemWeakSignature},
-		// A root's self-signature is never checked, so SHA-1 there is harmless.
-		{"sha-1 self-signed root", func(c *x509.Certificate) {
+		// Setting the issuer to the subject is not self-signing: with no valid
+		// signature behind it, the exemption must not apply.
+		{"sha-1 with a forged self-issued name", func(c *x509.Certificate) {
 			c.SignatureAlgorithm = x509.SHA1WithRSA
 			c.Issuer = c.Subject
 			c.IsCA = true
-		}, ""},
+		}, ProblemWeakSignature},
 		{"rsa 1024", func(c *x509.Certificate) { c.PublicKey = rsaKey(1024) }, ProblemWeakKey},
 		{"rsa 2047", func(c *x509.Certificate) { c.PublicKey = rsaKey(2047) }, ProblemWeakKey},
 		// A weak root key still fails: the key is what a forger attacks.
@@ -99,6 +102,38 @@ func TestConformanceFindings(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestConformanceExemptsAGenuineSHA1Root signs a root with SHA-1 for real. Its
+// own signature is never checked by a client, so it is not a finding.
+func TestConformanceExemptsAGenuineSHA1Root(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "SHA-1 Root"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.SHA1WithRSA,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if root.SignatureAlgorithm != x509.SHA1WithRSA {
+		t.Fatalf("fixture is signed with %s, not SHA-1", root.SignatureAlgorithm)
+	}
+	if got := ConformanceFindings([]*x509.Certificate{root}); len(got) != 0 {
+		t.Fatalf("a genuine SHA-1 root was reported: %+v", got)
 	}
 }
 

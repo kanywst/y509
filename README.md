@@ -186,7 +186,7 @@ y509 validate example.com:443 --json | jq .
   - No `nextUpdate` means the responder gave none: do not cache it.
   - If the staple was unreadable, `ocspStapleError` replaces `ocspStaple`. Only one of the two is ever present.
 - `conformance` checks each certificate against rules clients enforce on their own, with its own `ok`. Present for files too.
-  - `problem` is one of `weak signature` (SHA-1 or MD5, except on a self-signed root), `weak key` (RSA under 2048 bits), `no SAN` (a server certificate with a common name but no DNS, IP or URI SAN).
+  - `problem` is one of `weak signature` (SHA-1 or MD5, except a genuine SHA-1 self-signature, which no client checks), `weak key` (RSA under 2048 bits), `no SAN` (a server certificate with a common name but no DNS, IP or URI SAN).
 - `revocation` judges that staple, with its own `ok` so `presentation.ok` keeps its meaning. Present only alongside `connection`.
   - `problem` is one of `revoked`, `stale staple`, `staple not yet valid`, `unknown status`, `staple signature invalid`, `unreadable staple`.
   - A signature left unchecked because the issuer was not sent is not a finding here. That is `missing issuer` under `presentation`.
