@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/kanywst/y509/internal/logger"
 	"github.com/kanywst/y509/pkg/certificate"
@@ -189,6 +190,13 @@ func printResults(results []targetResult) {
 			fmt.Println(presentation)
 		}
 
+		// A staple is judged on its own, for the same reason.
+		if staple := certificate.FormatStapleFindings(
+			certificate.StapleFindings(r.Source.Conn, time.Now())); staple != "" {
+			fmt.Println()
+			fmt.Println(staple)
+		}
+
 		// The verdict above is about the certificates that could be read. Say
 		// so when that was not all of them, or a trusted chain would look like
 		// the whole story.
@@ -295,6 +303,7 @@ func encodeReport(enc *json.Encoder, r targetResult) error {
 	// Nil for a file or stdin, which leaves the object out entirely rather
 	// than reporting a handshake that never happened.
 	out.Connection = certificate.NewJSONConnection(r.Source.Conn)
+	out.Revocation = certificate.NewJSONRevocation(r.Source.Conn, time.Now())
 	// Nil when everything parsed, which leaves the key out entirely.
 	out.Unparsed = certificate.NewJSONUnparsed(r.Source.Unparsed)
 

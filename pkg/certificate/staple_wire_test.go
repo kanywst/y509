@@ -292,3 +292,37 @@ func TestJSONStapleOmitsNextUpdateWhenAbsent(t *testing.T) {
 		t.Errorf("a response with no NextUpdate still produced the key:\n%s", out)
 	}
 }
+
+// TestRevokedStapleOverTheWire runs the judgement end to end: a server that
+// staples a revoked response fails revocation.ok while presentation stays ok.
+func TestRevokedStapleOverTheWire(t *testing.T) {
+	der, leafKey, leaf, root, rootKey := wireChain(t)
+	respDER, err := ocsp.CreateResponse(root, root, ocsp.Response{
+		Status:           ocsp.Revoked,
+		SerialNumber:     leaf.SerialNumber,
+		ThisUpdate:       time.Now().Add(-time.Hour),
+		NextUpdate:       time.Now().Add(12 * time.Hour),
+		RevokedAt:        time.Now().Add(-2 * time.Hour),
+		RevocationReason: ocsp.KeyCompromise,
+	}, rootKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addr := staplingServer(t, der, leafKey, respDER)
+	result, err := FetchChain(context.Background(), addr, ConnectOptions{ServerName: "wire.test"})
+	if err != nil {
+		t.Fatalf("FetchChain: %v", err)
+	}
+
+	rev := NewJSONRevocation(result, time.Now())
+	if rev == nil || rev.OK {
+		t.Fatalf("revocation = %+v, want not ok", rev)
+	}
+	if len(rev.Findings) != 1 || rev.Findings[0].Problem != ProblemRevoked {
+		t.Fatalf("findings = %+v, want exactly one revoked", rev.Findings)
+	}
+	if !strings.Contains(rev.Findings[0].Detail, "key compromise") {
+		t.Errorf("detail should name the reason: %s", rev.Findings[0].Detail)
+	}
+}

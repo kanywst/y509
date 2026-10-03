@@ -172,7 +172,8 @@ y509 validate example.com:443 --json | jq .
       "expired": false,
       "verified": true
     }
-  }
+  },
+  "revocation": { "ok": true, "findings": [] }
 }
 ```
 
@@ -183,6 +184,9 @@ y509 validate example.com:443 --json | jq .
   - `verified: false` on its own means the issuer was not in the chain. With `verifyError`, the issuer was there and the response did not verify.
   - No `nextUpdate` means the responder gave none: do not cache it.
   - If the staple was unreadable, `ocspStapleError` replaces `ocspStaple`. Only one of the two is ever present.
+- `revocation` judges that staple, with its own `ok` so `presentation.ok` keeps its meaning. Present only alongside `connection`.
+  - `problem` is one of `revoked`, `stale staple`, `unknown status`, `staple signature invalid`, `unreadable staple`.
+  - A signature left unchecked because the issuer was not sent is not a finding here. That is `missing issuer` under `presentation`.
 
 The exit code alone cannot tell `self-anchored` from `broken`, or say anything about how the chain was served. JSON can:
 
@@ -192,6 +196,9 @@ y509 validate example.com:443 --json | jq -e '.presentation.ok'
 
 # Warn 30 days out, without parsing prose.
 y509 validate example.com:443 --json | jq '.chain[0].daysUntilExpiry < 30'
+
+# Fail on a revoked or stale stapled OCSP response.
+y509 validate example.com:443 --json | jq -e '.revocation.ok'
 
 # Find anything still negotiating below TLS 1.2.
 y509 validate example.com:443 --json | jq -e '.connection.tlsVersion | test("1\\.[23]$")'
@@ -232,7 +239,7 @@ Downloads a release binary, verifies its checksum, and fails the job on the find
 | :--- | :--- | :--- |
 | `target` |  | host, `host:port`, or a PEM/DER path in the workspace |
 | `version` | `latest` | a release tag; pin it for a reproducible check |
-| `fail-on` | `untrusted,mis-served` | any of `untrusted`, `mis-served`, `expiring`, or `none` |
+| `fail-on` | `untrusted,mis-served` | any of `untrusted`, `mis-served`, `expiring`, `revocation`, or `none` |
 | `expiry-days` | `30` | threshold for `expiring` |
 | `starttls` |  | `smtp`, `imap`, `ftp`, `ldap`, `mysql`, `postgres` |
 | `servername` |  | SNI name, when it differs from the host dialled |
@@ -240,7 +247,9 @@ Downloads a release binary, verifies its checksum, and fails the job on the find
 | `no-system-roots` | `false` | trust only `roots` |
 | `summary` | `true` | write a report to the job summary |
 
-Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, and `report` (path to the full JSON).
+`revocation` fails on a stapled OCSP response that is revoked, stale, unknown, badly signed or unreadable. No staple passes.
+
+Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, `revocation-ok`, and `report` (path to the full JSON).
 
 Findings not in `fail-on` still show up as warnings, so `fail-on: none` makes a monitor:
 
