@@ -37,7 +37,8 @@ type JSONReport struct {
 	// be an invention.
 	Connection *JSONConnection `json:"connection,omitempty"`
 	// Conformance is what each certificate breaks of the rules clients enforce:
-	// a weak signature, a weak key, a name only in the common name. Its own ok,
+	// a weak signature, a weak key, a name only in the common name, a served
+	// precertificate, a critical extension Go does not process. Its own ok,
 	// for the same reason as Revocation.
 	Conformance JSONConformance `json:"conformance"`
 	// Revocation judges what the server stapled. It has its own ok rather than
