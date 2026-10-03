@@ -28,8 +28,9 @@ inputs:
       presented wrongly -- a missing intermediate, a redundant root, the wrong
       order; "expiring" is a leaf inside expiry-days; "revocation" is a stapled
       OCSP response that is revoked, stale, future-dated, unknown, badly signed
-      or unreadable.
-      Use "none" to report without ever failing.
+      or unreadable; "conformance" is a certificate clients reject on its own
+      terms: a SHA-1 or MD5 signature, an RSA key under 2048 bits, or a host
+      name only in the common name. Use "none" to report without ever failing.
     required: false
     default: "untrusted,mis-served"
   expiry-days:
@@ -79,6 +80,11 @@ outputs:
   problems:
     description: "Comma separated presentation problems, empty when there are none."
     value: ${{ steps.check.outputs.problems }}
+  conformance-ok:
+    description: >-
+      Whether every certificate passes the rules clients enforce on their own.
+      "true" for a release older than the check.
+    value: ${{ steps.check.outputs.conformance-ok }}
   revocation-ok:
     description: >-
       Whether the stapled OCSP response is sound. "true" when nothing was
@@ -231,6 +237,8 @@ runs:
         # would also swallow a real false, so test for the key instead.
         revocation_ok=$(jq -r 'if .revocation == null then "true" else (.revocation.ok | tostring) end' "$report")
         revocation_problems=$(jq -r '[.revocation.findings[]?.problem] | join(", ")' "$report")
+        conformance_ok=$(jq -r 'if .conformance == null then "true" else (.conformance.ok | tostring) end' "$report")
+        conformance_problems=$(jq -r '[.conformance.findings[]?.problem] | join(", ")' "$report")
 
         {
           echo "trust-level=$level"
@@ -239,6 +247,7 @@ runs:
           echo "days-until-expiry=${days:-}"
           echo "problems=$problems"
           echo "revocation-ok=$revocation_ok"
+          echo "conformance-ok=$conformance_ok"
           echo "report=$report"
         } >> "$GITHUB_OUTPUT"
 
@@ -255,8 +264,8 @@ runs:
         gates=""
         for keyword in $(printf '%s' "$INPUT_FAIL_ON" | tr ',[:upper:]' ' [:lower:]'); do
           case "$keyword" in
-            untrusted|mis-served|expiring|revocation|none) gates="${gates}${keyword}," ;;
-            *) echo "::error::unknown fail-on keyword '$keyword' (expected untrusted, mis-served, expiring, revocation or none)"; exit 1 ;;
+            untrusted|mis-served|expiring|revocation|conformance|none) gates="${gates}${keyword}," ;;
+            *) echo "::error::unknown fail-on keyword '$keyword' (expected untrusted, mis-served, expiring, revocation, conformance or none)"; exit 1 ;;
           esac
         done
         gates=",${gates}"
@@ -307,6 +316,17 @@ runs:
           fi
         fi
 
+        if [ "$conformance_ok" != "true" ]; then
+          jq -r '.conformance.findings[] | "\(.problem): \(.subject)\n  \(.detail)"' "$report" |
+            while IFS= read -r line; do echo "  $line"; done
+          if wants conformance; then
+            echo "::error::certificate breaks client rules: $conformance_problems"
+            failed=1
+          else
+            echo "::warning::certificate breaks client rules: $conformance_problems"
+          fi
+        fi
+
         if [ "$INPUT_SUMMARY" = "true" ]; then
           {
             echo "### y509: \`$INPUT_TARGET\`"
@@ -316,6 +336,9 @@ runs:
             echo "| Trust | \`$level\` |"
             echo "| Served correctly | \`$presentation_ok\`${problems:+ ($problems)} |"
             echo "| Leaf expires in | ${days:-unknown} days |"
+            if jq -e '.conformance != null' "$report" > /dev/null; then
+              echo "| Conforms | \`$conformance_ok\`${conformance_problems:+ ($conformance_problems)} |"
+            fi
             if jq -e '.revocation != null' "$report" > /dev/null; then
               echo "| Stapled OCSP ok | \`$revocation_ok\`${revocation_problems:+ ($revocation_problems)} |"
             fi

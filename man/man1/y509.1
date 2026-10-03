@@ -231,6 +231,9 @@ Gate CI on a chain that verifies:
 Fail the build on a chain that verifies but is mis-served:
 .B y509 validate example.com:443 \-\-json | jq \-e '.presentation.ok'
 .TP
+Fail on a SHA\-1 signature, a short RSA key, or a CN\-only certificate:
+.B y509 validate example.com:443 \-\-json | jq \-e '.conformance.ok'
+.TP
 Fail on a revoked or stale stapled OCSP response:
 .B y509 validate example.com:443 \-\-json | jq \-e '.revocation.ok'
 .TP
