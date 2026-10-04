@@ -313,9 +313,20 @@ type JSONConformance struct {
 	// OK is false when any finding is present.
 	OK bool `json:"ok"`
 	// Findings use the same shape as the presentation ones. Problem is one of
-	// "weak signature", "weak key", "no SAN", "precertificate" or "unhandled
-	// critical extension". Always an array, never null.
+	// "weak signature", "weak key", "no SAN", "precertificate", "unhandled
+	// critical extension" or, from validate only, "insufficient SCTs". Always
+	// an array, never null.
 	Findings []JSONFinding `json:"findings"`
+}
+
+// NewJSONConformance renders conformance findings, ok with an empty array when
+// there are none.
+func NewJSONConformance(findings []ConformanceFinding) JSONConformance {
+	out := JSONConformance{OK: len(findings) == 0, Findings: []JSONFinding{}}
+	for _, f := range findings {
+		out.Findings = append(out.Findings, JSONFinding{Problem: f.Problem, Subject: f.Subject, Detail: f.Detail})
+	}
+	return out
 }
 
 // JSONRevocation is the verdict on the stapled OCSP response.
@@ -466,14 +477,7 @@ func NewJSONReport(host string, report *ChainReport, result *VerifyResult) *JSON
 		})
 	}
 
-	for _, f := range ConformanceFindings(report.Sent) {
-		out.Conformance.OK = false
-		out.Conformance.Findings = append(out.Conformance.Findings, JSONFinding{
-			Problem: f.Problem,
-			Subject: f.Subject,
-			Detail:  f.Detail,
-		})
-	}
+	out.Conformance = NewJSONConformance(ConformanceFindings(report.Sent))
 
 	now := time.Now()
 	for i, cert := range report.Sent {

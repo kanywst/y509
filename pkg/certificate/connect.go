@@ -63,6 +63,10 @@ type ConnectResult struct {
 	// still succeeded -- refusing the whole fetch over an unreadable staple
 	// would hide the certificates the user asked to see.
 	StapleErr error
+	// SCTs are the Signed Certificate Timestamps the server sent in the TLS
+	// extension, serialized. They count towards a client's CT policy like the
+	// ones embedded in the certificate.
+	SCTs [][]byte
 }
 
 // TLSVersionName renders the negotiated version.
@@ -192,6 +196,7 @@ func FetchChain(ctx context.Context, addr string, opts ConnectOptions) (*Connect
 		Version:      state.Version,
 		CipherSuite:  state.CipherSuite,
 		OCSPStapled:  len(state.OCSPResponse) > 0,
+		SCTs:         state.SignedCertificateTimestamps,
 	}
 
 	// The response covers the leaf, and its signature is checked against the

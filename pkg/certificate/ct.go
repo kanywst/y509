@@ -27,6 +27,8 @@ type CTLog struct {
 	// State is the log's state in the list: usable, qualified, readonly,
 	// retired, rejected or pending.
 	State string `json:"state"`
+	// StateSince is when the log entered State, in RFC 3339.
+	StateSince string `json:"stateSince"`
 }
 
 type ctLogBundle struct {

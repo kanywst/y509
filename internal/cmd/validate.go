@@ -191,8 +191,7 @@ func printResults(results []targetResult) {
 		}
 
 		// So are the certificates themselves.
-		if conformance := certificate.FormatConformanceFindings(
-			certificate.ConformanceFindings(r.Report.Sent)); conformance != "" {
+		if conformance := certificate.FormatConformanceFindings(conformanceFindings(r)); conformance != "" {
 			fmt.Println()
 			fmt.Println(conformance)
 		}
@@ -307,6 +306,7 @@ func encodeReport(enc *json.Encoder, r targetResult) error {
 	}
 
 	out := certificate.NewJSONReport(r.Source.Host, r.Report, r.Result)
+	out.Conformance = certificate.NewJSONConformance(conformanceFindings(r))
 	// Nil for a file or stdin, which leaves the object out entirely rather
 	// than reporting a handshake that never happened.
 	out.Connection = certificate.NewJSONConnection(r.Source.Conn)
@@ -318,6 +318,24 @@ func encodeReport(enc *json.Encoder, r targetResult) error {
 		return fmt.Errorf("failed to write JSON report: %w", err)
 	}
 	return nil
+}
+
+// conformanceFindings is the per-certificate rules plus the CT policy, which
+// only validate can judge: it needs a chain trusted through the system store,
+// since an internal PKI has no business with CT, and the SCTs the server sent.
+func conformanceFindings(r targetResult) []certificate.ConformanceFinding {
+	findings := certificate.ConformanceFindings(r.Report.Sent)
+	if r.Result == nil || !r.Result.SystemAnchored || len(r.Report.Sorted) == 0 {
+		return findings
+	}
+	var delivered [][]byte
+	if r.Source != nil && r.Source.Conn != nil {
+		delivered = r.Source.Conn.SCTs
+	}
+	if f := certificate.CTPolicyFinding(r.Report.Sorted[0], delivered, time.Now()); f != nil {
+		findings = append(findings, *f)
+	}
+	return findings
 }
 
 // verifyOptionsFromFlags builds the verification options from the trust flags.
