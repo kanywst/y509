@@ -9,7 +9,6 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
@@ -947,31 +946,19 @@ func FormatPublicKey(cert *x509.Certificate) string {
 }
 
 // describeUnknownPublicKey renders details for a key type the type switch did
-// not recognize, extracting the SubjectPublicKeyInfo algorithm OID.
+// not recognize. It names the SPKI algorithm the same way PublicKeyAlgorithmName
+// does, so the Algorithm and Type lines cannot disagree.
 func describeUnknownPublicKey(cert *x509.Certificate, pub any) string {
-	var details strings.Builder
-
 	if cert == nil {
-		details.WriteString(fmt.Sprintf("Type: %T\n", pub))
-		return details.String()
+		return fmt.Sprintf("Type: %T\n", pub)
 	}
-
-	var spki struct {
-		Algorithm pkix.AlgorithmIdentifier
-		PublicKey asn1.BitString
+	oid, ok := spkiAlgorithm(cert)
+	if !ok {
+		// Fall back to the concrete Go type if the SPKI cannot be parsed.
+		return fmt.Sprintf("Type: %T\n", pub)
 	}
-	if _, err := asn1.Unmarshal(cert.RawSubjectPublicKeyInfo, &spki); err == nil {
-		oid := spki.Algorithm.Algorithm.String()
-		if name, ok := pqcAlgorithmNames[oid]; ok {
-			details.WriteString(fmt.Sprintf("Type: %s (post-quantum)\n", name))
-		} else {
-			details.WriteString("Type: Unrecognized\n")
-		}
-		details.WriteString(fmt.Sprintf("Algorithm OID: %s\n", oid))
-		return details.String()
+	if name, known := pqcAlgorithmNames[oid.String()]; known {
+		return fmt.Sprintf("Type: %s (post-quantum)\nAlgorithm OID: %s\n", name, oid)
 	}
-
-	// Fall back to the concrete Go type if the SPKI cannot be parsed.
-	details.WriteString(fmt.Sprintf("Type: %T\n", pub))
-	return details.String()
+	return fmt.Sprintf("Type: %s\n", nameOID(oid))
 }

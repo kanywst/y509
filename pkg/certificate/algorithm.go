@@ -52,14 +52,23 @@ func PublicKeyAlgorithmName(cert *x509.Certificate) string {
 	if cert.PublicKeyAlgorithm != x509.UnknownPublicKeyAlgorithm {
 		return cert.PublicKeyAlgorithm.String()
 	}
+	oid, ok := spkiAlgorithm(cert)
+	if !ok {
+		return "unknown"
+	}
+	return nameOID(oid)
+}
+
+// spkiAlgorithm reads the algorithm OID out of the SubjectPublicKeyInfo.
+func spkiAlgorithm(cert *x509.Certificate) (asn1.ObjectIdentifier, bool) {
 	var spki struct {
 		Algorithm pkix.AlgorithmIdentifier
 		PublicKey asn1.BitString
 	}
 	if _, err := asn1.Unmarshal(cert.RawSubjectPublicKeyInfo, &spki); err != nil {
-		return "unknown"
+		return nil, false
 	}
-	return nameOID(spki.Algorithm.Algorithm)
+	return spki.Algorithm.Algorithm, true
 }
 
 // nameAlgorithmIdentifier names a DER AlgorithmIdentifier by its OID.
