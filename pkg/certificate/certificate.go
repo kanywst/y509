@@ -820,7 +820,11 @@ func FormatValidity(cert *x509.Certificate) string {
 
 	// Total validity period, plus a flag for subscriber certs that exceed the
 	// CA/Browser Forum maximum lifetime (CA certs are exempt).
-	details.WriteString(fmt.Sprintf("Validity Period: %d days\n", ValidityPeriodDays(cert)))
+	if HasNoExpiry(cert) {
+		details.WriteString("Validity Period: no well-defined expiration (RFC 5280 9999-12-31 sentinel)\n")
+	} else {
+		details.WriteString(fmt.Sprintf("Validity Period: %d days\n", ValidityPeriodDays(cert)))
+	}
 	if ExceedsCABMaxLifetime(cert) {
 		details.WriteString(fmt.Sprintf(
 			"Note: exceeds the CA/Browser Forum max subscriber lifetime in force when it was issued (%d days)\n",
@@ -829,6 +833,14 @@ func FormatValidity(cert *x509.Certificate) string {
 
 	now := time.Now()
 	duration := cert.NotAfter.Sub(now)
+
+	// time.Duration saturates at about 292 years, so the sentinel would read
+	// as "2562047h47m16s" here.
+	if HasNoExpiry(cert) {
+		details.WriteString("Status: Valid\n")
+		details.WriteString("Expires in: never\n")
+		return details.String()
+	}
 
 	if cert.NotAfter.Before(now) {
 		details.WriteString("Status: EXPIRED\n")

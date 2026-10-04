@@ -17,7 +17,7 @@ Current release: v1.7.0. Landscape last reviewed 2026-09-17.
 
 ## Next
 
-- **No-expiry sentinel.** Detect a `9999-12-31` `NotAfter` instead of showing a 2.9-million-day lifetime.
+- **Go 1.27 floor, and name the post-quantum signatures.** Go 1.27 is out. Raise the floor, read `RawSignatureAlgorithm` so SLH-DSA is not printed as `0`, and drop the ML-DSA rows in `pqcAlgorithmNames` that Go now names itself. See the two items below.
 
 ## Keeping up with X.509
 
@@ -31,6 +31,7 @@ A valid certificate must render completely. A malformed one is a finding.
 - **Extensions view.** The Misc tab and `chain[].extensions` list every extension by name or OID, with the critical bit, and name Must-Staple. `conformance` reports a served precertificate and any critical extension Go does not process, which covers a leaf's `acmeIdentifier`. `nameConstraints` or `policyConstraints` on a leaf is not reported: RFC 5280 forbids it, but no client is known to reject it.
 - **Certificate Transparency, offline.** Count SCTs and name their logs from a bundled log list. Do not depend on a live log API.
 - **International names.** Show punycode next to Unicode. Column width must use display width (`uniseg`), not rune count.
+- **No-expiry sentinel.** A `9999-12-31T23:59:59Z` `NotAfter` reads as "no expiry" in the TUI, `inventory` and `FormatValidity`, and as `noExpiry` in JSON, instead of a countdown that `time.Duration` saturated at 106,751 days.
 - **Watch.** Merkle Tree Certificates (experimental). TLS trust anchor identifiers (near approval) make serving different chains to different clients correct, so design for it now.
 
 ## Presentation rules

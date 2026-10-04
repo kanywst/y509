@@ -114,6 +114,9 @@ type inventoryRow struct {
 	LifetimeDays       int    `json:"lifetimeDays"`
 	IsCA               bool   `json:"isCa"`
 	FingerprintSHA256  string `json:"fingerprintSha256"`
+	// NoExpiry is the RFC 5280 9999-12-31 sentinel. The day counts above still
+	// carry the arithmetic; the text table prints "never" instead.
+	NoExpiry bool `json:"noExpiry"`
 }
 
 // displayTarget names a target for the output, including the one that came
@@ -162,6 +165,7 @@ func inventoryRows(target string, source *input) []inventoryRow {
 			LifetimeDays:       certificate.ValidityPeriodDays(cert),
 			IsCA:               cert.IsCA,
 			FingerprintSHA256:  certificate.FormatFingerprint(cert),
+			NoExpiry:           certificate.HasNoExpiry(cert),
 		})
 	}
 	return rows
@@ -217,6 +221,15 @@ func writeInventoryCSV(w io.Writer, rows []inventoryRow) error {
 	return nil
 }
 
+// daysField is the text table's DAYS cell: "never" for a certificate with no
+// well-defined expiration, rather than a count of about 2.9 million.
+func daysField(r inventoryRow) string {
+	if r.NoExpiry {
+		return "never"
+	}
+	return strconv.Itoa(r.DaysUntilExpiry)
+}
+
 // keyBitsField leaves the cell empty rather than writing 0 for a key whose
 // size is not a number -- Ed25519, and anything crypto/x509 did not decode.
 func keyBitsField(bits int) string {
@@ -241,7 +254,7 @@ func writeInventoryText(rows []inventoryRow, failures []string) {
 			keyDescription(r),
 			r.SignatureAlgorithm,
 			r.NotAfter,
-			strconv.Itoa(r.DaysUntilExpiry),
+			daysField(r),
 		}
 		for i, c := range row {
 			if len(c) > widths[i] {

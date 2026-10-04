@@ -185,6 +185,11 @@ func renderExpiryWithBar(certInfo *certificate.Info, styles Styles, warnDays int
 		return ""
 	}
 	cert := certInfo.Certificate
+	// time.Until saturates at about 292 years, so the sentinel would read as
+	// 106751 days left. It does not count down at all.
+	if certificate.HasNoExpiry(cert) {
+		return styles.StatusValid.Render("no expiry")
+	}
 	d := time.Until(cert.NotAfter)
 
 	if d < 0 {
@@ -431,13 +436,20 @@ func (m Model) renderTabContent(width int) string {
 		notBefore := cert.Certificate.NotBefore.Format("2006-01-02 15:04:05 MST")
 		notAfter := cert.Certificate.NotAfter.Format("2006-01-02 15:04:05 MST")
 		kv("Not Before", notBefore)
-		kv("Not After", notAfter)
-		kv("Lifetime", fmt.Sprintf("%d days total", certificate.ValidityPeriodDays(cert.Certificate)))
+		if certificate.HasNoExpiry(cert.Certificate) {
+			kv("Not After", notAfter+" (no well-defined expiration)")
+			kv("Lifetime", "unbounded (RFC 5280 9999-12-31 sentinel)")
+		} else {
+			kv("Not After", notAfter)
+			kv("Lifetime", fmt.Sprintf("%d days total", certificate.ValidityPeriodDays(cert.Certificate)))
+		}
 
 		// Validity status badge
 		b.WriteString("\n")
 		d := time.Until(cert.Certificate.NotAfter)
-		if d < 0 {
+		if certificate.HasNoExpiry(cert.Certificate) {
+			b.WriteString(m.Styles.BadgeValid.Render("  ● Valid · no expiry") + "\n")
+		} else if d < 0 {
 			b.WriteString(m.Styles.BadgeExpired.Render("  ✖ EXPIRED") + "\n")
 		} else {
 			days := int(d.Hours() / 24)
@@ -458,7 +470,8 @@ func (m Model) renderTabContent(width int) string {
 				certificate.CABMaxLifetimeFor(cert.Certificate))) + "\n")
 		}
 
-		// Life-remaining bar. Fills with the fraction of the lifetime still
+		// Life-remaining bar, which has nothing to show for a certificate that
+		// does not expire. Fills with the fraction of the lifetime still
 		// left, matching the list's expiry bar (full = healthy) so the two
 		// bars never read in opposite directions. Compute in Unix seconds to
 		// avoid time.Duration overflow on far-future NotAfter dates and to
@@ -475,12 +488,14 @@ func (m Model) renderTabContent(width int) string {
 		if ratio < 0 {
 			ratio = 0
 		}
-		barWidth := 24
-		filled := int(ratio * float64(barWidth))
-		bar := m.Styles.ProgressFull.Render(strings.Repeat("█", filled)) +
-			m.Styles.ProgressEmpty.Render(strings.Repeat("░", barWidth-filled))
-		pct := fmt.Sprintf(" %.0f%% left", ratio*100)
-		b.WriteString("  " + bar + m.Styles.Dimmed.Render(pct) + "\n")
+		if !certificate.HasNoExpiry(cert.Certificate) {
+			barWidth := 24
+			filled := int(ratio * float64(barWidth))
+			bar := m.Styles.ProgressFull.Render(strings.Repeat("█", filled)) +
+				m.Styles.ProgressEmpty.Render(strings.Repeat("░", barWidth-filled))
+			pct := fmt.Sprintf(" %.0f%% left", ratio*100)
+			b.WriteString("  " + bar + m.Styles.Dimmed.Render(pct) + "\n")
+		}
 
 	case "SANs":
 		hasSANs := false

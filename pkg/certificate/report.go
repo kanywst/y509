@@ -362,6 +362,11 @@ type JSONCertificate struct {
 	DaysUntilExpiry int `json:"daysUntilExpiry"`
 	// Expired reports whether NotAfter is already in the past.
 	Expired bool `json:"expired"`
+	// NoExpiry reports the RFC 5280 9999-12-31 sentinel: the certificate has
+	// no well-defined expiration. DaysUntilExpiry and ValidityDays still carry
+	// the arithmetic, so a consumer comparing them against a threshold keeps
+	// working, but this is the field to read before printing them.
+	NoExpiry bool `json:"noExpiry"`
 	// ValidityDays is the certificate's total lifetime.
 	ValidityDays int `json:"validityDays"`
 	// ExceedsCABMaxLifetime reports a subscriber certificate whose lifetime is
@@ -474,6 +479,7 @@ func newJSONCertificate(index int, cert *x509.Certificate, now time.Time) JSONCe
 		NotAfter:              cert.NotAfter,
 		DaysUntilExpiry:       daysUntil(cert.NotAfter, now),
 		Expired:               cert.NotAfter.Before(now),
+		NoExpiry:              HasNoExpiry(cert),
 		ValidityDays:          ValidityPeriodDays(cert),
 		ExceedsCABMaxLifetime: ExceedsCABMaxLifetime(cert),
 		IsCA:                  cert.IsCA,
