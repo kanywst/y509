@@ -197,6 +197,9 @@ func writeInventoryCSV(w io.Writer, rows []inventoryRow) error {
 		"target", "position", "common_name", "issuer", "key_algorithm", "key_bits",
 		"signature_algorithm", "not_after", "days_until_expiry", "lifetime_days",
 		"is_ca", "fingerprint_sha256", "unreadable",
+		// Appended rather than placed next to the day counts, so a
+		// spreadsheet or script that reads columns by position keeps working.
+		"no_expiry",
 	}
 	if err := out.Write(header); err != nil {
 		return fmt.Errorf("failed to write CSV: %w", err)
@@ -208,6 +211,7 @@ func writeInventoryCSV(w io.Writer, rows []inventoryRow) error {
 			r.KeyAlgorithm, keyBitsField(r.KeyBits), r.SignatureAlgorithm,
 			r.NotAfter, strconv.Itoa(r.DaysUntilExpiry), strconv.Itoa(r.LifetimeDays),
 			strconv.FormatBool(r.IsCA), r.FingerprintSHA256, r.Unreadable,
+			strconv.FormatBool(r.NoExpiry),
 		}
 		if err := out.Write(record); err != nil {
 			return fmt.Errorf("failed to write CSV: %w", err)
