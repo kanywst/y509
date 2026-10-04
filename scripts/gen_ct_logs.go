@@ -42,6 +42,9 @@ type Log struct {
 	Description string `json:"description,omitempty"`
 	Operator    string `json:"operator"`
 	State       string `json:"state,omitempty"`
+	// StateSince is when the log entered State. For a retired log it is the
+	// retirement time, which decides whether an SCT from it still counts.
+	StateSince string `json:"stateSince,omitempty"`
 }
 
 // Bundle is the committed file.
@@ -77,11 +80,13 @@ func main() {
 	for _, op := range list.Operators {
 		for _, entries := range [][]logEntry{op.Logs, op.TiledLogs} {
 			for _, l := range entries {
+				name, since := state(l.State)
 				bundle.Logs = append(bundle.Logs, Log{
 					ID:          l.LogID,
 					Description: l.Description,
 					Operator:    op.Name,
-					State:       stateName(l.State),
+					State:       name,
+					StateSince:  since,
 				})
 			}
 		}
@@ -99,11 +104,15 @@ func main() {
 	fmt.Printf("wrote %d logs (list %s, %s) to %s\n", len(bundle.Logs), list.Version, list.Timestamp, out)
 }
 
-// stateName is the single key of the log's state object: usable, qualified,
-// readonly, retired, rejected or pending.
-func stateName(state map[string]json.RawMessage) string {
-	for name := range state {
-		return name
+// state reads the single key of the log's state object (usable, qualified,
+// readonly, retired, rejected or pending) and the timestamp under it.
+func state(s map[string]json.RawMessage) (name, since string) {
+	for key, raw := range s {
+		var body struct {
+			Timestamp string `json:"timestamp"`
+		}
+		_ = json.Unmarshal(raw, &body)
+		return key, body.Timestamp
 	}
-	return ""
+	return "", ""
 }
