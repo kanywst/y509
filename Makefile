@@ -34,6 +34,12 @@ install:
 demo-certs:
 	@go run scripts/gen_demo_certs.go
 
+# Refresh the bundled CT log list from Google's all_logs_list.json. Committed,
+# so naming a log in an SCT never needs the network. Run when logs change.
+.PHONY: ct-logs
+ct-logs:
+	@go run scripts/gen_ct_logs.go
+
 # Regenerate the shell completion scripts from the binary.
 #
 # These used to be written by hand and had drifted badly: they knew -h and -v

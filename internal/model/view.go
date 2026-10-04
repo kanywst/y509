@@ -584,6 +584,26 @@ func (m Model) renderTabContent(width int) string {
 			}
 		}
 
+		// Which CT logs the certificate claims, named from the bundled list.
+		// Nothing is verified or fetched; this is what a client's CT policy is
+		// counted against.
+		scts, sctErr := certificate.SCTs(cert.Certificate)
+		if len(scts) > 0 || sctErr != nil {
+			b.WriteString("\n")
+			b.WriteString(m.Styles.SectionTitle.Render("Certificate Transparency") + "\n")
+			kv("SCTs", fmt.Sprintf("%d embedded", len(scts)))
+			for _, sct := range scts {
+				line := sct.Name() + " · " + sct.Timestamp.Format("2006-01-02")
+				if sct.Log != nil && sct.Log.State != "" && sct.Log.State != "usable" && sct.Log.State != "qualified" {
+					line += " (" + sct.Log.State + ")"
+				}
+				kv("", line)
+			}
+			if sctErr != nil {
+				kv("", "unreadable: "+sctErr.Error())
+			}
+		}
+
 		if policies := certificate.PolicyOIDs(cert.Certificate); len(policies) > 0 {
 			b.WriteString("\n")
 			b.WriteString(m.Styles.SectionTitle.Render("Policies") + "\n")

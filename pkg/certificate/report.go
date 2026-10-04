@@ -298,6 +298,16 @@ type JSONExtension struct {
 	Critical bool   `json:"critical"`
 }
 
+// JSONSCT is one embedded SCT. Log, Operator and LogState are absent when the
+// bundled list does not know the log.
+type JSONSCT struct {
+	LogID     string    `json:"logId"`
+	Log       string    `json:"log,omitempty"`
+	Operator  string    `json:"operator,omitempty"`
+	LogState  string    `json:"logState,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
 // JSONConformance is the verdict on the certificates themselves.
 type JSONConformance struct {
 	// OK is false when any finding is present.
@@ -397,6 +407,14 @@ type JSONCertificate struct {
 	// Extensions lists every X.509v3 extension, in the order the certificate
 	// carries them, so one that is not decoded anywhere else is still visible.
 	Extensions []JSONExtension `json:"extensions"`
+	// SCTs are the Signed Certificate Timestamps embedded in the certificate,
+	// with their logs named from the bundled CT log list. Not verified, and
+	// nothing is fetched. Always an array.
+	SCTs []JSONSCT `json:"scts"`
+	// SCTError is why the embedded SCT list could not be read in full, absent
+	// when it could. It keeps a damaged list from looking like no SCTs at all;
+	// SCTs still holds the ones read before the damage.
+	SCTError string `json:"sctError,omitempty"`
 	// KeyAlgorithm and SignatureAlgorithm name the crypto in use, so a script
 	// can flag a deprecated algorithm.
 	KeyAlgorithm       string `json:"keyAlgorithm"`
@@ -503,6 +521,18 @@ func newJSONCertificate(index int, cert *x509.Certificate, now time.Time) JSONCe
 	}
 	for _, ip := range cert.IPAddresses {
 		entry.IPAddresses = append(entry.IPAddresses, ip.String())
+	}
+	entry.SCTs = []JSONSCT{}
+	scts, sctErr := SCTs(cert)
+	if sctErr != nil {
+		entry.SCTError = sctErr.Error()
+	}
+	for _, sct := range scts {
+		js := JSONSCT{LogID: sct.LogID, Timestamp: sct.Timestamp}
+		if sct.Log != nil {
+			js.Log, js.Operator, js.LogState = sct.Log.Description, sct.Log.Operator, sct.Log.State
+		}
+		entry.SCTs = append(entry.SCTs, js)
 	}
 	entry.Extensions = []JSONExtension{}
 	for _, ext := range Extensions(cert) {

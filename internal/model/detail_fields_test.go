@@ -7,6 +7,8 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/base64"
+	"encoding/binary"
 	"math/big"
 	"net/url"
 	"strings"
@@ -228,5 +230,52 @@ func TestNoExpiryIsNotACountdown(t *testing.T) {
 
 	if bar := renderExpiryWithBar(&certificate.Info{Certificate: cert}, NewStyles(&loadTestConfig(t).Theme), 30); !strings.Contains(bar, "no expiry") {
 		t.Errorf("list column = %q, want no expiry", bar)
+	}
+}
+
+// TestMiscTabNamesTheCTLogs embeds one SCT from a log the bundled list knows
+// and checks the Misc tab names it, with the state of a log no longer usable.
+func TestMiscTabNamesTheCTLogs(t *testing.T) {
+	logID, err := base64.StdEncoding.DecodeString("DleUvPOuqT4zGyyZB7P3kN+bwj1xMiXdIaklrGHFTiE=")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sct := []byte{0}
+	sct = append(sct, logID...)
+	sct = binary.BigEndian.AppendUint64(sct, uint64(time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli()))
+	sct = append(sct, 0, 0, 4, 3, 0, 1, 0xaa)
+	item := append(binary.BigEndian.AppendUint16(nil, uint16(len(sct))), sct...)
+	list := append(binary.BigEndian.AppendUint16(nil, uint16(len(item))), item...)
+	value, err := asn1.Marshal(list)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{
+		SerialNumber:    big.NewInt(11),
+		Subject:         pkix.Name{CommonName: "ct.example.com"},
+		NotBefore:       time.Now().Add(-time.Hour),
+		NotAfter:        time.Now().Add(time.Hour),
+		DNSNames:        []string{"ct.example.com"},
+		ExtraExtensions: []pkix.Extension{{Id: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 2}, Value: value}},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := tabContent(t, cert, "Misc")
+	for _, want := range []string{"Certificate Transparency", "1 embedded", "Google 'Argon2026h1' log · 2026-01-15 (rejected)"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("Misc tab does not show %q:\n%s", want, got)
+		}
 	}
 }
