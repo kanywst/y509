@@ -114,6 +114,9 @@ type inventoryRow struct {
 	LifetimeDays       int    `json:"lifetimeDays"`
 	IsCA               bool   `json:"isCa"`
 	FingerprintSHA256  string `json:"fingerprintSha256"`
+	// NoExpiry is the RFC 5280 9999-12-31 sentinel. The day counts above still
+	// carry the arithmetic; the text table prints "never" instead.
+	NoExpiry bool `json:"noExpiry"`
 }
 
 // displayTarget names a target for the output, including the one that came
@@ -162,6 +165,7 @@ func inventoryRows(target string, source *input) []inventoryRow {
 			LifetimeDays:       certificate.ValidityPeriodDays(cert),
 			IsCA:               cert.IsCA,
 			FingerprintSHA256:  certificate.FormatFingerprint(cert),
+			NoExpiry:           certificate.HasNoExpiry(cert),
 		})
 	}
 	return rows
@@ -193,6 +197,9 @@ func writeInventoryCSV(w io.Writer, rows []inventoryRow) error {
 		"target", "position", "common_name", "issuer", "key_algorithm", "key_bits",
 		"signature_algorithm", "not_after", "days_until_expiry", "lifetime_days",
 		"is_ca", "fingerprint_sha256", "unreadable",
+		// Appended rather than placed next to the day counts, so a
+		// spreadsheet or script that reads columns by position keeps working.
+		"no_expiry",
 	}
 	if err := out.Write(header); err != nil {
 		return fmt.Errorf("failed to write CSV: %w", err)
@@ -204,6 +211,7 @@ func writeInventoryCSV(w io.Writer, rows []inventoryRow) error {
 			r.KeyAlgorithm, keyBitsField(r.KeyBits), r.SignatureAlgorithm,
 			r.NotAfter, strconv.Itoa(r.DaysUntilExpiry), strconv.Itoa(r.LifetimeDays),
 			strconv.FormatBool(r.IsCA), r.FingerprintSHA256, r.Unreadable,
+			strconv.FormatBool(r.NoExpiry),
 		}
 		if err := out.Write(record); err != nil {
 			return fmt.Errorf("failed to write CSV: %w", err)
@@ -215,6 +223,15 @@ func writeInventoryCSV(w io.Writer, rows []inventoryRow) error {
 		return fmt.Errorf("failed to write CSV: %w", err)
 	}
 	return nil
+}
+
+// daysField is the text table's DAYS cell: "never" for a certificate with no
+// well-defined expiration, rather than a count of about 2.9 million.
+func daysField(r inventoryRow) string {
+	if r.NoExpiry {
+		return "never"
+	}
+	return strconv.Itoa(r.DaysUntilExpiry)
 }
 
 // keyBitsField leaves the cell empty rather than writing 0 for a key whose
@@ -241,7 +258,7 @@ func writeInventoryText(rows []inventoryRow, failures []string) {
 			keyDescription(r),
 			r.SignatureAlgorithm,
 			r.NotAfter,
-			strconv.Itoa(r.DaysUntilExpiry),
+			daysField(r),
 		}
 		for i, c := range row {
 			if len(c) > widths[i] {

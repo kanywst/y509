@@ -188,3 +188,45 @@ func TestMiscTabListsEveryExtension(t *testing.T) {
 		}
 	}
 }
+
+// TestNoExpiryIsNotACountdown covers the RFC 5280 9999-12-31 sentinel.
+// time.Until saturates at about 292 years, so it used to read "106751 days
+// left" with a bar, for a certificate that does not count down at all.
+func TestNoExpiryIsNotACountdown(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(10),
+		Subject:               pkix.Name{CommonName: "forever.example.com"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := tabContent(t, cert, "Validity")
+	for _, want := range []string{"no well-defined expiration", "unbounded", "Valid · no expiry"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("Validity tab does not show %q:\n%s", want, got)
+		}
+	}
+	for _, unwanted := range []string{"106751", "days left", "% left"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("Validity tab still counts down (%q):\n%s", unwanted, got)
+		}
+	}
+
+	if bar := renderExpiryWithBar(&certificate.Info{Certificate: cert}, NewStyles(&loadTestConfig(t).Theme), 30); !strings.Contains(bar, "no expiry") {
+		t.Errorf("list column = %q, want no expiry", bar)
+	}
+}

@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/csv"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -69,6 +70,13 @@ func TestInventoryCSVIsParseable(t *testing.T) {
 	}
 	if records[0][0] != "target" || records[0][4] != "key_algorithm" {
 		t.Errorf("header = %v", records[0])
+	}
+	// no_expiry is appended last, so existing positions do not move.
+	if last := records[0][len(records[0])-1]; last != "no_expiry" || records[0][12] != "unreadable" {
+		t.Errorf("header = %v, want unreadable at 12 and no_expiry last", records[0])
+	}
+	if got := records[1][len(records[1])-1]; got != "false" {
+		t.Errorf("an ordinary certificate has no_expiry = %q", got)
 	}
 }
 
@@ -181,13 +189,15 @@ func TestInventoryCSVCarriesTheUnreadableColumn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the CSV does not parse: %v\n%s", err, out)
 	}
-	if records[0][len(records[0])-1] != "unreadable" {
+	// Found by name: columns are appended over time, so "last" is not stable.
+	col := slices.Index(records[0], "unreadable")
+	if col < 0 {
 		t.Fatalf("header has no unreadable column: %v", records[0])
 	}
 	if len(records) != 4 {
 		t.Fatalf("CSV holds %d rows, want a header and three certificates", len(records))
 	}
-	if records[2][len(records[2])-1] == "" {
+	if records[2][col] == "" {
 		t.Errorf("the unreadable row has an empty reason: %v", records[2])
 	}
 }

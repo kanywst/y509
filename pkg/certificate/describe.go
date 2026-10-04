@@ -244,6 +244,17 @@ func PublicKeyBits(cert *x509.Certificate) int {
 	}
 }
 
+// noExpirySentinel is the NotAfter RFC 5280 section 4.1.2.5 prescribes for a
+// certificate with no well-defined expiration date: 99991231235959Z.
+var noExpirySentinel = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
+
+// HasNoExpiry reports a certificate that uses that sentinel. It is a statement
+// that the certificate does not expire, not a date roughly 2.9 million days
+// away, and showing it as a countdown misreads it.
+func HasNoExpiry(cert *x509.Certificate) bool {
+	return cert != nil && cert.NotAfter.Equal(noExpirySentinel)
+}
+
 // DaysUntilExpiry counts whole days from now to NotAfter, negative once the
 // certificate has expired.
 func DaysUntilExpiry(cert *x509.Certificate) int {
