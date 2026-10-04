@@ -22,8 +22,12 @@ const ctListMaxAge = 70 * 24 * time.Hour
 
 // CTPolicyFinding judges a publicly trusted leaf against Chrome's CT policy
 // (googlechrome.github.io/CertificateTransparency/ct_policy.html), using the
-// SCTs embedded in it and any the server delivered in the TLS extension. It
-// returns nil when the policy is met, and also when it cannot be judged fairly:
+// SCTs embedded in it and any the server delivered in the TLS extension. Only
+// SCTs whose signature verifies against their log's key count, as in Chrome;
+// issuer is the leaf's issuer, which an embedded SCT's signature covers.
+//
+// It returns nil when the policy is met, and also when it cannot be judged
+// fairly:
 //
 //   - no SCTs at all. An enterprise root added to the system store looks the
 //     same as a public one from here, and Chrome does not enforce CT on it, so
@@ -32,11 +36,12 @@ const ctListMaxAge = 70 * 24 * time.Hour
 //     older than the log, and counting that SCT as missing would blame the
 //     certificate for the list's age.
 //   - an embedded SCT list that does not parse, which sctError reports.
+//   - embedded SCTs and no issuer to check them against.
 //   - a bundled log list more than 70 days older than now, as Chrome does.
 //
 // SCTs in a stapled OCSP response are not read; a server relying only on those
 // would be reported.
-func CTPolicyFinding(leaf *x509.Certificate, delivered [][]byte, now time.Time) *ConformanceFinding {
+func CTPolicyFinding(leaf, issuer *x509.Certificate, delivered [][]byte, now time.Time) *ConformanceFinding {
 	if leaf == nil || ctListStale(now) {
 		return nil
 	}
@@ -55,11 +60,31 @@ func CTPolicyFinding(leaf *x509.Certificate, delivered [][]byte, now time.Time) 
 	if len(embedded)+len(tls) == 0 {
 		return nil
 	}
+	if len(embedded) > 0 && issuer == nil {
+		return nil
+	}
 	for _, sct := range append(append([]SCT{}, embedded...), tls...) {
 		if sct.Log == nil {
 			return nil
 		}
 	}
+
+	// Only what verifies counts. A forged or corrupted SCT is not evidence of
+	// logging, and Chrome ignores it too.
+	invalid := 0
+	verified := func(scts []SCT, isEmbedded bool) []SCT {
+		var out []SCT
+		for _, sct := range scts {
+			if VerifySCT(sct, leaf, issuer, isEmbedded) != nil {
+				invalid++
+				continue
+			}
+			out = append(out, sct)
+		}
+		return out
+	}
+	embedded = verified(embedded, true)
+	tls = verified(tls, false)
 
 	need := 2
 	if leaf.NotAfter.Sub(leaf.NotBefore) > ctLongLifetime {
@@ -69,13 +94,23 @@ func CTPolicyFinding(leaf *x509.Certificate, delivered [][]byte, now time.Time) 
 		return nil
 	}
 
-	counted, operators := countEmbedded(embedded)
-	return &ConformanceFinding{
-		Problem: ProblemInsufficientSCTs,
-		Subject: displayName(leaf),
-		Detail: fmt.Sprintf("Chrome requires embedded SCTs from %d distinct logs run by at least two operators for a certificate of this lifetime, at least one from a log still accepting; this one has %d counting SCTs from %s, so Chrome rejects it; ask the CA to reissue it with enough SCTs",
-			need, counted, operatorList(operators)),
+	embeddedLogs, embeddedOps := countEmbedded(embedded)
+	detail := fmt.Sprintf("Chrome requires embedded SCTs from %d distinct logs run by at least two operators, at least one from a log still accepting, or two SCTs sent in the TLS handshake from distinct live logs and operators; this certificate has %d counting embedded (%s)",
+		need, embeddedLogs, operatorList(embeddedOps))
+	if len(delivered) > 0 {
+		tlsLogs, tlsOps := countDelivered(tls)
+		detail += fmt.Sprintf(" and %d counting from the handshake (%s)", tlsLogs, operatorList(tlsOps))
 	}
+	if invalid > 0 {
+		detail += fmt.Sprintf(", and %d SCTs whose signature does not verify", invalid)
+	}
+	detail += ", so Chrome rejects it; "
+	if len(delivered) > 0 {
+		detail += "have the server send enough SCTs, or ask the CA to reissue it with enough embedded"
+	} else {
+		detail += "ask the CA to reissue it with enough SCTs"
+	}
+	return &ConformanceFinding{Problem: ProblemInsufficientSCTs, Subject: displayName(leaf), Detail: detail}
 }
 
 func ctListStale(now time.Time) bool {
@@ -129,9 +164,9 @@ func embeddedMeetsPolicy(scts []SCT, need int) bool {
 	return live && logs >= need && len(operators) >= 2
 }
 
-// deliveredMeetsPolicy is the TLS path: two SCTs from distinct live logs and
-// operators, whatever the lifetime. Retired logs do not count here.
-func deliveredMeetsPolicy(scts []SCT) bool {
+// countDelivered counts the distinct live logs among TLS-delivered SCTs, and
+// their operators. Retired logs do not count on this path.
+func countDelivered(scts []SCT) (int, map[string]bool) {
 	logs := map[string]bool{}
 	operators := map[string]bool{}
 	for _, sct := range scts {
@@ -140,7 +175,14 @@ func deliveredMeetsPolicy(scts []SCT) bool {
 			operators[sct.Log.Operator] = true
 		}
 	}
-	return len(logs) >= 2 && len(operators) >= 2
+	return len(logs), operators
+}
+
+// deliveredMeetsPolicy is the TLS path: two SCTs from distinct live logs and
+// operators, whatever the lifetime.
+func deliveredMeetsPolicy(scts []SCT) bool {
+	logs, operators := countDelivered(scts)
+	return logs >= 2 && len(operators) >= 2
 }
 
 func operatorList(operators map[string]bool) string {

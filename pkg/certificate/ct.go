@@ -29,6 +29,8 @@ type CTLog struct {
 	State string `json:"state"`
 	// StateSince is when the log entered State, in RFC 3339.
 	StateSince string `json:"stateSince"`
+	// Key is the log's public key, base64 DER SubjectPublicKeyInfo.
+	Key string `json:"key"`
 }
 
 type ctLogBundle struct {
@@ -72,6 +74,14 @@ type SCT struct {
 	Log *CTLog
 	// Timestamp is when the log promised to include the certificate.
 	Timestamp time.Time
+
+	// What the signature covers and the signature itself, kept for
+	// VerifySCT. Listing an SCT does not need them.
+	timestampMS uint64
+	extensions  []byte
+	hashAlg     byte
+	sigAlg      byte
+	signature   []byte
 }
 
 // Name is the log's description, or its ID when the list does not know it.
@@ -136,8 +146,8 @@ func SCTs(cert *x509.Certificate) ([]SCT, error) {
 	return out, nil
 }
 
-// parseSCT reads the fields shown from one serialized SCT: version, log ID and
-// timestamp. The extensions and signature that follow are not needed.
+// parseSCT reads one serialized SCT (RFC 6962 section 3.2): version, log ID,
+// timestamp, extensions and the digitally-signed signature.
 func parseSCT(b []byte) (SCT, error) {
 	const header = 1 + 32 + 8
 	if len(b) < header {
@@ -148,7 +158,26 @@ func parseSCT(b []byte) (SCT, error) {
 	}
 	id := base64.StdEncoding.EncodeToString(b[1:33])
 	ms := binary.BigEndian.Uint64(b[33:41])
-	sct := SCT{LogID: id, Timestamp: time.UnixMilli(int64(ms)).UTC()}
+	extensions, rest, err := readOpaque16(b[header:])
+	if err != nil {
+		return SCT{}, errors.New("SCT extensions are truncated")
+	}
+	if len(rest) < 2 {
+		return SCT{}, errors.New("SCT signature is truncated")
+	}
+	signature, rest, err := readOpaque16(rest[2:])
+	if err != nil || len(rest) != 0 {
+		return SCT{}, errors.New("SCT signature length does not match its contents")
+	}
+	sct := SCT{
+		LogID:       id,
+		Timestamp:   time.UnixMilli(int64(ms)).UTC(),
+		timestampMS: ms,
+		extensions:  extensions,
+		hashAlg:     b[header+2+len(extensions)],
+		sigAlg:      b[header+2+len(extensions)+1],
+		signature:   signature,
+	}
 	if l, ok := ctLogsByID[id]; ok {
 		sct.Log = &l
 	}

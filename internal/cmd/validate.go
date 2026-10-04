@@ -332,7 +332,11 @@ func conformanceFindings(r targetResult) []certificate.ConformanceFinding {
 	if r.Source != nil && r.Source.Conn != nil {
 		delivered = r.Source.Conn.SCTs
 	}
-	if f := certificate.CTPolicyFinding(r.Report.Sorted[0], delivered, time.Now()); f != nil {
+	var issuer *x509.Certificate
+	if len(r.Report.Sorted) > 1 {
+		issuer = r.Report.Sorted[1]
+	}
+	if f := certificate.CTPolicyFinding(r.Report.Sorted[0], issuer, delivered, time.Now()); f != nil {
 		findings = append(findings, *f)
 	}
 	return findings
