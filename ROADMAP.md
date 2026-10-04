@@ -17,7 +17,7 @@ Current release: v1.8.0. Landscape last reviewed 2026-09-17.
 
 ## Next
 
-- **Go 1.27 floor, and name the post-quantum signatures.** Go 1.27 is out. Raise the floor, read `RawSignatureAlgorithm` so SLH-DSA is not printed as `0`, and drop the ML-DSA rows in `pqcAlgorithmNames` that Go now names itself. See the two items below.
+- **Certificate Transparency, offline.** Count SCTs and name their logs from a bundled log list. Do not depend on a live log API.
 
 ## Keeping up with X.509
 
@@ -25,11 +25,9 @@ A valid certificate must render completely. A malformed one is a finding.
 
 - **Revocation findings.** Stapled responses are judged under `revocation`, gated by `fail-on: revocation`. A missing OCSP pointer is never a finding; a missing AIA is; a missing CRL distribution point is only when the certificate is neither short-lived nor has an OCSP pointer. Any network check is CRL-only, opt-in and cached.
 - **Conformance findings.** Hand-rolled rather than zlint, which mostly checks a CA's obligations and predicts no client failure. `conformance` reports a SHA-1 or MD5 signature, RSA under 2048 bits and a CN-only server certificate, gated by `fail-on: conformance`.
-- **Name unknown signature algorithms.** Go prints `0` for SLH-DSA. Read `RawSignatureAlgorithm` (Go 1.27) and extend `pqcAlgorithmNames` beyond SLH-DSA-SHA2-128s/f to the other SLH-DSA parameter sets and composite ML-DSA.
-- **Go 1.27 floor.** Brings ML-DSA natively and makes the ML-DSA rows in `pqcAlgorithmNames` dead code. The bump touches go.mod, README, CONTRIBUTING, the landing page and the FreeBSD port.
+- **Post-quantum names.** The floor is Go 1.27, which decodes ML-DSA itself. A signature or key algorithm Go does not know is named from its OID (`RawSignatureAlgorithm`, the SPKI): all twelve SLH-DSA parameter sets, or `unknown (OID …)`. Composite ML-DSA waits for its OIDs to leave draft. The FreeBSD port needs `USES=go:1.27,modules` from the release that raised the floor.
 - **Large post-quantum certificates are normal.** An ML-DSA-87 signature is 4,627 bytes, SLH-DSA-256f 49,856. Private CAs issue them today.
 - **Extensions view.** The Misc tab and `chain[].extensions` list every extension by name or OID, with the critical bit, and name Must-Staple. `conformance` reports a served precertificate and any critical extension Go does not process, which covers a leaf's `acmeIdentifier`. `nameConstraints` or `policyConstraints` on a leaf is not reported: RFC 5280 forbids it, but no client is known to reject it.
-- **Certificate Transparency, offline.** Count SCTs and name their logs from a bundled log list. Do not depend on a live log API.
 - **International names.** Show punycode next to Unicode. Column width must use display width (`uniseg`), not rune count.
 - **No-expiry sentinel.** A `9999-12-31T23:59:59Z` `NotAfter` reads as "no expiry" in the TUI, `inventory` and `FormatValidity`, and as `noExpiry` in JSON, instead of a countdown that `time.Duration` saturated at 106,751 days.
 - **Watch.** Merkle Tree Certificates (experimental). TLS trust anchor identifiers (near approval) make serving different chains to different clients correct, so design for it now.

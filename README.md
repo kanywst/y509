@@ -19,7 +19,7 @@ brew install kanywst/tap/y509
 # FreeBSD
 pkg install y509
 
-# Go 1.26+
+# Go 1.27+
 go install github.com/kanywst/y509/cmd/y509@latest
 ```
 

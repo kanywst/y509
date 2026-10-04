@@ -528,7 +528,7 @@ func (m Model) renderTabContent(width int) string {
 	case "Misc":
 		kv("Serial", cert.Certificate.SerialNumber.String())
 		kv("SHA256", groupHex(certificate.FormatFingerprint(cert.Certificate)))
-		kv("Sig Algo", cert.Certificate.SignatureAlgorithm.String())
+		kv("Sig Algo", certificate.SignatureAlgorithmName(cert.Certificate))
 		kv("Version", fmt.Sprintf("v%d", cert.Certificate.Version))
 		kv("SKI", groupHex(fmt.Sprintf("%x", cert.Certificate.SubjectKeyId)))
 		kv("AKI", groupHex(fmt.Sprintf("%x", cert.Certificate.AuthorityKeyId)))

@@ -4,7 +4,7 @@ Bug reports and patches are welcome. For a suspected vulnerability, use the [sec
 
 ## Getting set up
 
-Go 1.26+ is the only prerequisite. `golangci-lint` and `govulncheck` are pinned as `tool` directives in `go.mod`, so there is nothing separate to install.
+Go 1.27+ is the only prerequisite. `golangci-lint` and `govulncheck` are pinned as `tool` directives in `go.mod`, so there is nothing separate to install.
 
 ```bash
 git clone https://github.com/kanywst/y509
