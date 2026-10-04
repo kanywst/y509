@@ -411,6 +411,10 @@ type JSONCertificate struct {
 	// with their logs named from the bundled CT log list. Not verified, and
 	// nothing is fetched. Always an array.
 	SCTs []JSONSCT `json:"scts"`
+	// SCTError is why the embedded SCT list could not be read in full, absent
+	// when it could. It keeps a damaged list from looking like no SCTs at all;
+	// SCTs still holds the ones read before the damage.
+	SCTError string `json:"sctError,omitempty"`
 	// KeyAlgorithm and SignatureAlgorithm name the crypto in use, so a script
 	// can flag a deprecated algorithm.
 	KeyAlgorithm       string `json:"keyAlgorithm"`
@@ -519,9 +523,10 @@ func newJSONCertificate(index int, cert *x509.Certificate, now time.Time) JSONCe
 		entry.IPAddresses = append(entry.IPAddresses, ip.String())
 	}
 	entry.SCTs = []JSONSCT{}
-	// An SCT list that does not parse keeps the ones read before the damage;
-	// the extension itself is still listed under extensions.
-	scts, _ := SCTs(cert)
+	scts, sctErr := SCTs(cert)
+	if sctErr != nil {
+		entry.SCTError = sctErr.Error()
+	}
 	for _, sct := range scts {
 		js := JSONSCT{LogID: sct.LogID, Timestamp: sct.Timestamp}
 		if sct.Log != nil {

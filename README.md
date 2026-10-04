@@ -191,7 +191,7 @@ y509 validate example.com:443 --json | jq .
 - `conformance` checks each certificate against rules clients enforce on their own, with its own `ok`. Present for files too.
   - `problem` is one of `weak signature` (SHA-1 or MD5, except a genuine SHA-1 self-signature, which no client checks), `weak key` (RSA under 2048 bits), `no SAN` (a server certificate with a common name but no DNS, IP or URI SAN), `precertificate` (a CT precertificate was served), `unhandled critical extension` (a critical extension Go does not process).
 - `chain[].noExpiry` is true for the RFC 5280 `9999-12-31` sentinel, a certificate with no well-defined expiration. `daysUntilExpiry` and `validityDays` still carry the real arithmetic, so read `noExpiry` before printing them.
-- `chain[].scts` lists the embedded SCTs as `{logId, log, operator, logState, timestamp}`, with logs named from a bundled copy of Google's CT log list (`make ct-logs` refreshes it). Nothing is verified or fetched. `log`, `operator` and `logState` are absent for a log the list does not know.
+- `chain[].scts` lists the embedded SCTs as `{logId, log, operator, logState, timestamp}`, with logs named from a bundled copy of Google's CT log list (`make ct-logs` refreshes it). Nothing is verified or fetched. `log`, `operator` and `logState` are absent for a log the list does not know. If the list is damaged, `sctError` says why and `scts` keeps what was read before the damage.
 - `chain[].extensions` lists every extension as `{oid, name, critical}`. `name` is absent for one y509 does not know.
 
 The exit code alone cannot tell `self-anchored` from `broken`, or say anything about how the chain was served. JSON can:

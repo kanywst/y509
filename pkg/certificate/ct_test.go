@@ -142,7 +142,14 @@ func TestJSONCertificateCarriesSCTs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(out), `"scts":[]`) {
-		t.Errorf("no SCTs must marshal as []: %s", out)
+	if !strings.Contains(string(out), `"scts":[]`) || strings.Contains(string(out), "sctError") {
+		t.Errorf("no SCTs must marshal as [] with no error: %s", out)
+	}
+
+	// A damaged list must not read as "no SCTs".
+	damaged := certWithSCTList(t, opaque16(opaque16([]byte{0, 1, 2})))
+	got := newJSONCertificate(0, damaged, time.Now())
+	if got.SCTError == "" || len(got.SCTs) != 0 {
+		t.Errorf("damaged list = %d SCTs, error %q; want an error", len(got.SCTs), got.SCTError)
 	}
 }
