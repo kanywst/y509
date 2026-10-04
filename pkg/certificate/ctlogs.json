@@ -7,917 +7,1064 @@
       "id": "+ZgQ1evkfhzxtCH/beNb+MHsluJeBNv8dW9r5FxlXMo=",
       "operator": "HARICA",
       "state": "pending",
-      "stateSince": "2026-09-09T18:30:00Z"
+      "stateSince": "2026-09-09T18:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhv69aIT5VqkDal/4d7ah2Wl7eTJxB5eDkPybJgLXuIwgPrxmVMocOPc7s0q1wX87wKWimGNUBf8HvarCUVuhPQ=="
     },
     {
       "id": "+mMSdJrcyBmVTj7zAR1CZ3aI1Ecc/vY1P4kdyHwSrNQ=",
-      "operator": "Sectigo"
+      "operator": "Sectigo",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtgd6K1O2eC+m8NHQwud/88kVUvRlY6R74OadAamS8203Y/EhLtX7clvh/VLbDD7Je+lbNe29R8WgTlT2E4Q0Ow=="
     },
     {
       "id": "/Cvx3M57P/mNzO4pdqi0IuiOCa6pt5mhesjSWzqR+MA=",
       "operator": "Sectigo",
       "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z"
+      "stateSince": "2026-09-12T17:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEffgZsTRT+6CoRLKvp2VwyZbkyvkf8HLcP6VirHDuMAvQ9jKleGpJ/XhA2ycs2DNcMyFnraw02UOVjqHVATKKBQ=="
     },
     {
       "id": "/cLoBbiE8/CzcwbEliJzk9OExUIiB/1Aj+4CBc6jVhY=",
       "description": "GoDaddy Aquamarine2027h1",
       "operator": "GoDaddy",
       "state": "qualified",
-      "stateSince": "2026-09-30T13:40:00Z"
+      "stateSince": "2026-09-30T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDMQ0K5rmCd7krvHQytXOSmsQqRcDZRnbo6brb2ctD4QKL+XQr0CGU47OfQ2q08zRtKRiXZ6SDGKKHamcpL9t+Q=="
     },
     {
       "id": "/jwyxS3R1tXbsRUdYe6iH5EhBfIZa1UNh/as89aPnFM=",
       "description": "GoDaddy Aquamarine2028h2",
       "operator": "GoDaddy",
       "state": "qualified",
-      "stateSince": "2026-09-30T13:40:00Z"
+      "stateSince": "2026-09-30T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOZA5sbbVjTlj60DpI6u9AKO/79QvNB7mIq/det2cLZnhV9N4pygpZ1rArRxzn80Y4ydFh+bKOqk7gWnrYfDuqA=="
     },
     {
       "id": "0J1XydPITy4G3x5te1QjepibtE1vlbKeTR/dmG3ySq4=",
       "operator": "TrustAsia",
       "state": "pending",
-      "stateSince": "2026-10-02T19:00:00Z"
+      "stateSince": "2026-10-02T19:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/fyzIWC9TdHeK/NixOIGN+ZyNMk6dHqKqjlbaGnUztxlzYH0bbH5AtnbwTO77NSMpVBCt6rY8geRiCr1tp6yyQ=="
     },
     {
       "id": "0UNvAl0dnyOdvMGLuf+ksRm5lU1hDIPr7KA1oVaWvYE=",
       "description": "Let's Encrypt 'Twig2027h2'",
-      "operator": "Let's Encrypt"
+      "operator": "Let's Encrypt",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEr7GDfmQg4jsIQ7XjMicNTYLHdQKbkjhchr4QoXVEGa5lpl4ob0ObW2sDxcvAFLDQThX76XPd+BVBU6lDscD0uQ=="
     },
     {
       "id": "0W6ppWgHfmY1oD83pd28A6U8QRIU1IgY9ekxsyPLlQQ=",
       "description": "Sectigo 'Elephant2026h1'",
       "operator": "Sectigo",
       "state": "rejected",
-      "stateSince": "2026-07-09T13:40:00Z"
+      "stateSince": "2026-07-09T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEU0lqnPHoXuU9Fc9dJv1HQZCvssJfvxLsirwVQ/fkFyUqeu4inwPKikeT4DGyyWWH4NR/DCJa2bAumHrXJdAcaQ=="
     },
     {
       "id": "0vxlL6X5tzi4N1X6XrFfC0UlP06Po7m2T9TeVmLRhwg=",
       "description": "Bogus RFC6962 log to avoid breaking misbehaving CT libraries",
       "operator": "IPng Networks",
       "state": "retired",
-      "stateSince": "2025-06-21T07:00:00Z"
+      "stateSince": "2025-06-21T07:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELzNWh+BsAk0HnEEE7Zk1bAhdH1SM5udo1+CTF6LGcL6AVVIXSuOF95/Wg0qLZV491QbrNRg06mM6KwEzDXXtqg=="
     },
     {
       "id": "1219ENGn9XfCx+lf1wC/+YLJM1pl4dCzAXMXwMjFaXc=",
       "description": "Google 'Argon2026h2' log",
       "operator": "Google",
       "state": "usable",
-      "stateSince": "2024-09-30T22:19:27Z"
+      "stateSince": "2024-09-30T22:19:27Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKjpni/66DIYrSlGK6Rf+e6F2c/28ZUvDJ79N81+gyimAESAyeNZ++TRgjHWg9TVQnKHTSU0T1TtqDupFnSQTIg=="
     },
     {
       "id": "1d5V7roItgyf/BjFE75qYLoARga8WVuWu0T2LMV9Ofo=",
       "description": "Geomys 'Tuscolo2027h2'",
       "operator": "Geomys",
       "state": "usable",
-      "stateSince": "2025-10-08T21:00:00Z"
+      "stateSince": "2025-10-08T21:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEIAz2gOD7wIptaiLTnmR4k7AQwp5kFmqmGHY/8JmMJxaSHyAipoFA/YSBCTX7ZowxIkSKpZYGlqLtdLVcLWDS5w=="
     },
     {
       "id": "1tWNqdAXU/NqSqDHV0kCr+vH3CzTjNn3ZMgMiRkenwI=",
       "description": "Google 'Argon2027h1'",
       "operator": "Google",
       "state": "usable",
-      "stateSince": "2025-12-28T00:30:00Z"
+      "stateSince": "2025-12-28T00:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKHRm0H/zUaFA6Idz5cGvGO3tCPQyfGMgJmVBOPyKAP6mGM1IiNXi4CLomOUyYj0YN74p+eGVApFMsM4h/jzCsA=="
     },
     {
       "id": "2AlVO5RPev/IFhlvlE+Fq7D4/F6HVSYPFdEucrtFSxQ=",
       "description": "Google 'Xenon2026h2' log",
       "operator": "Google",
       "state": "usable",
-      "stateSince": "2024-09-30T22:19:27Z"
+      "stateSince": "2024-09-30T22:19:27Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5Xd4lXEos5XJpcx6TOgyA5Z7/C4duaTbQ6C9aXL5Rbqaw+mW1XDnDX7JlRUninIwZYZDU9wRRBhJmCVopzwFvw=="
     },
     {
       "id": "2iKjSO8buzFuV+ARSkqcdAe1DxOmJTk9JtLe4joj4hY=",
       "description": "Microsec Eszigno2028h2",
       "operator": "Microsec",
       "state": "qualified",
-      "stateSince": "2026-09-22T13:45:00Z"
+      "stateSince": "2026-09-22T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEFNithqA5EW7rjf1HswV8jLvzqWZeA4kM4UMvR8PMrOtY6izw7fO159pjewHRu36fEsbcjUf/q2ujFbnpJavWaQ=="
     },
     {
       "id": "2nxn6X3UVyCdoBFZkSX0qARqTVyzjEwJouYV0iD6Nvo=",
       "description": "IPng Networks Lipase2028h2",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4jCaz3K7lexB3bSze73pg+l3QMoXdLwLaBa33hKv5aTb0FtIdLGIZNgUgfTi4JWgZyRRDyFtis4zomgACAjF5g=="
     },
     {
       "id": "2tZHUVKWGUn6T3McZw6F5eS3TgaIGWBT8Rha1ySUGtM=",
       "description": "Geomys Navigli2027h1",
-      "operator": "Geomys"
+      "operator": "Geomys",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhBvjicdGxE1X4PDDFXT08IUoMvHZ8716jPiw0F5xG+4Q7SO3La7uDlEeEzkek0ZlqAfKcrBg/Zp2noofn5/jAw=="
     },
     {
       "id": "4yON8o2iiOCq4Kzw+pDJhfC2v/XSpSewAfwcRFjEtug=",
       "description": "Let's Encrypt 'Willow2026h1'",
       "operator": "Let's Encrypt",
       "state": "rejected",
-      "stateSince": "2026-06-25T13:40:00Z"
+      "stateSince": "2026-06-25T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtpFyulwgy1+u+wYQ37lbV+HsPFNYoi4sy6dZP662N/Z/usdNi4+Q3RLES1RY2PNk7zL/7VPSn3JERMPu/s4e4A=="
     },
     {
       "id": "5eNiR9ku9K2jhYO1NZHbcp/C8ArktnRRdNPd/GqiU4g=",
       "description": "Let's Encrypt 'Sycamore2027h2'",
       "operator": "Let's Encrypt",
       "state": "usable",
-      "stateSince": "2025-11-27T03:00:00Z"
+      "stateSince": "2025-11-27T03:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEK+2zy2UWRMIyC2jU46+rj8UsyMjLsQIr1Y/6ClbdpWGthUb8y3Maf4zfAZTWW+AH9wAWPLRL5vmtz7Zkh2f2nA=="
     },
     {
       "id": "6+a9C+qJOkTtPzg+2/4QzZnxhphufXsmsBqEMk57934=",
       "description": "IPng Networks Halloumi2028h1",
       "operator": "IPng Networks",
       "state": "qualified",
-      "stateSince": "2026-09-09T13:45:00Z"
+      "stateSince": "2026-09-09T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQVDEFJcCWS8jtF8M3uMfghI3wMo6VwH2Cpf/9P1x9/sv7aV8WSnrw7pq0EW1njmLo/6FBoCWHLpqoGKmBZKDVg=="
     },
     {
       "id": "6jAGlJ1CunsD2FCB4yYsua5xil5vUDT3ePE4BU6CdFw=",
       "description": "GoDaddy Aquamarine2026h2",
       "operator": "GoDaddy",
       "state": "qualified",
-      "stateSince": "2026-09-30T13:40:00Z"
+      "stateSince": "2026-09-30T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMTyKhqKtqQBhdnxqQIiyXSX4/Zm4ejW8LrvCxxXLJ8UrchT0A7ZeXnc8vZEVV5oeelR0wOKLtDPLDh6nshBHcw=="
     },
     {
       "id": "7PBUNaSTKW0Kvz7J0JbyGycBLEcaHoPngTZnpglSvqY=",
       "description": "Google 'CoachAndHorses2027h2' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc3Si5lBbzwec+dc+rf1kzMt6SmTjlzEXJe0YH7tbHCKhOiggbxL/q/Hime2H/FxjcBspBQCwAv0ocWJMA6ghyA=="
     },
     {
       "id": "7drrgVxjITRJtHvlB3kFq9DZMUfCesUUazvFjkPptsc=",
       "description": "TrustAsia 'HETU2027'",
       "operator": "TrustAsia",
       "state": "usable",
-      "stateSince": "2025-12-28T00:30:00Z"
+      "stateSince": "2025-12-28T00:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE14jG8D9suqIVWPtTNOL33uXKZ4mUnnOMrIwOWeZU7GtoDRCWIXfy/9/SC8lTAbtP2NOP4wjIufAk6f64sY4DWg=="
     },
     {
       "id": "8LDBho1KJqIqj/7ghUOplCvvi7u69tYBqyHdvnFJ/68=",
       "description": "GoDaddy Aquamarine2027h2",
       "operator": "GoDaddy",
       "state": "qualified",
-      "stateSince": "2026-09-30T13:40:00Z"
+      "stateSince": "2026-09-30T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQ54z+CumfMd4Ts18GjnllfUZoCjFFYQUGAeQ1KkuX7eNdxNEPyjXJrMaqRr5F6lYtT6XFkAohz/fkguaIhU51w=="
     },
     {
       "id": "93DB4t7xgrZN1YvmEPBzobPLmvUmpb4ZD9xm8+8ZyfM=",
       "description": "Geomys Navigli2028h2",
-      "operator": "Geomys"
+      "operator": "Geomys",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEH+NdiIi/aITbPgiLHMxczExSuy6DDUE1SNkvEa8xD3FI5fSgLV7s0qCXgww9SH0VoHbN1P8UwTurkK0hEDnyxQ=="
     },
     {
       "id": "A18eYQnn44YBqbhkHlfl9aePeIcnUy/PQlPx68mqDzk=",
       "description": "Geomys Tuscolo2028h2",
       "operator": "Geomys",
       "state": "qualified",
-      "stateSince": "2026-09-09T13:45:00Z"
+      "stateSince": "2026-09-09T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEFvXbrz+N3iRcf4pomNlyVokxas/fGQu1DqxIbZ9M34w9W98lDao2v6qV7mRDDDcoh2kSfyAe6GxLuBMrmRPEMg=="
     },
     {
       "id": "A4AqwmL24F4D+Lxve5hRMk/Xaj31t1lRdeIi+46b1fY=",
       "description": "Sectigo 'Tiger2027h2'",
       "operator": "Sectigo",
       "state": "usable",
-      "stateSince": "2025-09-18T23:00:00Z"
+      "stateSince": "2025-09-18T23:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEb0AgkemhsPmYe1goCSy5ncf2lG9vtK6f+SzODKJMYEgPOT+z93cUEKM1EaTuo09rozfdqhjeihIl25y9A3JhyQ=="
     },
     {
       "id": "ABpdGhwtk3W2SFV4+C9xoa5u7zl9KXyK4xV7yt7hoB4=",
       "description": "DigiCert 'Wyvern2027h1'",
       "operator": "DigiCert",
       "state": "usable",
-      "stateSince": "2025-12-20T18:00:00Z"
+      "stateSince": "2025-12-20T18:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEastxYj1mntGuyv74k4f+yaIx+ZEzlSJ+iVTYWlw8SpSKJ4TfxYWuBhnETlhpyG/5seJn0mOSnVgXsZ1JRflI7g=="
     },
     {
       "id": "ALNWz93lJLRlXUxjZTxSUMQ04goEhRA5uv1kzlyFq2s=",
       "description": "IPng Networks Halloumi2028h2",
       "operator": "IPng Networks",
       "state": "qualified",
-      "stateSince": "2026-09-09T13:45:00Z"
+      "stateSince": "2026-09-09T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEZvv84G/hcMbLeIokkLkT0JPzRkdV5VvAXpWGYJGwwETCO447iGSZScyW0ROuNbvsotXYjs02ADpW+6OTD0hXg=="
     },
     {
       "id": "ANXCUqZpzf6O0sgXpi5M/O2SyHSR7pccmv3bUoh4hag=",
       "description": "IPng Networks Gouda2028h2",
       "operator": "IPng Networks",
       "state": "qualified",
-      "stateSince": "2026-09-09T13:45:00Z"
+      "stateSince": "2026-09-09T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENtjPyH/uZmZuu4RQSJU0p+unP9ZZKv/Z4MLpQhdbiFGgUBIgBr6urLPCIzSFZuM4HhgnnwiI4aS7Wpi0kMEoNw=="
     },
     {
       "id": "CRV/Yy1Gx/dtlSZUk7wPALOVrF2zorJr+wQ9ukrGOJM=",
       "description": "IPng Networks 'Halloumi2027h2'",
       "operator": "IPng Networks",
       "state": "usable",
-      "stateSince": "2025-12-17T18:30:00Z"
+      "stateSince": "2025-12-17T18:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErmKbFkPG7QfQUARhbIik8vVbIkXhK+YMB6TvLZkyhnzv7wedn+l7VChqovZHKOQXmZEd4B+3ljovIpQz2HmyHA=="
     },
     {
       "id": "DleUvPOuqT4zGyyZB7P3kN+bwj1xMiXdIaklrGHFTiE=",
       "description": "Google 'Argon2026h1' log",
       "operator": "Google",
       "state": "rejected",
-      "stateSince": "2026-07-09T13:40:00Z"
+      "stateSince": "2026-07-09T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEB/we6GOO/xwxivy4HhkrYFAAPo6e2nc346Wo2o2U+GvoPWSPJz91s/xrEvA3Bk9kWHUUXVZS5morFEzsgdHqPg=="
     },
     {
       "id": "EgXQJVrBiTyuVBBwPE8Sc/yXAOErWEp/gGrcVVWAwLE=",
       "description": "IPng Networks Gouda2028h1",
       "operator": "IPng Networks",
       "state": "qualified",
-      "stateSince": "2026-09-09T13:45:00Z"
+      "stateSince": "2026-09-09T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5mgCmJbPo4B+gxJf8U94HykKo0cBsGsqnSu/ycQ61WGS6b/XL2StiN28YF8/8I4GmLQBDUkz1sTOG4syBcKYMw=="
     },
     {
       "id": "F23RQr8KrLyBjUUTu9zDCtteWTJiU5KLmtfLdg/247k=",
       "description": "Geomys Trastevere2027h1",
       "operator": "Geomys",
       "state": "qualified",
-      "stateSince": "2026-09-09T13:45:00Z"
+      "stateSince": "2026-09-09T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcGYiRUG5f1qpqGWsFjfXZZT5NqkWVUJdtRSsWyhKOXXryyIIlfsUtKhmqJSPJhkxS9U1hgPQZ5dzXDA5x/5pYA=="
     },
     {
       "id": "FoMtq/CpJQ8P8DqlRf/Iv8gj0IdL9gQpJ/jnHzMT9fo=",
       "description": "Sectigo 'Tiger2026h1'",
       "operator": "Sectigo",
       "state": "rejected",
-      "stateSince": "2026-07-09T13:40:00Z"
+      "stateSince": "2026-07-09T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE73eDJyszDbzsWcgI0nbtU0+y11gQWjNjS/RSO5P4hOSFE+pPrDCtfNPHe6dq7/XQYwOFt9Feb8TwQW+mqXN5xg=="
     },
     {
       "id": "G3i5n/pJwlzEUFl1q/10eRTf3fp7/dOdKjW5WQStPog=",
       "operator": "Let's Encrypt",
       "state": "pending",
-      "stateSince": "2026-09-12T15:00:00Z"
+      "stateSince": "2026-09-12T15:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEaQnfbBFBTK5HQP/VclILJBM+XaMfpGxuel793+IkpNv2DmHR55rR1t61qHp7DOvQq5gciEnkbTsWYPW9nii66g=="
     },
     {
       "id": "GYbUxyiqb/66A294Kk0BkarOLXIxD67OXXBBLSVMx9Q=",
       "description": "Let's Encrypt 'Oak2026h1'",
       "operator": "Let's Encrypt",
       "state": "rejected",
-      "stateSince": "2026-07-27T13:40:00Z"
+      "stateSince": "2026-07-27T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmdRhcCL6d5MNs8eAliJRvyV5sQFC6UF7iwzHsmVaifT64gJG1IrHzBAHESdFSJAjQN56TYky+9cK616MovH2SQ=="
     },
     {
       "id": "GZ9TRtShpGoaPdygptJx/Taqms3LslRJmOM+dVHZi8k=",
       "operator": "HARICA",
       "state": "pending",
-      "stateSince": "2026-09-09T18:30:00Z"
+      "stateSince": "2026-09-09T18:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGJlHidjMrZ5jsmI9rU6INoPHv7FJ6NxlueXO8+p3e7EcTRj6uR2r2tjVKZyMdFM7zPT3QjPgi4jgM/fwtr5DKw=="
     },
     {
       "id": "Gouda43XkdHNBUnttgNV1ga2T60w23H+eI8Px8j7xLE=",
       "description": "IPng Networks 'Gouda2027h1'",
       "operator": "IPng Networks",
       "state": "usable",
-      "stateSince": "2025-11-27T03:00:00Z"
+      "stateSince": "2025-11-27T03:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOh11B2aRT9BiTqo+6kvQ7cSGf819Ait+jGc6AuHlGUXxWCX1YCQ9OFNnr6MUKStyw4sVin5FCvtbke1mctl3gQ=="
     },
     {
       "id": "GoudaUpXmMiZoMqIvfSPwLRWYMzDYA0fcfRp/8fRrKM=",
       "description": "IPng Networks 'Gouda2026h1'",
       "operator": "IPng Networks",
       "state": "rejected",
-      "stateSince": "2026-07-09T13:40:00Z"
+      "stateSince": "2026-07-09T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAER6wvqVwhf5isuCtwSfNjTOrqwZg0vZuIMP7xk8fPmJfaFZCte1ptQiqNhRMCtqIgJvDcJyjkGVI8i44vxL877A=="
     },
     {
       "id": "GoudaVNi2GSSp7niI2BuNOzp4xC6NPuTBXhdKc5XV+s=",
       "description": "IPng Networks 'Gouda2027h2'",
       "operator": "IPng Networks",
       "state": "usable",
-      "stateSince": "2025-11-27T03:00:00Z"
+      "stateSince": "2025-11-27T03:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPuxPH20sSqUzHGllZceceFvyoSffwBWgX4LKd8wk3A3ayZuwwh2pDuEOsimMxLXFh0IUYz73a9I7kxkUqM+N8w=="
     },
     {
       "id": "Goudaw/+v4G0eTnG0jEKhtbRAtTwRuIYLJ3jX14mJe8=",
       "description": "IPng Networks 'Gouda2026h2'",
       "operator": "IPng Networks",
       "state": "usable",
-      "stateSince": "2025-11-27T03:00:00Z"
+      "stateSince": "2025-11-27T03:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjayczmhUMNftWy6VjvYXcTUEpvL8LIAKcYcxrxx5xxQGZEVvhnZeCnXVlsMWhq1h9J55eZfQWM/dqIr6GmoN9Q=="
     },
     {
       "id": "GrnppF/Ct4QLH+fciv7lRpXau5p8I9NfpTclu4k6md0=",
       "description": "Microsec Eszigno2027h2",
       "operator": "Microsec",
       "state": "qualified",
-      "stateSince": "2026-09-22T13:45:00Z"
+      "stateSince": "2026-09-22T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/XDM4otADNamGuQ1qjcAy+VMdPw75EQtjCEZTBnmJy5QhzHpPReQjYGrLhKuWGXlQJ2AxeVl6/0vm/aRcpsBlg=="
     },
     {
       "id": "GzfGp/3fuQOhKYceQv77lq/tuLv+1CcQfWOvgK8NXiA=",
       "description": "Geomys Loreto2028h2",
-      "operator": "Geomys"
+      "operator": "Geomys",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEO7Eab1Wrna/09SfplminqQMr8Ar6OFB+vDqJMhLTyd43Alg0bKwqofQJRm/Ue9efX+9HvBcL0CTiMSmJwWj6Uw=="
     },
     {
       "id": "H1bRq5RwSkHdP+r99GmTVTAsFDG/5hNGCJ//rnldzC8=",
       "description": "Sectigo 'Sabre2026h2'",
       "operator": "Sectigo",
       "state": "readonly",
-      "stateSince": "2025-09-18T17:20:00Z"
+      "stateSince": "2025-09-18T17:20:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzjXK7DkHgtp3J4bk8n7F3Djym6mrjKfA7YMePmobwPCVVroyM0x1fAkH6eE+ZTVj8Em+ctGqna99CMS0jVk9cw=="
     },
     {
       "id": "H7D4qS2K3aEhd2wF4qouFbrLxitlOTaVV2qqtS4R0R0=",
       "description": "DigiCert 'sphinx2027h2'",
       "operator": "DigiCert",
       "state": "usable",
-      "stateSince": "2025-12-20T18:00:00Z"
+      "stateSince": "2025-12-20T18:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEUCe23M889mAsUVeTTBcNsAmP374ZWQboLdR8RdGwM3VZ6P/sDwhrL7wK4zrXPh3HwLDDLxDjvRBeivUSbpZSwA=="
     },
     {
       "id": "HIl0B+YBCgEpO7Z439ejaM6xjMpSHcyk04bkoy5bXQQ=",
       "description": "Google 'ParcelYard2027h1' log",
       "operator": "Google",
       "state": "usable",
-      "stateSince": "2026-08-31T13:50:00Z"
+      "stateSince": "2026-08-31T13:50:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEX7i7gYwmBxpiLXAlM/VLk4BFzspJRmZA86iReO7NVRlwGL1KWb/Dv5DRXJNBZd+9uREkNUTee5yBy2dRdRGa0w=="
     },
     {
       "id": "HJ9oLOn68EVpUPgbloqH3dsyENhM5siy44JSSsTPWZ8=",
       "description": "Sectigo 'Tiger2027h1'",
       "operator": "Sectigo",
       "state": "usable",
-      "stateSince": "2025-09-18T23:00:00Z"
+      "stateSince": "2025-09-18T23:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmMQofpsDjCVYzF4jXdFWM/ioYBJIPcsQQrNAHE6v4lOsADoI+/jN1lph8x4K3NgnXDXwmyJcFwRYgVOBMhaYhA=="
     },
     {
       "id": "HQJLjrFJizRN/YfqPvwJlvdQbyNdHUlwYaR3PEOcJfs=",
       "description": "Google 'Daedalus' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbgwcuu4rakGFYB17fqsILPwMCqUIsz7VcCTRbR0ttrfzizbcI02VYxK75IaNzOnR7qFAot8LowYKMMqNrKQpVg=="
     },
     {
       "id": "IPBfqqOkkvxqwUjMM6ICNhhrSfqpfmuzkk+yXsNrHDU=",
       "description": "Google 'PlumbersArms2026h2' log",
       "operator": "Google",
       "state": "usable",
-      "stateSince": "2026-08-31T13:50:00Z"
+      "stateSince": "2026-08-31T13:50:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAERcKG6mGyrCTtzkWBNT51LFFsM1lZ3ZPSIoXgVilDtnY0dyhwKSX7jomkXvdyqWr8DOP3HA6I6kzmREX5wpUvug=="
     },
     {
       "id": "IPng7N+kfJEgOWLvg8kCWPeQbZ03SYvh/9hJVBcyCyA=",
       "description": "IPng Networks 'Rennet2026h1'",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjjELwgGMea6d7YAOP1h1Q3z5IGFOFV/kmbT0qdRgMbhQCYZdDU/fObbHf7dPEGjlg/XbBCnmHJKJySK85tzC2w=="
     },
     {
       "id": "IPngONeE+PfIWiV4c8W5xL8kvQJlq9F3lPXT32yFW6s=",
       "description": "IPng Networks 'Rennet2027h2'",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEi6aOJ3BVylIR4qc3UHBMON1VrUUTJSx2RrLUAf8Fo3/KImSvQuEZKrQSanLqsvvox8ExlLK5mPetb8JCS/0TYA=="
     },
     {
       "id": "IPngiezr0NlfrYnreI+2QK/E2J+7QNyCETQxnDW/CNo=",
       "description": "IPng Networks 'Rennet2026h2'",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDjJrRh/NjSFYybFPOmilmqVHySfQ4a8ctJKYhWDuRLBLNLwy2PXxqVWwQStfjHXv0JofEAC00Xfrbd4aVz/7Bw=="
     },
     {
       "id": "IPngmrbD1ZzKxMv9sDFnjmgsvhhIV4z/L8d05K0vULE=",
       "description": "IPng Networks 'Rennet2027h1'",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErtwy8ljIL7OS99Fq0QMnXkep69geGFwjlex7/Wrii2cT+SCFl7Nw8JIAZTp24a5+RDrfoETMtUrkELVgmVeCVA=="
     },
     {
       "id": "Ida8pGWG3oR5BIvzeNP2lqX0zFFs73zy2H/15xN0Ht0=",
       "description": "Google 'CoachAndHorses2026h1' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECHOhXfvYgTcu+Fnl7M7niFj3FgqWlQpXUSWUDw2KAaJXvhGxdJTtmyciN5rWTiDtpeNENVmsUTHFS4XQgeRE0g=="
     },
     {
       "id": "J+sqNJffaHpkC2Q4TkhW/Nyj6H+NzWbzTtbxvkKB7fw=",
       "description": "Google 'Arche2026h1' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ+3YKoZTMruov4cmlImbk4MckBNzEdCyMuHlwGgJ8BUrzFLlR5U0619xDDXIXespkpBgCNVQAkhMTTXakM6KMg=="
     },
     {
       "id": "JKaah8LdWC3VArJRfww4J/MLTqhKJBO1U+b78YzxX+8=",
       "description": "Geomys Navigli2026h2",
-      "operator": "Geomys"
+      "operator": "Geomys",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE35uLGxEy/DbYDRg6/078qvcc2D0GyS8Iu8xG1CU8Ab133mXVcYtUJL5XlKP8768znap35cwzLbQUgYsmBIOs3Q=="
     },
     {
       "id": "JS+Uwisp6W6fQRpyBytpXFtS/5epDSVAu/zcUexN7gs=",
       "description": "Sectigo 'Mammoth2026h1'",
       "operator": "Sectigo",
       "state": "rejected",
-      "stateSince": "2026-07-09T13:40:00Z"
+      "stateSince": "2026-07-09T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEnssMilHMiuILzoXmr00x2xtqTP2weWuZl8Bd+25FUB1iqsafm2sFPaKrK12Im1Ao4p5YpaX6+eP6FSXjFBMyxA=="
     },
     {
       "id": "Jbfv3qETAZPtkweXcKoyKiZiDeNayKp8dRl94LGp4GU=",
       "description": "TrustAsia 'log2026b'",
       "operator": "TrustAsia",
       "state": "usable",
-      "stateSince": "2024-09-20T00:00:00Z"
+      "stateSince": "2024-09-20T00:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDxKMqebj7GLu31jIUOYmcHYQtwQ5s6f4THM7wzhaEgBM4NoOFopFMgoxqiLHnX0FU8eelOqbV0a/T6R++9/6hQ=="
     },
     {
       "id": "JuNkblhpISO8ND9HJDWbN5LNJFqI2BXTkzP9mRirRyM=",
       "description": "IPng Networks 'Halloumi2026h2a'",
       "operator": "IPng Networks",
       "state": "usable",
-      "stateSince": "2026-01-01T07:30:00Z"
+      "stateSince": "2026-01-01T07:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEiGh4zMsdukTgrdk9iPIwz9OfU9TQVi4Mxufpmnlrzv3ivJcxVhrST4XQSeQoF5LlFVIU6PL4IzrYl12BUWn9rQ=="
     },
     {
       "id": "KNPGjqGDY293g5DLHjiKzpOgTpFpnQdXNunGFtEf4Gc=",
       "description": "Microsec Eszigno2026h2",
       "operator": "Microsec",
       "state": "qualified",
-      "stateSince": "2026-09-22T13:45:00Z"
+      "stateSince": "2026-09-22T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvBcE01QW9mpuRViHPCs6zNADkGj+nIM9hHSdqBlWPNIOZDr9Zb9hhUTB/9W5eqRlfynSmrnl1AKTPF836w3J6g=="
     },
     {
       "id": "LtakTeuPDIZGZ3acTt0EH4QjZ1X6OqymNNCTXfzVmnA=",
       "description": "Bogus placeholder log to unbreak misbehaving CT libraries",
       "operator": "Geomys",
       "state": "retired",
-      "stateSince": "2025-06-21T07:00:00Z"
+      "stateSince": "2025-06-21T07:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEj4lCAxWCY6SzIthkqZhwiUVzcK62i6Fc+/YS0WHaN6jjO1ITUFuu8beOiU9PdeNmdalZcC3iWovAfApvXS33Nw=="
     },
     {
       "id": "M3qex8rmqQSLdS8tk65+SyqQLSG0lxKdg+J5x1PJL4w=",
       "description": "Google 'PlumbersArms2027h2' log",
       "operator": "Google",
       "state": "usable",
-      "stateSince": "2026-08-31T13:50:00Z"
+      "stateSince": "2026-08-31T13:50:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEHCu5hooSXlk8FAiSkoWiZJ5G9GzCiJhj3eoJ9p3F3ZzV2QgcgxWWI9f75vnFgygju+baK11dsf3bXHAo/+TL/Q=="
     },
     {
       "id": "MIQn6dbJsGQ5/rsS4QFNbqJ2NlTgQ19Z48RWY2ZbuOo=",
       "description": "Let's Encrypt 'Twig2027h1'",
-      "operator": "Let's Encrypt"
+      "operator": "Let's Encrypt",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGHGl4ihlmfbfwJyONqNpBaLsRNnInohynCns6HTZeWRGZ3WLGA8VhbUJhlY2oAHH93mtoU+Pvtj/3MD4OqEJ5w=="
     },
     {
       "id": "Mk28xZLuH+bg6aYx4WURJaunVGze9l0TxxGtWhs4aqk=",
       "operator": "Sectigo",
       "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z"
+      "stateSince": "2026-09-12T17:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE91RAoG4RS78L2dnlvN9uR7kSdPglMOYAR1Bwbh7p5Dv2yehL3OF/EiSyHCU9SaP846hR7XMNSYMIO4uYCloGgQ=="
     },
     {
       "id": "N6oHzCFvLm2RnHCdJNj3MbAPKxR8YhzAkaX6GoTYFt0=",
       "description": "DigiCert 'Wyvern2027h2'",
       "operator": "DigiCert",
       "state": "usable",
-      "stateSince": "2025-12-20T18:00:00Z"
+      "stateSince": "2025-12-20T18:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEuOg8hcgaYT/MShxpag2Hige0zsLzz8vOLZXp6faCdzM+Mn/njyU9ROAuwDxuu88/Grxn46kmehdOKVDFexbdSg=="
     },
     {
       "id": "Nh2PNG9+2gYj4hlfNqqVGKiHKCEzvpzppruUJGPrTaY=",
       "description": "GoDaddy Aquamarine2028h1",
       "operator": "GoDaddy",
       "state": "qualified",
-      "stateSince": "2026-09-30T13:40:00Z"
+      "stateSince": "2026-09-30T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELFHjZjQhWW0TDbKFi9smkN42jZIkWW94f0tCpbJkxYLqKeZGxWr9xHl/BMDvqSseBwOrkXUOnXkzenI7tJli+Q=="
     },
     {
       "id": "PeSSqJiTrXBeeEbtIdSNyvutE56mTtHjSfkAsKLNpeI=",
       "description": "Google 'Solera2027h1' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKLDCw61qHAIp9mt8+QBx92gqIAhp3QhqS6h+bogJAe/FwaCSxMyb2H5xAO2SArXJnzm5vdBGifOcS5SXRZMP9Q=="
     },
     {
       "id": "RMK9DOkUDmSlyUoBkwpaobs1lw4A7hEWiWgqHETXtWY=",
       "description": "Google 'Xenon2027h1'",
       "operator": "Google",
       "state": "usable",
-      "stateSince": "2025-12-28T00:30:00Z"
+      "stateSince": "2025-12-28T00:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/6WcA4VRSljIfTdY48+pFRLLtLrmTb88cGDdl8Gv3E2LduG4jgJ3AK5iNMFGhpbRRLi5B3rPlBaXVywuR5IFDg=="
     },
     {
       "id": "ROgi/CurDpLu0On61pZkYCd20Bdg4IkFCckjobA/w38=",
       "description": "IPng Networks 'Halloumi2027h1'",
       "operator": "IPng Networks",
       "state": "usable",
-      "stateSince": "2025-12-17T18:30:00Z"
+      "stateSince": "2025-12-17T18:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEw5SUl2yfd5TFSqUGv7A+I5+TpLe+zEccmtWVQakQQtOHYKqH8TbycalFx5xaqE5PU4NEwwnAJ9FWeT/6QaovZw=="
     },
     {
       "id": "Rq+GPTs+5Z+ld96oJF02sNntIqIj9GF3QSKUUu6VUF8=",
       "description": "Geomys 'Tuscolo2026h2'",
       "operator": "Geomys",
       "state": "usable",
-      "stateSince": "2025-08-31T07:00:00Z"
+      "stateSince": "2025-08-31T07:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEaA6P0i7JTsd9XfzF1/76avRWA3XXI4NStsFO/aFtBp6SY7olDEMiPSFSxGzFQjKA1r9vgG/oFQwurlWMy9FQNw=="
     },
     {
       "id": "RqI5Z8YNtkaHxm89+ZmUdpOmphEghFfVVefj0KHZtkY=",
       "description": "DigiCert 'sphinx2027h1'",
       "operator": "DigiCert",
       "state": "usable",
-      "stateSince": "2025-12-20T18:00:00Z"
+      "stateSince": "2025-12-20T18:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvirIq1XPwgwG7BnbMh2zoUbEt+T8z8XAtg9lo8jma+aaTQl8iVCypUFXtLpt4/SHaoUzbvcjDX/6B1IbL3OoIQ=="
     },
     {
       "id": "SGuYP1B0Yz0uwvx1b+RG84ybuU+PCLpdtIb+PWTYUXk=",
-      "operator": "Let's Encrypt"
+      "operator": "Let's Encrypt",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOETgISLbYZr6JXUIQwca5xUC/RHNbf2p16YfsBnJasnFWQ1K8E6hWm/SXdpqTSn04gpihiRcPwxruGrRrPo9EA=="
     },
     {
       "id": "SZybad4dfOz8Nt7Nh2SmuFuvCoeAGdFVUvvp6ynd+MM=",
       "description": "DigiCert 'Sphinx2026h1'",
       "operator": "DigiCert",
       "state": "rejected",
-      "stateSince": "2026-07-09T13:40:00Z"
+      "stateSince": "2026-07-09T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEq4S++DyHokIlmmacritS51r5IRsZA6UH4kYLH4pefGyu/xl3huh7/O5rNk/yvMOeBQKaCAG1SSM1xNNQK1Hp9A=="
     },
     {
       "id": "TGPcmOWcHauI9h6KPd6uj6tEozd7X5uUw/uhnPzBviY=",
       "description": "Cloudflare 'Nimbus2027'",
       "operator": "Cloudflare",
       "state": "usable",
-      "stateSince": "2025-11-15T00:00:00Z"
+      "stateSince": "2025-11-15T00:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYjd/jE0EoAhNBbfcNhrTb7F0x10KZK8r2SDjx1GdjJ75hJrHx2OCQ+BXRjXi+czoREN1u0j9cWl8d6OoPMPogQ=="
     },
     {
       "id": "TK5t0Fot3KD8SwUWYDUwEITH/9ksbzAfpQ3h06QaiLo=",
-      "operator": "Let's Encrypt"
+      "operator": "Let's Encrypt",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPHuxhH0LSfU5ildQkc3Ble56eJKWm3Y/q0n4Ou3UiayUv911PVK2r/s+hqX1IhuMoCa7hlttsbS12rBkre4ZYA=="
     },
     {
       "id": "TefD7+U3ZpoMsB44OPqv3PCMmoBWM55wK1iVm9FxiS4=",
       "description": "Geomys Tuscolo2028h1",
       "operator": "Geomys",
       "state": "qualified",
-      "stateSince": "2026-09-09T13:45:00Z"
+      "stateSince": "2026-09-09T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEoCrY9Jw/QWI36H+7Y8UlXfNOxk2Atg3H3nXSqLKz52sV4RV9ERRq/IjD4uSP/k5xCT+4nHCjAL8kRjGUeslejw=="
     },
     {
       "id": "V+RgJ5TwE01vJbkN3nyKr9cuefY8ogzD9dFPs4lFv1U=",
       "operator": "Sectigo",
       "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z"
+      "stateSince": "2026-09-12T17:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEn+NsNAQqvjgRLZOhS78P8JsdDwMXsASG3ZO1gqeH3dAu7MojoOV4gEZVnFtfO4KPc8pw632rpKsi2edP6rtjxg=="
     },
     {
       "id": "VmzVo3a+g9/jQrZ1xJwjJJinabrDgsurSaOHfZqzLQE=",
       "description": "Sectigo 'Sabre2026h1'",
       "operator": "Sectigo",
       "state": "rejected",
-      "stateSince": "2026-07-09T13:40:00Z"
+      "stateSince": "2026-07-09T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhCa8Nr3YjTyHnuAQr82U2de5UYA0fvdYXHPq6wmTuBB7kJx9x82WQ+1TbpUhRmdR8N62yZ6q4oBtziWBNNdqYA=="
     },
     {
       "id": "VzRIzG4dLA3JS2nyh9Hv5IPHolxQxTILuzrep29usEE=",
       "description": "TrustAsia Luoshu2027",
       "operator": "TrustAsia",
       "state": "usable",
-      "stateSince": "2026-02-11T18:30:00Z"
+      "stateSince": "2026-02-11T18:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEumSYzy6dUQlwTckPzKMKApMRinqxHIBlLfmrvx1SdMH1RTACi1wb1V18ss8YjlaC7Pch2OQa8OfRevub4Y9BDQ=="
     },
     {
       "id": "WUSCTUXhQ2fKUHvFtaSmfyox7je4S+Qnx6+LKKVk0Ss=",
       "description": "Let's Encrypt 'Twig2026h1'",
-      "operator": "Let's Encrypt"
+      "operator": "Let's Encrypt",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5xh2NJZD3AYbBgaMlzB/xrD2MDHNQPbm0SUzhXI+cMAcCknQoL1CA38su6Gi1TtXOGr+ntegPTWCf5SNILWSmQ=="
     },
     {
       "id": "WW5sM4aUsllyolbIoOjdkEp26Ag92oc7AQg4KBQ87lk=",
       "description": "Geomys 'Tuscolo2027h1'",
       "operator": "Geomys",
       "state": "usable",
-      "stateSince": "2025-10-08T21:00:00Z"
+      "stateSince": "2025-10-08T21:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOYwwGoaNpZ/SQW0VNGICP7wGRQsSeEowTRl4DPSdPjSkO/+ouvFH78I8sQTR3FWPZDScALbclBqnqL0ptY8beA=="
     },
     {
       "id": "X/nA+6QtrHjOZELrGazggaKb1OL7U68MYzB55QWCBMk=",
       "description": "Google 'PlumbersArms2027h1' log",
       "operator": "Google",
       "state": "usable",
-      "stateSince": "2026-08-31T13:50:00Z"
+      "stateSince": "2026-08-31T13:50:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAKYYdjIeQwDP0RIY9mhAVntX5s2ObMc2F6u8cELSbhvavljWD/OesJZHUtqQjBXE5Ekbpiq6nchmaVnEHHpJmw=="
     },
     {
       "id": "Xc5PR+HukOBBmC4hu8AaRBkJ6RSgrPqZvmR14ehS5G0=",
       "description": "Geomys Loreto2027h1",
-      "operator": "Geomys"
+      "operator": "Geomys",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAERt6nJkLQjMtWAPu6MQbRv3CBHsZ7mdzLDrtwf3+gGAi35sm9KVI7EOo290+btG826UbBgPxaKkaxqKn2eziJDQ=="
     },
     {
       "id": "Xk+hRjqD27R5prdS05bhyQxjDbDZ9sDelTzC7dZPUKM=",
       "description": "Google 'CoachAndHorses2026h2' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4yJ0Wz+EaKTI1Ae2PXKMk1VYjy9bt6YhcYM8p+gLq47ETwSgjx925dLf7jGjUEiVT/Q2bN2q8R6m2bMI09tL7Q=="
     },
     {
       "id": "YEyar3p/d18B1Ab8kg3ImesLHH34yVIb+voXdzuXi8k=",
       "description": "Sectigo 'Elephant2027h1'",
       "operator": "Sectigo",
       "state": "usable",
-      "stateSince": "2025-07-22T01:33:20Z"
+      "stateSince": "2025-07-22T01:33:20Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4fu36JygUwaaVO+ddWJ97FJZlA5SjPLmT+RHwg0pavkIrbT1b5LNQrsaEw0CoGraf7BkzKZf7PC8gYAScw2woA=="
     },
     {
       "id": "YaNdw5gGGypZW/40RomVGPD+rBSwG+Aqk78FIUY6nb0=",
-      "operator": "Sectigo"
+      "operator": "Sectigo",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEpb+NLT3zUoc4PAWOpxkkvEH24RKv0dn5QanhKK8Ap7ORfcMxhdWX6h21ZppbyVQ+6hA/pkXNBBGyEpi16VyAQA=="
     },
     {
       "id": "YukAYASjB5VadUS01YSpYmjKHW5Fha3wkW3+X9wfBNs=",
       "description": "Google 'Solera2026h2' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4kP79ikDxwWHe9xBgN+DMaC5Wc0x9khy7TWGFkvDN0ift3Ens1AsuN20BCJrTN9t8eo86H+wwdUOxz6IQbkg6Q=="
     },
     {
       "id": "ZBHEbKQS7KeJHKICLgC8q08oB9QeNSer6v7VA8l9zfA=",
       "description": "DigiCert 'Wyvern2026h1'",
       "operator": "DigiCert",
       "state": "rejected",
-      "stateSince": "2026-07-09T13:40:00Z"
+      "stateSince": "2026-07-09T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7Lw0OeKajbeZepHxBXJS2pOJXToHi5ntgKUW2nMhIOuGlofFxtkXum65TBNY1dGD+HrfHge8Fc3ASs0qMXEHVQ=="
     },
     {
       "id": "Zw/v+c0tZeC4UfTSi9vY+BdtNeIL3fhbQhT74s+jXiM=",
       "operator": "Sectigo",
       "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z"
+      "stateSince": "2026-09-12T17:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENWGrBZrsi2C7vFdCeHyMu5wMDcs1DavVuy9ngm2zhXPrvO4e+uEouxgsHsan4P3OkKC5RoYolyxRaOmuC0ys5w=="
     },
     {
       "id": "aYS3IzyydLLRRn2l4EDXH+upCiHniGU3Srn5vPhocjc=",
       "description": "Google 'ParcelYard2027h2' log",
       "operator": "Google",
       "state": "usable",
-      "stateSince": "2026-08-31T13:50:00Z"
+      "stateSince": "2026-08-31T13:50:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+CTFsoroxXi53eLT+x2T4gsMKOcqzYEhqSLjyF6uVfdgF8yBeyA2cDWsu6nmhKGhqyoohwLh3PPgXdltfPP3BA=="
     },
     {
       "id": "ab9A2UVnJS4BlP6nBRtUEuFQXNoa4jl9v9Bs8xHlT0M=",
       "description": "Geomys Loreto2026h2",
-      "operator": "Geomys"
+      "operator": "Geomys",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEma/X8gFLvrdCvDdkgYCdPK5PPLpvsMCkpmQSb/kWN8dmvwdqsBZ7uCeZ4cROJN9Lq8+kK5l71D0Dhr3gfpHAWQ=="
     },
     {
       "id": "atJoPkfo0oBkkUI/1kQCGiJuzbhhm+1acN9ps2hPqi0=",
       "description": "Google 'CoachAndHorses2027h1' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYRzG+Eugt1AOXUT9UpX1K71DCd9zOhVqjQ/DPDfqaIl/3UIrz4Gm1sFaNhcv9SqbMg7Imj+NbN6DR09mcmh8lQ=="
     },
     {
       "id": "b8whyKsJkXnvusRMwpnQ7EENf77I4306CVV2zZ9jxgg=",
       "description": "IPng Networks 'Lipase2026h1'",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErPjPlZYd4uo5aH/eIfHevbWqGHIiQIb7CXg0OszD+a0jbGERdUrnBP8afGBq6ey4/vDgI9aqqGiCmT9YGb1x4A=="
     },
     {
       "id": "bHsR9YaIq7BLUlT3PyIbVVjgvpNRI3MlcGGfeugsbBA=",
       "operator": "Sectigo",
       "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z"
+      "stateSince": "2026-09-12T17:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEI7iVUCkAaGP0gSWSox44MjTOQ5mngbn7cq9zS0Q3/+lMi3LNQ5J/yA8szRlS7HdkdnvfP4QFh4XMIbeCiYapYw=="
     },
     {
       "id": "bP5QGUOoXqkWvFLRM+TcyR7xQRx9JYQg0XOAnhgY6zo=",
       "description": "Let's Encrypt 'Sycamore2026h2'",
       "operator": "Let's Encrypt",
       "state": "usable",
-      "stateSince": "2025-11-27T03:00:00Z"
+      "stateSince": "2025-11-27T03:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwR1FtiiMbpvxR+sIeiZ5JSCIDIdTAPh7OrpdchcrCcyNVDvNUq358pqJx2qdyrOI+EjGxZ7UiPcN3bL3Q99FqA=="
     },
     {
       "id": "bdyd6YsZgQp1oXcR+tZVoOVbdYzpKkXZg27d9PznIBM=",
       "description": "Microsec Eszigno2028h1",
       "operator": "Microsec",
       "state": "qualified",
-      "stateSince": "2026-09-22T13:45:00Z"
+      "stateSince": "2026-09-22T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEaYdzBFWDI3Mf74StObgh3wImAflYLO9aM62xwivJX5pAAXfMEEfImBihn/IfkknTuKOIqeHfxVd/sCAfiN5CLQ=="
     },
     {
       "id": "cX6V88I4im2x44RJPTHhWqliCHYtQgDgBQzQZ7WmYeI=",
       "description": "Geomys 'Tuscolo2026h1'",
       "operator": "Geomys",
       "state": "rejected",
-      "stateSince": "2026-07-09T13:40:00Z"
+      "stateSince": "2026-07-09T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEflxzMg2Ajjg7h1+ZIvQ9LV6yFvdj6uRi9YbvtRnSCgS2SamkH56WcPRaBTRYARPDIr5JwLqgJAVA/NvDxdJXOw=="
     },
     {
       "id": "caQ99zUpUI88YXJqTPeP+cknbMBSwvd3Zql1T9QKkMM=",
       "operator": "Let's Encrypt",
       "state": "pending",
-      "stateSince": "2026-09-12T15:00:00Z"
+      "stateSince": "2026-09-12T15:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENShXFppi9EOLfbZl/UeDbhMd20q28ZwfzBvZ5dxg05YwU2IlVRdUkzSDXHDw2n8S3AGjbEm7DeCwLdyrIWG09w=="
     },
     {
       "id": "cd1QREFkibQDp3c0FPKGnt4CnXEI84DXfoJshKW/fls=",
       "operator": "TrustAsia",
       "state": "pending",
-      "stateSince": "2026-10-02T19:00:00Z"
+      "stateSince": "2026-10-02T19:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJkPBruid0R0HTLOABc0k17KKS1ZLZQVtlE7qsuauDs+khqu9M4BygSjziUlvQLdAonmbOr3wIDJK1JkBBRhGxA=="
     },
     {
       "id": "d+CXC8fTD+AkXF2y76h1TAjrOpDdwSu11U7iiv4neHA=",
       "operator": "Let's Encrypt",
       "state": "pending",
-      "stateSince": "2026-09-12T15:00:00Z"
+      "stateSince": "2026-09-12T15:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExL5FIuf80L4x6aTRFesgGQ+yrIvN5yNxaK71YLp83Y4+U36M0oYKLct3nn2OffTQDqrLPCx9GJeUwHAXlwgPHw=="
     },
     {
       "id": "dNudWPfUfp39eHoWKpkcGM9pjafHKZGMmhiwRQ26RLw=",
       "description": "TrustAsia 'log2026a'",
       "operator": "TrustAsia",
       "state": "usable",
-      "stateSince": "2024-09-20T00:00:00Z"
+      "stateSince": "2024-09-20T00:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEp056yaYH+f907JjLSeEAJLNZLoP9wHA1M0xjynSDwDxbU0B8MR81pF8P5O5PiRfoWy7FrAAFyXY3RZcDFf9gWQ=="
     },
     {
       "id": "dZIIKK86Y1XymO0JfjR1dfm5hDwR4TkfV0QpnxyujO4=",
       "description": "Geomys Trastevere2027h2",
       "operator": "Geomys",
       "state": "qualified",
-      "stateSince": "2026-09-09T13:45:00Z"
+      "stateSince": "2026-09-09T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJPGejk3XdRtqgzqM5SJPvN9Y6CpSincXJAFPzR4+/hP6KuWhmeL1GVCnbYJ2hFS94pE8k7feYNGB6tuYkvXw2Q=="
     },
     {
       "id": "eBAmYgxXrnCeBgs/iwSfqrh6aXhhDP+YpDWqAgNwe9k=",
       "description": "Microsec Eszigno2027h1",
       "operator": "Microsec",
       "state": "qualified",
-      "stateSince": "2026-09-22T13:45:00Z"
+      "stateSince": "2026-09-22T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhuG9m7D8nlSquWGaAF0NXc0ClYZYpEipNa/NeThGlber9tzMoHLRQXncwNBBqcxbXOannRTI/+utdT7wP9S7Jw=="
     },
     {
       "id": "fz035/iSPY5xZb6w0+q+5yoivkbAy4TEFtTkuYJky8I=",
       "description": "IPng Networks 'Halloumi2026h1'",
       "operator": "IPng Networks",
       "state": "rejected",
-      "stateSince": "2026-07-09T13:40:00Z"
+      "stateSince": "2026-07-09T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzdcnGwRjm2ZoA68JFZKfoM4cOPPG2fr0iR72p3XanznOlw57HJ9RlYRNt75gIMIKgB1r0dxY5Jojq1m8uobYjg=="
     },
     {
       "id": "g92PTAqC4jctZFmPZBgRxF27h4JAz96XF7b9cOQAZ4c=",
       "operator": "HARICA",
       "state": "pending",
-      "stateSince": "2026-09-09T18:30:00Z"
+      "stateSince": "2026-09-09T18:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEp31CH7O1ZoSn90SXs7AxRbijXxYlV8UDMS0Q/zBGafU2yHlDzhGcoauEjpmjvH45TF7IamA8EVe4NjAaXWdAnw=="
     },
     {
       "id": "gTnHyZSW085X/B39piatOjatx5ytziHfvPIB6FkcRWQ=",
       "description": "IPng Networks Rennet2028h2",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEgCHfJO2CZQCDOpjyZdQFsjj3gYYjYAwR2qvVlWusW88uFxvYGgqrWNCWXUPbOOFf24GRGrak6NeGEPq4IBW6EQ=="
     },
     {
       "id": "gs3NR5535F0UrWkDiCxBE/yBwhITvsKz2U6dx82Azf4=",
       "description": "Geomys Navigli2026h1",
-      "operator": "Geomys"
+      "operator": "Geomys",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEh/xU5f2JBQfU/9jb1aUb06VChY/y+g9VCqiJ+rElEu81HMIj/1jvLzaXl/wYJFSVhtJhl4xeIMBOcltC/t7YTg=="
     },
     {
       "id": "hIoVJRlQTOJ9Um/iv2HiW6+cat2TxpYrvfyjYhwql0g=",
       "description": "Geomys Loreto2028h1",
-      "operator": "Geomys"
+      "operator": "Geomys",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2Ney/nDA+O9+7RW9Is+dyI0Ij6NYSQhZ6F/KOlVQ/pIgcujprZMAuENLaDQvCLM/vK/JpDkV/PduZ2cOKqGgcw=="
     },
     {
       "id": "j5ct6c9T2eqhZDHY6vWLWGZ8/QysT5c0VLGZaVHvlYc=",
       "description": "Geomys Trastevere2028h1",
       "operator": "Geomys",
       "state": "qualified",
-      "stateSince": "2026-09-09T13:45:00Z"
+      "stateSince": "2026-09-09T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE05RdO9dxuePFpoo+c/h8Aj9iOsl3dRzRJarigJiLWXEtm9JV9n0rs9M/fDVSSwGEh2p9PUO8RR1+6Bt77v2iLQ=="
     },
     {
       "id": "jap0vUvSSHaUVxo2MsA8HZSVk3N5615qDROINcMzR8k=",
       "operator": "TrustAsia",
       "state": "pending",
-      "stateSince": "2026-10-02T19:00:00Z"
+      "stateSince": "2026-10-02T19:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEWRv8wFzS8rpjgT7uAby2nouThLq8QIPdtvY9E3BiJq0V8lmnB9QkoFrNYMssyvznPnfOkz76UNeYjKKszivytQ=="
     },
     {
       "id": "jspHC6zeavOiBrCkeoS3Rv4fxr+VPiXmm07kAkjzxug=",
       "description": "Let's Encrypt 'Sycamore2027h1'",
       "operator": "Let's Encrypt",
       "state": "usable",
-      "stateSince": "2025-11-27T03:00:00Z"
+      "stateSince": "2025-11-27T03:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEWrGdYyZYB7teCS4K/oKIsbV0yVBSgjlOwO22OOCoA6Y252QhFzC8Wg7oVXVKqfkWaSaM/n+3pfCBf4BAkpdx8g=="
     },
     {
       "id": "k0C4iKejzC796l4cBupj6U7f6w4VXgIIZFIAYZlMotE=",
       "operator": "Sectigo",
       "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z"
+      "stateSince": "2026-09-12T17:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEFiK9nBjtUDiFSLvuKxotVbJ2aX2ldnNhEa1KGSMfF1D3IDe/rFp6cbGJIPkLzwv8SZbXKbNbcz51kL1Wmukjrg=="
     },
     {
       "id": "l+Nn1Cj4+eN9t44Wr6OSchVVqFNB/A6p0VP+a1k1CfI=",
       "description": "Geomys Loreto2027h2",
-      "operator": "Geomys"
+      "operator": "Geomys",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7YvrT5X933YQ5QfDT5ieUVccNxZ5Mh63fisDjlQLfhhIae1ngDsaypgQwvsdkDjoXwy3M3DHDzFU5JJPDyzV0w=="
     },
     {
       "id": "lE5Dh/rswe+B8xkkJqgYZQHH0184AgE/cmd9VTcuGdg=",
       "description": "DigiCert 'Sphinx2026h2'",
       "operator": "DigiCert",
       "state": "usable",
-      "stateSince": "2024-11-08T00:00:00Z"
+      "stateSince": "2024-11-08T00:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEquD0JkRQT/2inuaA4HC1sc6UpfiXgURVQmQcInmnZFnTiZMhZvsJgWAfYlU0OIykOC6slQzr7U9kvEVC9wZ6zQ=="
     },
     {
       "id": "lLHBirDQV8R74KwEDh8svI3DdXJ7yVHyClJhJoY7pzw=",
       "description": "Sectigo 'Mammoth2026h2'",
       "operator": "Sectigo",
       "state": "readonly",
-      "stateSince": "2025-09-18T17:20:00Z"
+      "stateSince": "2025-09-18T17:20:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7INh8te0u+TkO+vIY3WYz2GQYxQ9XyLfdLpQp1ibaX3mY4lt2ddRhD/4AtjI/8KXceV+J/VysY8kJ1cKDXTAtg=="
     },
     {
       "id": "lU+RNjI2rVhXzDYVRyLcQOf5ugowsOdS+/DHSylmVrg=",
       "operator": "Sectigo",
       "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z"
+      "stateSince": "2026-09-12T17:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE35R0yxGn1SeQHYGCO82O4hAP5Ace6KRMyVY1karr/hWvO8KEm+EWYbk2xrWnlVsyeeBPsR/nOZFoXgbSs1EKQg=="
     },
     {
       "id": "lobDwHKqsHMHbjlGc7fpkBd6BWGOonZNS6ZQqQ6eCMw=",
       "description": "IPng Networks 'Lipase2027h1'",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEk3QA2r+4a13klobghHrz4PYkYfvCFDw3sIYwtnLjQMRij9jFucMgoCca5KOv42tJh6JJpYt2JjG8I28AxlLk3g=="
     },
     {
       "id": "lpdkv1VYl633Q4doNwhCd+nwOtX2pPM2bkakPw/KqcY=",
       "description": "Google 'Xenon2026h1' log",
       "operator": "Google",
       "state": "rejected",
-      "stateSince": "2026-07-09T13:40:00Z"
+      "stateSince": "2026-07-09T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOh/Iu87VkEc0ysoBBCchHOIpPZK7kUXHWj6l1PIS5ujmQ7rze8I4r/wjigVW6wMKMMxjbNk8vvV7lLqU07+ITA=="
     },
     {
       "id": "ncndbdJMX4YFu8W6TiQLEVOh0CXAkq/NLwKJI4Ne6DA=",
       "description": "Geomys Navigli2028h1",
-      "operator": "Geomys"
+      "operator": "Geomys",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEWzg2K3xKGP8OkqdRW6fAwBL6dDluyCtNk8u9zuJcRJPTJJoM5WlrIpORLExHZOVLWojJcEsVUZg1mg53t2QIag=="
     },
     {
       "id": "ntVPNfWuYK1M41RHtpzSBwkuD3+h7AirxuMMQetk+Jc=",
       "description": "IPng Networks Rennet2028h1",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErTXHRCxT39oYZ6+8AP6P36ZrEDCo4RjgMcFbdFC1/NXqUlhBxnlT0P0+xswd61GFhXpUU506ZdzV6oaMgk6oJQ=="
     },
     {
       "id": "okkM3NuOM6QAMhdg1tTVGiA2GR6nfZaL4mqKAPb///c=",
       "description": "Sectigo 'Elephant2027h2'",
       "operator": "Sectigo",
       "state": "usable",
-      "stateSince": "2025-07-22T01:33:20Z"
+      "stateSince": "2025-07-22T01:33:20Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECTPhpJnRFroRRpP/1DdAns+PrnmUywtqIV+EeL4Jg8zKouoW7kuAkYo+kZeoHtyK7CBhflIlMk7T2Qrn4w/t8g=="
     },
     {
       "id": "ooEAGHNOF24dR+CVQPOBulRml81jqENQcW64CU7a8Q0=",
       "description": "Let's Encrypt 'Willow2027h1'",
       "operator": "Let's Encrypt",
       "state": "usable",
-      "stateSince": "2025-11-27T03:00:00Z"
+      "stateSince": "2025-11-27T03:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzsMKtojO0BVB4t59lVyAhxtqObVA+wId5BpJGA8pZrw5GTjzuhpvLu/heQGi0hHCeislkDe34N/2D0SwEUBE0w=="
     },
     {
       "id": "pcl4kl1XRheChw3YiWYLXFVki30AQPLsB2hR0YhpGfc=",
       "description": "Let's Encrypt 'Sycamore2026h1'",
       "operator": "Let's Encrypt",
       "state": "rejected",
-      "stateSince": "2026-06-25T13:40:00Z"
+      "stateSince": "2026-06-25T13:40:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfEEe0JZknA91/c6eNl1aexgeKzuGQUMvRCXPXg9L227O5I4Pi++Abcpq6qxlVUKPYafAJelAnMfGzv3lHCc8gA=="
     },
     {
       "id": "ppWirZJtb5lujvxJAUJX2LvwRqfWJYm4jcLXh2x45S8=",
       "description": "Let's Encrypt 'Willow2027h2'",
       "operator": "Let's Encrypt",
       "state": "usable",
-      "stateSince": "2025-11-27T03:00:00Z"
+      "stateSince": "2025-11-27T03:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYbMDg0qQEEYjsTttdDlouTKhg3fRiMJYNE+Epr/2bXyeQdQOHKQNKv5sbIKxjtE/5Vqo9YjQbnaOeH4Wm4PhdQ=="
     },
     {
       "id": "qCbL4wrGNRJGUz/gZfFPGdluGQgTxB3ZbXkAsxI8VSc=",
       "description": "Let's Encrypt 'Willow2026h2'",
       "operator": "Let's Encrypt",
       "state": "usable",
-      "stateSince": "2025-11-27T03:00:00Z"
+      "stateSince": "2025-11-27T03:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEp8wH8R6zfM+UhsQq5un+lPdNTDkzcgkWLi1DwyqU6T00mtP5/CuGjvpw4mIz89I6KV5ZvhRHt5ZTF6qe24pqiA=="
     },
     {
       "id": "qJnYeAySkKr0YvMYgMz71SRR6XDQ+/WR73Ww2ZtkVoE=",
       "description": "Google 'Submariner' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOfifIGLUV1Voou9JLfA5LZreRLSUMOCeeic8q3Dw0fpRkGMWV0Gtq20fgHQweQJeLVmEByQj9p81uIW4QkWkTw=="
     },
     {
       "id": "r2eIO1ewTt2Pptl+9i6o64EKx3Fg8CReVdYML+eFhzo=",
       "description": "Sectigo 'Elephant2026h2'",
       "operator": "Sectigo",
       "state": "usable",
-      "stateSince": "2025-07-22T01:33:20Z"
+      "stateSince": "2025-07-22T01:33:20Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEO/t4Uwkoou78zkCchh9tfAKbIUJmbOoUAb8szD8StnnHFKAVY5kq1Ljs8YD7CfzdD7xcVjmQYpbtNUhxRMRtmA=="
     },
     {
       "id": "rKswcGzr7IQx9BPS9JFfER5CJEOx8qaMTzwrO6ceAsM=",
       "description": "Let's Encrypt 'Oak2026h2'",
       "operator": "Let's Encrypt",
       "state": "retired",
-      "stateSince": "2026-02-28T00:00:00Z"
+      "stateSince": "2026-02-28T00:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEanCds5bj7IU2lcNPnIvZfMnVkSmu69aH3AS8O/Y0D/bbCPdSqYjvuz9Z1tT29PxcqYxf+w1g5CwPFuwqsm3rFQ=="
     },
     {
       "id": "sMyD5aX5fWuvfAnMKEkEhyrH6IsTLGNQt8b9JuFsbHc=",
       "description": "Google 'Testtube' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEw8i8S7qiGEs9NXv0ZJFh6uuOmR2Q7dPprzk9XNNGkUXjzqx2SDvRfiwKYwBljfWujozHESVPQyydGaHhkaSz/g=="
     },
     {
       "id": "sYdPqlxcQTingZPPo7kk2ImvyDNpOcfp+q0JVhrGpV4=",
       "operator": "HARICA",
       "state": "pending",
-      "stateSince": "2026-09-09T18:30:00Z"
+      "stateSince": "2026-09-09T18:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzkHK2i2jO3Js7SToO7tc8d8qlxszbTjxt0wnnASCU+tIqKJLBJjmagsZsCGX7XrEK3mboD3p4Du7Viut6VcMGw=="
     },
     {
       "id": "sbQYsbamb7ODsHtgVE2SJjxWflCcg43k5iDWwSBnXLw=",
       "description": "IPng Networks Lipase2028h1",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXyNhBrrDAZHX2lHjLjs8sEPs9o+MG6b+v4VRWmBqs6Iw1VkBfh/9XA7rK8tt5uhv93cRV1of7Q91whkwye8JZQ=="
     },
     {
       "id": "tvzC6p+E49qX4wl/sfIW6R/w154KB0QDJbBvlPXmU8U=",
       "operator": "Sectigo",
       "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z"
+      "stateSince": "2026-09-12T17:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzAWvoYfHsDXwXaxHUTOAOYx+vESfGpSKTYPUwwDYIwKe1g4lsEmoMwlFJNP2wC8M3g721r663BQaU7I5tKa5jw=="
     },
     {
       "id": "utuIpG+cr6QJDoLlk1bbbni0pT9YLbCBl5UkLym2jJg=",
       "description": "Google 'ParcelYard2026h2' log",
       "operator": "Google",
       "state": "usable",
-      "stateSince": "2026-08-31T13:50:00Z"
+      "stateSince": "2026-08-31T13:50:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEP2H56bHx6pPm5mCku6PFpeRuA5Ux0gs8iwXIVhvVdbojs0pPwZqLtlIEoJNbjxMEePTYo/qDW85AjhMJITlavA=="
     },
     {
       "id": "vDvULt2EjVnlRf/XkJcMGs3KpHmmbmmVMI49ZsSR/kA=",
       "description": "IPng Networks 'Lipase2027h2'",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1aNm1Y4mLoC1AiEtf9PebaUapA5jA0sEoNV8KmNgMEjdAvHXJRONdqVKD5e0rlLIc2UlZMwe5Qi3b+dtiPlCeA=="
     },
     {
       "id": "vey1qmLph0NZ/U7NvnDZ8G8+j71Fo6xrycKFEbx0wJw=",
       "operator": "Let's Encrypt",
       "state": "pending",
-      "stateSince": "2026-09-12T15:00:00Z"
+      "stateSince": "2026-09-12T15:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEnNwidB8P8uuMA2j+jT21aysX+4S1UcJTVvQdM+hfG/BUlJF43iCU6kUudwSgdL2cglVvlv8d+tVlqLkcTPn4tA=="
     },
     {
       "id": "vjHTZYjf2AXIbTUgKYSsyapEruOECAufz0LryHNV5Js=",
-      "operator": "Sectigo"
+      "operator": "Sectigo",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdh/cBL5t5uz1BRtpazOxuJfUTAQEwo/MtjyzdJqeFETFdjBKJxbOcQcQAhFrp7Ef1Zv998p0V2Rj9lloFDt9YA=="
     },
     {
       "id": "w78Dp+HKiEHGB7rj/0Jw/KXsRbGG675OLPP8d4Yw9fY=",
       "description": "Google 'Crucible' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKATl2B3SAbxyzGOfNRB+AytNTGvdF/FFY6HzWb+/HPE4lJ37vx2nEm99KYUy9SoNzF5VyTwCQG5nL/c5Q77yQQ=="
     },
     {
       "id": "wjF+V0UZo0XufzjespBB68fCIVoiv3/Vta12mtkOUs0=",
       "description": "DigiCert 'Wyvern2026h2'",
       "operator": "DigiCert",
       "state": "usable",
-      "stateSince": "2024-11-08T00:00:00Z"
+      "stateSince": "2024-11-08T00:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEenPbSvLeT+zhFBu+pqk8IbhFEs16iCaRIFb1STLDdWzL6XwTdTWcbOzxMTzB3puME5K3rT0PoZyPSM50JxgjmQ=="
     },
     {
       "id": "wrITHXl+UNevVCq6lNe/gvkblit8VSpx1d6TA3oaZHo=",
       "description": "IPng Networks 'Lipase2026h2'",
-      "operator": "IPng Networks"
+      "operator": "IPng Networks",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzbuyo3fveONSA2O1SGsO+FH+H3nKfkOBGeDYAUwvP9xVt4leZF5ATRrvyAq6fh1ryXrq3KpIGjVkZxetF4c3QQ=="
     },
     {
       "id": "xn2BnpPBLPrrX2WgTQja4wqOXCf7fRUc73xH4tXLHe0=",
       "description": "Let's Encrypt 'Twig2026h2'",
-      "operator": "Let's Encrypt"
+      "operator": "Let's Encrypt",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKM7Fje9bHCZbaJj65sHgw1FBDjLwD5rgUawPYMz4U3u4+g2S6XOWcr5h2NtmGOgore78IpDsg/jsXh+FyeibUg=="
     },
     {
       "id": "y6VZ4BSDyZ+U7N2er0ezmWM1bZ/1wShe6un50SqgTMc=",
       "description": "Geomys Trastevere2028h2",
       "operator": "Geomys",
       "state": "qualified",
-      "stateSince": "2026-09-09T13:45:00Z"
+      "stateSince": "2026-09-09T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEB4h5MMLSgZuO0R2uMCvA/5WYIvsiYMcYLviqSqL6RNnpOnXiGlz49iWeo7n0R+v9CUj0Clv2In5EwnHwGK2/Tw=="
     },
     {
       "id": "yEuQege+qimmFMJFhLej9mJDlGh7Jf5ig4tx7EIq0vk=",
       "description": "Google 'Solera2026h1' log",
-      "operator": "Google"
+      "operator": "Google",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGIEKGwhsBrD0dHERCo7HCeFvQiia/GOTd27XqCh6zDQhrtgaeeHiwGXcc77eyUv9EW65FuR4iLQ5TqSYRl6hpQ=="
     },
     {
       "id": "yKPEf8ezrbk1awE/anoSbeM6TkOlxkb5l605dZkdz5o=",
       "description": "Sectigo 'Tiger2026h2'",
       "operator": "Sectigo",
       "state": "usable",
-      "stateSince": "2025-09-18T23:00:00Z"
+      "stateSince": "2025-09-18T23:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfJFUD/FRkonvZIA9ZT1J3yvA4EpSp3innbIVpMTDR1oCe5vguapheQ7wYiWaCES1EL1B+2BEC+P5bUfwF44lnA=="
     },
     {
       "id": "yMaDuhp5vKPNGyZsbZ6MzSf0hFEMerHyV59nUhBYOgM=",
       "description": "Geomys Trastevere2026h2",
       "operator": "Geomys",
       "state": "qualified",
-      "stateSince": "2026-09-09T13:45:00Z"
+      "stateSince": "2026-09-09T13:45:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEzFcfnR+P+xG2TA2LWjhkeMcQMTU62r6koepINb7hwcl/hitPLeUzD3vRDpNyvq+9Vrci1FEmctYDWH+iZ2hww=="
     },
     {
       "id": "yzj3FYl8hKFEX1vB3fvJbvKaWc1HCmkFhbDLFMMUWOc=",
       "description": "Cloudflare 'Nimbus2026'",
       "operator": "Cloudflare",
       "state": "usable",
-      "stateSince": "2024-11-08T18:00:00Z"
+      "stateSince": "2024-11-08T18:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2FxhT6xq0iCATopC9gStS9SxHHmOKTLeaVNZ661488Aq8tARXQV+6+jB0983v5FkRm4OJxPqu29GJ1iG70Ahow=="
     },
     {
       "id": "z14MRaO4fEHLthgI+OCQulvrTdMmwUBN/7at+Y4WaRY=",
       "description": "Geomys Navigli2027h2",
-      "operator": "Geomys"
+      "operator": "Geomys",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/X+10fVaeUuD/AambYvE2n40zMehkN2tM8NB+aYaUOYp6TWWWE7NCErYDehUQdiZ9vhMLR5X9zUWOPTm7PZVXQ=="
     },
     {
       "id": "zVMsH8M+555WnWLXjKJmKkfeR5AsQ2zq+JS5GDG0BXw=",
       "operator": "TrustAsia",
       "state": "pending",
-      "stateSince": "2026-10-02T19:00:00Z"
+      "stateSince": "2026-10-02T19:00:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGEE4GWDYuEedkPT1yrYUcEP3dxuABreEhr/OfwHDBO/V3l3fmzp139HwtwukZRWJUdxNBeUYJTEqHAsDGEvfFQ=="
     }
   ]
 }

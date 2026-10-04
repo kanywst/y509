@@ -23,6 +23,7 @@ const source = "https://www.gstatic.com/ct/log_list/v3/all_logs_list.json"
 type logEntry struct {
 	Description string                     `json:"description"`
 	LogID       string                     `json:"log_id"`
+	Key         string                     `json:"key"`
 	State       map[string]json.RawMessage `json:"state"`
 }
 
@@ -45,6 +46,9 @@ type Log struct {
 	// StateSince is when the log entered State. For a retired log it is the
 	// retirement time, which decides whether an SCT from it still counts.
 	StateSince string `json:"stateSince,omitempty"`
+	// Key is the log's public key, base64 DER SubjectPublicKeyInfo, which an
+	// SCT's signature is checked against before it counts towards a policy.
+	Key string `json:"key"`
 }
 
 // Bundle is the committed file.
@@ -87,6 +91,7 @@ func main() {
 					Operator:    op.Name,
 					State:       name,
 					StateSince:  since,
+					Key:         l.Key,
 				})
 			}
 		}
