@@ -17,7 +17,7 @@ Current release: v1.9.0. Landscape last reviewed 2026-09-17.
 
 ## Next
 
-- **Certificate Transparency, offline.** Count SCTs and name their logs from a bundled log list. Do not depend on a live log API.
+- **Can a missing SCT fail the build?** Chrome and Safari reject a publicly trusted certificate without enough SCTs from distinct operators. That predicts a client failure, so it belongs in `conformance`, but only for a chain that anchors in the public roots: an internal PKI has no SCTs by design. Needs the trust verdict, and the policy's lifetime-dependent counts.
 
 ## Keeping up with X.509
 
@@ -28,6 +28,7 @@ A valid certificate must render completely. A malformed one is a finding.
 - **Post-quantum names.** The floor is Go 1.27, which decodes ML-DSA itself. A signature or key algorithm Go does not know is named from its OID (`RawSignatureAlgorithm`, the SPKI): all twelve SLH-DSA parameter sets, or `unknown (OID …)`. Composite ML-DSA waits for its OIDs to leave draft. The FreeBSD port needs `USES=go:1.27,modules` from the release that raised the floor.
 - **Large post-quantum certificates are normal.** An ML-DSA-87 signature is 4,627 bytes, SLH-DSA-256f 49,856. Private CAs issue them today.
 - **Extensions view.** The Misc tab and `chain[].extensions` list every extension by name or OID, with the critical bit, and name Must-Staple. `conformance` reports a served precertificate and any critical extension Go does not process, which covers a leaf's `acmeIdentifier`. `nameConstraints` or `policyConstraints` on a leaf is not reported: RFC 5280 forbids it, but no client is known to reject it.
+- **Certificate Transparency, offline.** The Misc tab and `chain[].scts` list the embedded SCTs, naming each log, its operator and state from a bundled copy of Google's `all_logs_list.json`. `make ct-logs` refreshes it. SCTs sent in the handshake or a stapled response are not read yet.
 - **International names.** Show punycode next to Unicode. Column width must use display width (`uniseg`), not rune count.
 - **No-expiry sentinel.** A `9999-12-31T23:59:59Z` `NotAfter` reads as "no expiry" in the TUI, `inventory` and `FormatValidity`, and as `noExpiry` in JSON, instead of a countdown that `time.Duration` saturated at 106,751 days.
 - **Watch.** Merkle Tree Certificates (experimental). TLS trust anchor identifiers (near approval) make serving different chains to different clients correct, so design for it now.
