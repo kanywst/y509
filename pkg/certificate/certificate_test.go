@@ -821,14 +821,15 @@ func TestFormatValidityPeriod(t *testing.T) {
 }
 
 func TestDescribeUnknownPublicKey(t *testing.T) {
-	// Build a SubjectPublicKeyInfo carrying the ML-DSA-65 OID so the
-	// post-quantum branch is exercised without a real PQC certificate.
-	mldsa65 := asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 18}
+	// Build a SubjectPublicKeyInfo carrying an SLH-DSA OID, which crypto/x509
+	// does not decode even in Go 1.27 (ML-DSA it does, so it no longer comes
+	// this way).
+	slhdsa := asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 31}
 	spki := struct {
 		Algorithm pkix.AlgorithmIdentifier
 		PublicKey asn1.BitString
 	}{
-		Algorithm: pkix.AlgorithmIdentifier{Algorithm: mldsa65},
+		Algorithm: pkix.AlgorithmIdentifier{Algorithm: slhdsa},
 		PublicKey: asn1.BitString{Bytes: []byte{0x01, 0x02, 0x03}, BitLength: 24},
 	}
 	der, err := asn1.Marshal(spki)
@@ -839,7 +840,7 @@ func TestDescribeUnknownPublicKey(t *testing.T) {
 	cert := &x509.Certificate{RawSubjectPublicKeyInfo: der}
 	result := describeUnknownPublicKey(cert, nil)
 
-	for _, want := range []string{"ML-DSA-65", "post-quantum", "2.16.840.1.101.3.4.3.18"} {
+	for _, want := range []string{"SLH-DSA-SHAKE-256f", "post-quantum", "2.16.840.1.101.3.4.3.31"} {
 		if !strings.Contains(result, want) {
 			t.Errorf("expected %q in:\n%s", want, result)
 		}

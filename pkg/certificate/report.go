@@ -485,8 +485,8 @@ func newJSONCertificate(index int, cert *x509.Certificate, now time.Time) JSONCe
 		IsCA:                  cert.IsCA,
 		SelfSigned:            cert.Subject.String() == cert.Issuer.String(),
 		DNSNames:              cert.DNSNames,
-		KeyAlgorithm:          cert.PublicKeyAlgorithm.String(),
-		SignatureAlgorithm:    cert.SignatureAlgorithm.String(),
+		KeyAlgorithm:          PublicKeyAlgorithmName(cert),
+		SignatureAlgorithm:    SignatureAlgorithmName(cert),
 		FingerprintSHA256:     FormatFingerprint(cert),
 	}
 

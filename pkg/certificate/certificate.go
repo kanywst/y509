@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -901,7 +902,7 @@ func FormatPublicKey(cert *x509.Certificate) string {
 	var details strings.Builder
 
 	// Algorithm
-	details.WriteString(fmt.Sprintf("Algorithm: %s\n", cert.PublicKeyAlgorithm.String()))
+	details.WriteString(fmt.Sprintf("Algorithm: %s\n", PublicKeyAlgorithmName(cert)))
 
 	// Key details
 	switch pub := cert.PublicKey.(type) {
@@ -930,26 +931,19 @@ func FormatPublicKey(cert *x509.Certificate) string {
 	case ed25519.PublicKey:
 		details.WriteString("Type: Ed25519\n")
 		details.WriteString("Key Size: 256 bits\n")
+	case *mldsa.PublicKey:
+		// crypto/x509 decodes ML-DSA from Go 1.27. Its size is fixed per
+		// parameter set, so it is reported in bytes, as FIPS 204 does.
+		details.WriteString(fmt.Sprintf("Type: %s (post-quantum)\n", pub.Parameters()))
+		details.WriteString(fmt.Sprintf("Key Size: %d bytes\n", pub.Parameters().PublicKeySize()))
 	default:
-		// Unrecognized key type. This is the path post-quantum algorithms
-		// (ML-DSA, SLH-DSA) take today: the Go standard library does not yet
-		// expose them through crypto/x509, so PublicKey is typically nil.
-		// Surface the SPKI algorithm OID so the cert isn't shown blank.
+		// Unrecognized key type. This is the path SLH-DSA takes: crypto/x509
+		// does not decode it, so PublicKey is nil. Surface the SPKI algorithm
+		// OID so the cert isn't shown blank.
 		details.WriteString(describeUnknownPublicKey(cert, pub))
 	}
 
 	return details.String()
-}
-
-// pqcAlgorithmNames maps NIST post-quantum signature OIDs to friendly names so
-// PQC / hybrid certificates render meaningfully even before crypto/x509 support
-// lands (expected in Go 1.27).
-var pqcAlgorithmNames = map[string]string{
-	"2.16.840.1.101.3.4.3.17": "ML-DSA-44",
-	"2.16.840.1.101.3.4.3.18": "ML-DSA-65",
-	"2.16.840.1.101.3.4.3.19": "ML-DSA-87",
-	"2.16.840.1.101.3.4.3.20": "SLH-DSA-SHA2-128s",
-	"2.16.840.1.101.3.4.3.21": "SLH-DSA-SHA2-128f",
 }
 
 // describeUnknownPublicKey renders details for a key type the type switch did

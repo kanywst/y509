@@ -174,8 +174,8 @@ func leafChanges(before, after []*x509.Certificate) []string {
 	add("serial", old.SerialNumber.String(), current.SerialNumber.String())
 	add("not before", old.NotBefore.UTC().Format("2006-01-02"), current.NotBefore.UTC().Format("2006-01-02"))
 	add("not after", old.NotAfter.UTC().Format("2006-01-02"), current.NotAfter.UTC().Format("2006-01-02"))
-	add("key algorithm", old.PublicKeyAlgorithm.String(), current.PublicKeyAlgorithm.String())
-	add("signature algorithm", old.SignatureAlgorithm.String(), current.SignatureAlgorithm.String())
+	add("key algorithm", PublicKeyAlgorithmName(old), PublicKeyAlgorithmName(current))
+	add("signature algorithm", SignatureAlgorithmName(old), SignatureAlgorithmName(current))
 	add("dns names", strings.Join(old.DNSNames, ", "), strings.Join(current.DNSNames, ", "))
 
 	return changes
