@@ -4,7 +4,7 @@ Themes, not dates. Nothing here is a commitment; the [issue tracker](https://git
 
 y509 answers two questions: *does this chain verify*, and *was it served correctly*. A check belongs here only if it predicts a client failure. It is not a general TLS scanner.
 
-Current release: v1.10.0. Landscape last reviewed 2026-09-17.
+Current release: v1.11.0. Landscape last reviewed 2026-09-17.
 
 ## Why it exists
 
