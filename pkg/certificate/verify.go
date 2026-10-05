@@ -3,6 +3,7 @@ package certificate
 import (
 	"crypto/x509"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -71,6 +72,12 @@ type VerifyResult struct {
 	// set for every level below TrustAnchored, including TrustSelfAnchored,
 	// where it explains why the chain is not publicly trusted.
 	Err error
+	// SystemAnchored reports a trusted chain that ends at a root from the
+	// operating system's store rather than one passed in ExtraRoots. That is
+	// the precondition for judging a client's public-PKI rules such as CT. It
+	// is not proof the root is public: an enterprise can add its own root to
+	// the system store.
+	SystemAnchored bool
 }
 
 // VerifyChain verifies a chain against real trust anchors.
@@ -114,7 +121,11 @@ func VerifyChain(certs []*x509.Certificate, opts VerifyOptions) (*VerifyResult, 
 
 	chains, trustErr := leaf.Verify(verifyOpts)
 	if trustErr == nil {
-		return &VerifyResult{Level: TrustAnchored, Anchor: anchorName(chains)}, nil
+		return &VerifyResult{
+			Level:          TrustAnchored,
+			Anchor:         anchorName(chains),
+			SystemAnchored: !opts.SkipSystemRoots && anyChainEndsOutside(chains, opts.ExtraRoots),
+		}, nil
 	}
 
 	// Not trusted. Retry with the input's own self-signed certificates as
@@ -167,6 +178,22 @@ func trustAnchors(opts VerifyOptions) (*x509.CertPool, error) {
 	}
 
 	return pool, nil
+}
+
+// anyChainEndsOutside reports whether some verified chain ends at a root that is
+// not one of extra, which, with the system store loaded, means it came from
+// the system store.
+func anyChainEndsOutside(chains [][]*x509.Certificate, extra []*x509.Certificate) bool {
+	for _, chain := range chains {
+		if len(chain) == 0 {
+			continue
+		}
+		root := chain[len(chain)-1]
+		if !slices.ContainsFunc(extra, func(c *x509.Certificate) bool { return c != nil && c.Equal(root) }) {
+			return true
+		}
+	}
+	return false
 }
 
 // selfSignedFrom returns a pool of the genuinely self-signed certificates in

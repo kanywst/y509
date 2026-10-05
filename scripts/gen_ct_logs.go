@@ -23,6 +23,7 @@ const source = "https://www.gstatic.com/ct/log_list/v3/all_logs_list.json"
 type logEntry struct {
 	Description string                     `json:"description"`
 	LogID       string                     `json:"log_id"`
+	Key         string                     `json:"key"`
 	State       map[string]json.RawMessage `json:"state"`
 }
 
@@ -42,6 +43,12 @@ type Log struct {
 	Description string `json:"description,omitempty"`
 	Operator    string `json:"operator"`
 	State       string `json:"state,omitempty"`
+	// StateSince is when the log entered State. For a retired log it is the
+	// retirement time, which decides whether an SCT from it still counts.
+	StateSince string `json:"stateSince,omitempty"`
+	// Key is the log's public key, base64 DER SubjectPublicKeyInfo, which an
+	// SCT's signature is checked against before it counts towards a policy.
+	Key string `json:"key"`
 }
 
 // Bundle is the committed file.
@@ -77,11 +84,17 @@ func main() {
 	for _, op := range list.Operators {
 		for _, entries := range [][]logEntry{op.Logs, op.TiledLogs} {
 			for _, l := range entries {
+				name, since, err := state(l.State)
+				if err != nil {
+					log.Fatalf("log %s (%s): %v", l.LogID, l.Description, err)
+				}
 				bundle.Logs = append(bundle.Logs, Log{
 					ID:          l.LogID,
 					Description: l.Description,
 					Operator:    op.Name,
-					State:       stateName(l.State),
+					State:       name,
+					StateSince:  since,
+					Key:         l.Key,
 				})
 			}
 		}
@@ -99,11 +112,24 @@ func main() {
 	fmt.Printf("wrote %d logs (list %s, %s) to %s\n", len(bundle.Logs), list.Version, list.Timestamp, out)
 }
 
-// stateName is the single key of the log's state object: usable, qualified,
-// readonly, retired, rejected or pending.
-func stateName(state map[string]json.RawMessage) string {
-	for name := range state {
-		return name
+// state reads the single key of the log's state object (usable, qualified,
+// readonly, retired, rejected or pending) and the timestamp under it.
+//
+// A state without a parseable timestamp fails the run rather than writing an
+// empty one: a retired log's timestamp decides whether its SCTs still count,
+// and an empty one would quietly stop them counting.
+func state(s map[string]json.RawMessage) (name, since string, err error) {
+	for key, raw := range s {
+		var body struct {
+			Timestamp string `json:"timestamp"`
+		}
+		if err := json.Unmarshal(raw, &body); err != nil {
+			return "", "", fmt.Errorf("state %q does not parse: %w", key, err)
+		}
+		if _, err := time.Parse(time.RFC3339, body.Timestamp); err != nil {
+			return "", "", fmt.Errorf("state %q has no RFC 3339 timestamp: %q", key, body.Timestamp)
+		}
+		return key, body.Timestamp, nil
 	}
-	return ""
+	return "", "", nil
 }

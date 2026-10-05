@@ -189,7 +189,9 @@ y509 validate example.com:443 --json | jq .
   - `problem` is one of `revoked`, `stale staple`, `staple not yet valid`, `unknown status`, `staple signature invalid`, `unreadable staple`.
   - A signature left unchecked because the issuer was not sent is not a finding here. That is `missing issuer` under `presentation`.
 - `conformance` checks each certificate against rules clients enforce on their own, with its own `ok`. Present for files too.
-  - `problem` is one of `weak signature` (SHA-1 or MD5, except a genuine SHA-1 self-signature, which no client checks), `weak key` (RSA under 2048 bits), `no SAN` (a server certificate with a common name but no DNS, IP or URI SAN), `precertificate` (a CT precertificate was served), `unhandled critical extension` (a critical extension Go does not process).
+  - `problem` is one of `weak signature` (SHA-1 or MD5, except a genuine SHA-1 self-signature, which no client checks), `weak key` (RSA under 2048 bits), `no SAN` (a server certificate with a common name but no DNS, IP or URI SAN), `precertificate` (a CT precertificate was served), `unhandled critical extension` (a critical extension Go does not process), `insufficient SCTs` (below Chrome's CT policy).
+  - `insufficient SCTs` counts only SCTs whose signature verifies against the log's bundled key, as Chrome does. It is judged by `validate` only, for a chain trusted through the system store that carries at least one SCT, embedded or sent in the TLS handshake. A certificate with none is not judged, because an enterprise root in the system store looks the same as a public one. Nor is one that falls short only by SCTs from logs the bundled list does not know, which could close the gap, or any chain once that list is more than 70 days old, which is when Chrome stops enforcing CT too. A scheduled workflow refreshes the list twice a month.
+  - `conformance.ctPolicy` says how that went: `met`, `not met`, or `not judged: <reason>`, including why for a chain CT does not apply to, such as one trusted through `--roots`. `conformance.ok` is not affected by a check that was not judged, so a gate that must not pass an unjudged chain reads `ctPolicy` (the Action exposes it as `ct-policy`).
 - `chain[].noExpiry` is true for the RFC 5280 `9999-12-31` sentinel, a certificate with no well-defined expiration. `daysUntilExpiry` and `validityDays` still carry the real arithmetic, so read `noExpiry` before printing them.
 - `chain[].scts` lists the embedded SCTs as `{logId, log, operator, logState, timestamp}`, with logs named from a bundled copy of Google's CT log list (`make ct-logs` refreshes it). Nothing is verified or fetched. `log`, `operator` and `logState` are absent for a log the list does not know. If the list is damaged, `sctError` says why and `scts` keeps what was read before the damage.
 - `chain[].extensions` lists every extension as `{oid, name, critical}`. `name` is absent for one y509 does not know.
@@ -256,9 +258,9 @@ Downloads a release binary, verifies its checksum, and fails the job on the find
 | `no-system-roots` | `false` | trust only `roots` |
 | `summary` | `true` | write a report to the job summary |
 
-`revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable. No staple passes. `conformance` fails on a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name only in the common name, a served precertificate, or a critical extension Go does not process.
+`revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable. No staple passes. `conformance` fails on a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name only in the common name, a served precertificate, a critical extension Go does not process, or too few SCTs for Chrome's CT policy.
 
-Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, `revocation-ok`, `conformance-ok`, and `report` (path to the full JSON).
+Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, `revocation-ok`, `conformance-ok`, `ct-policy`, and `report` (path to the full JSON).
 
 Findings not in `fail-on` still show up as warnings, so `fail-on: none` makes a monitor:
 

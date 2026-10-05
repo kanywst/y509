@@ -127,6 +127,28 @@ func TestVerifyChain_ExtraRootsMakesItTrusted(t *testing.T) {
 	if result.Anchor != "Internal Root CA" {
 		t.Errorf("Anchor = %q, want %q", result.Anchor, "Internal Root CA")
 	}
+	// Trusted through --roots, not the system store: public-PKI rules such as
+	// CT must not be applied to it.
+	if result.SystemAnchored {
+		t.Error("a chain anchored in --roots reports SystemAnchored")
+	}
+}
+
+func TestAnyChainEndsOutside(t *testing.T) {
+	root, rootKey := issue(t, "Root", true, nil, nil)
+	other, _ := issue(t, "Other Root", true, nil, nil)
+	leaf, _ := issue(t, "leaf", false, root, rootKey)
+	chains := [][]*x509.Certificate{{leaf, root}}
+
+	if anyChainEndsOutside(chains, []*x509.Certificate{root}) {
+		t.Error("a chain ending at an extra root came from the system store")
+	}
+	if !anyChainEndsOutside(chains, []*x509.Certificate{other, nil}) {
+		t.Error("a chain ending at a root not passed in must have come from the system store")
+	}
+	if anyChainEndsOutside(nil, nil) {
+		t.Error("no chains end anywhere")
+	}
 }
 
 // TestVerifyChain_MissingIssuerIsBroken checks that a chain which cannot reach

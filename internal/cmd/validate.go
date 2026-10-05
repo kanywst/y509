@@ -191,10 +191,17 @@ func printResults(results []targetResult) {
 		}
 
 		// So are the certificates themselves.
-		if conformance := certificate.FormatConformanceFindings(
-			certificate.ConformanceFindings(r.Report.Sent)); conformance != "" {
+		findings, ctPolicy := conformanceFindings(r)
+		if conformance := certificate.FormatConformanceFindings(findings); conformance != "" {
 			fmt.Println()
 			fmt.Println(conformance)
+		}
+		// Say so when the CT policy was skipped for a chain it applies to, or
+		// a skipped check would read the same as a pass. An internal or
+		// untrusted chain is not news; JSON still carries why.
+		if r.Result != nil && r.Result.SystemAnchored && strings.HasPrefix(ctPolicy, "not judged") {
+			fmt.Println()
+			fmt.Printf("CT policy: %s\n", ctPolicy)
 		}
 
 		// A staple is judged on its own, for the same reason.
@@ -307,6 +314,9 @@ func encodeReport(enc *json.Encoder, r targetResult) error {
 	}
 
 	out := certificate.NewJSONReport(r.Source.Host, r.Report, r.Result)
+	findings, ctPolicy := conformanceFindings(r)
+	out.Conformance = certificate.NewJSONConformance(findings)
+	out.Conformance.CTPolicy = ctPolicy
 	// Nil for a file or stdin, which leaves the object out entirely rather
 	// than reporting a handshake that never happened.
 	out.Connection = certificate.NewJSONConnection(r.Source.Conn)
@@ -318,6 +328,36 @@ func encodeReport(enc *json.Encoder, r targetResult) error {
 		return fmt.Errorf("failed to write JSON report: %w", err)
 	}
 	return nil
+}
+
+// conformanceFindings is the per-certificate rules plus the CT policy, which
+// only validate can judge: it needs a chain trusted through the system store,
+// since an internal PKI has no business with CT, and the SCTs the server sent.
+// The CT verdict always says what happened, so its absence never stands for a
+// silent skip.
+func conformanceFindings(r targetResult) ([]certificate.ConformanceFinding, string) {
+	findings := certificate.ConformanceFindings(r.Report.Sent)
+	switch {
+	case r.Result == nil || r.Result.Level != certificate.TrustAnchored:
+		return findings, "not judged: the chain is not trusted"
+	case !r.Result.SystemAnchored:
+		return findings, "not judged: trusted through --roots, where CT does not apply"
+	case len(r.Report.Sorted) == 0:
+		return findings, "not judged: no leaf certificate"
+	}
+	leaf := r.Report.Sorted[0]
+	var delivered [][]byte
+	if r.Source != nil && r.Source.Conn != nil {
+		delivered = r.Source.Conn.SCTs
+	}
+	// Whichever certificate the server sent that actually signed the leaf,
+	// wherever it sat. A misordered chain is a presentation finding, and must
+	// not turn into every embedded SCT looking forged.
+	ct := certificate.CheckCTPolicy(leaf, certificate.IssuerOf(leaf, r.Report.Sent), delivered, time.Now())
+	if ct.Finding != nil {
+		findings = append(findings, *ct.Finding)
+	}
+	return findings, ct.Verdict()
 }
 
 // verifyOptionsFromFlags builds the verification options from the trust flags.
