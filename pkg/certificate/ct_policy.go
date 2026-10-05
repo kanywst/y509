@@ -20,62 +20,93 @@ const ctLongLifetime = 180 * 24 * time.Hour
 // policy is not judged at all.
 const ctListMaxAge = 70 * 24 * time.Hour
 
-// CTPolicyFinding judges a publicly trusted leaf against Chrome's CT policy
+// CTPolicyResult is the outcome of CheckCTPolicy. Exactly one of three holds:
+// the policy is met (both fields empty), it is not (Finding), or it could not
+// be judged (NotJudged says why). Not judged is reported rather than folded
+// into a pass, so a gate can tell the two apart.
+type CTPolicyResult struct {
+	Finding   *ConformanceFinding
+	NotJudged string
+}
+
+// Verdict is the one-word summary validate reports: "met", "not met", or
+// "not judged: <reason>".
+func (r CTPolicyResult) Verdict() string {
+	switch {
+	case r.NotJudged != "":
+		return "not judged: " + r.NotJudged
+	case r.Finding != nil:
+		return "not met"
+	default:
+		return "met"
+	}
+}
+
+// CTPolicyFinding is CheckCTPolicy's finding alone, nil when the policy is met
+// or could not be judged.
+func CTPolicyFinding(leaf, issuer *x509.Certificate, delivered [][]byte, now time.Time) *ConformanceFinding {
+	return CheckCTPolicy(leaf, issuer, delivered, now).Finding
+}
+
+// CheckCTPolicy judges a publicly trusted leaf against Chrome's CT policy
 // (googlechrome.github.io/CertificateTransparency/ct_policy.html), using the
 // SCTs embedded in it and any the server delivered in the TLS extension. Only
 // SCTs whose signature verifies against their log's key count, as in Chrome;
-// issuer is the leaf's issuer, which an embedded SCT's signature covers.
+// issuer must be the leaf's verified issuer, which an embedded SCT's
+// signature covers.
 //
-// It returns nil when the policy is met, and also when it cannot be judged
-// fairly:
+// It does not judge, and says why, when it cannot do so fairly:
 //
 //   - no SCTs at all. An enterprise root added to the system store looks the
-//     same as a public one from here, and Chrome does not enforce CT on it, so
-//     a certificate with no SCTs is not reported.
+//     same as a public one from here, and Chrome does not enforce CT on it.
 //   - an SCT from a log the bundled list does not know, or knows without a
-//     key. The list may simply be
-//     older than the log, and counting that SCT as missing would blame the
-//     certificate for the list's age.
+//     key. The list may simply be older than the log, and counting that SCT
+//     as missing would blame the certificate for the list's age.
 //   - an embedded SCT list that does not parse, which sctError reports.
 //   - embedded SCTs and no issuer to check them against.
 //   - a bundled log list more than 70 days older than now, as Chrome does.
 //
-// SCTs in a stapled OCSP response are not read; a server relying only on those
-// would be reported.
-func CTPolicyFinding(leaf, issuer *x509.Certificate, delivered [][]byte, now time.Time) *ConformanceFinding {
-	if leaf == nil || ctListStale(now) {
-		return nil
+// A TLS-delivered SCT that does not parse counts as one that does not verify.
+// SCTs in a stapled OCSP response are not read; a server relying only on
+// those would be reported.
+func CheckCTPolicy(leaf, issuer *x509.Certificate, delivered [][]byte, now time.Time) CTPolicyResult {
+	if leaf == nil {
+		return CTPolicyResult{NotJudged: "no leaf certificate"}
+	}
+	if ctListStale(now) {
+		return CTPolicyResult{NotJudged: fmt.Sprintf("the bundled CT log list (%s) is more than 70 days old", ctLogsList.Timestamp)}
 	}
 	embedded, err := SCTs(leaf)
 	if err != nil {
-		return nil
+		return CTPolicyResult{NotJudged: "the embedded SCT list does not parse"}
 	}
+	invalid := 0
 	var tls []SCT
 	for _, raw := range delivered {
 		sct, err := parseSCT(raw)
 		if err != nil {
+			invalid++
 			continue
 		}
 		tls = append(tls, sct)
 	}
-	if len(embedded)+len(tls) == 0 {
-		return nil
+	if len(embedded)+len(tls)+invalid == 0 {
+		return CTPolicyResult{NotJudged: "no SCTs, which an internal CA in the system store would not have either"}
 	}
 	if len(embedded) > 0 && issuer == nil {
-		return nil
+		return CTPolicyResult{NotJudged: "no verified issuer to check the embedded SCTs against"}
 	}
 	// A log the list does not know, or knows without a key, cannot be judged
 	// either way. Counting its SCT as invalid would blame the certificate for
 	// the list.
 	for _, sct := range append(append([]SCT{}, embedded...), tls...) {
 		if sct.Log == nil || sct.Log.Key == "" {
-			return nil
+			return CTPolicyResult{NotJudged: "an SCT from a log the bundled CT list does not know (" + sct.LogID + ")"}
 		}
 	}
 
 	// Only what verifies counts. A forged or corrupted SCT is not evidence of
 	// logging, and Chrome ignores it too.
-	invalid := 0
 	verified := func(scts []SCT, isEmbedded bool) []SCT {
 		var out []SCT
 		for _, sct := range scts {
@@ -95,7 +126,7 @@ func CTPolicyFinding(leaf, issuer *x509.Certificate, delivered [][]byte, now tim
 		need = 3
 	}
 	if embeddedMeetsPolicy(embedded, need) || deliveredMeetsPolicy(tls) {
-		return nil
+		return CTPolicyResult{}
 	}
 
 	embeddedLogs, embeddedOps := countEmbedded(embedded)
@@ -114,7 +145,7 @@ func CTPolicyFinding(leaf, issuer *x509.Certificate, delivered [][]byte, now tim
 	} else {
 		detail += "ask the CA to reissue it with enough SCTs"
 	}
-	return &ConformanceFinding{Problem: ProblemInsufficientSCTs, Subject: displayName(leaf), Detail: detail}
+	return CTPolicyResult{Finding: &ConformanceFinding{Problem: ProblemInsufficientSCTs, Subject: displayName(leaf), Detail: detail}}
 }
 
 func ctListStale(now time.Time) bool {

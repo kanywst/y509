@@ -311,3 +311,44 @@ func TestTBSWithoutSCTListRoundTrips(t *testing.T) {
 		t.Error("a truncated TBS parsed")
 	}
 }
+
+// TestCheckCTPolicySaysWhyItDidNotJudge keeps a skipped check from reading as
+// a pass: each abstention names its reason, and Verdict carries it.
+func TestCheckCTPolicySaysWhyItDidNotJudge(t *testing.T) {
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	issued := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	google := testLog(t, 16, "Google", "usable", "")
+	digicert := testLog(t, 17, "DigiCert", "usable", "")
+	f := newCTFixture(t)
+
+	tests := []struct {
+		name   string
+		result CTPolicyResult
+		want   string
+	}{
+		{"met", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google, digicert), f.issuer, nil, now), "met"},
+		{"not met", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google), f.issuer, nil, now), "not met"},
+		{"no SCTs", CheckCTPolicy(f.mint(t, 90*24*time.Hour, nil), f.issuer, nil, now), "not judged: no SCTs"},
+		{"no issuer", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google), nil, nil, now), "not judged: no verified issuer"},
+		{"unknown log", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, ctTestLog{id: make([]byte, 32), key: google.key}), f.issuer, nil, now), "not judged: an SCT from a log the bundled CT list does not know"},
+		{"stale list", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google), f.issuer, nil, now.Add(200*24*time.Hour)), "not judged: the bundled CT log list"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.result.Verdict(); !strings.HasPrefix(got, tt.want) {
+				t.Errorf("Verdict() = %q, want prefix %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestUnparseableDeliveredSCTIsNotAbsent: a server that sends garbage in the
+// SCT extension has sent something, and it does not count. Dropping it would
+// turn the certificate into "no SCTs" and skip the check.
+func TestUnparseableDeliveredSCTIsNotAbsent(t *testing.T) {
+	f := newCTFixture(t)
+	got := CheckCTPolicy(f.mint(t, 90*24*time.Hour, nil), f.issuer, [][]byte{{0x01, 0x02}}, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC))
+	if got.Finding == nil || !strings.Contains(got.Finding.Detail, "1 SCTs whose signature does not verify") {
+		t.Fatalf("garbage TLS SCT = %+v, want a finding counting it", got)
+	}
+}
