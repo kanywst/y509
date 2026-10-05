@@ -99,9 +99,9 @@ func CheckCTPolicy(leaf, issuer *x509.Certificate, delivered [][]byte, now time.
 
 	// SCTs from logs the list cannot vouch for are set aside, not counted as
 	// invalid: that would blame the certificate for the list.
-	unknown := 0
-	known := func(scts []SCT) []SCT {
+	known := func(scts []SCT) ([]SCT, int) {
 		var out []SCT
+		unknown := 0
 		for _, sct := range scts {
 			if sct.Log == nil || sct.Log.Key == "" {
 				unknown++
@@ -109,13 +109,10 @@ func CheckCTPolicy(leaf, issuer *x509.Certificate, delivered [][]byte, now time.
 			}
 			out = append(out, sct)
 		}
-		return out
+		return out, unknown
 	}
-	embedded = known(embedded)
-	tls = known(tls)
-	if len(embedded) > 0 && issuer == nil {
-		return CTPolicyResult{NotJudged: "no verified issuer to check the embedded SCTs against"}
-	}
+	embedded, unknownEmbedded := known(embedded)
+	tls, unknownTLS := known(tls)
 
 	// Only what verifies counts. A forged or corrupted SCT is not evidence of
 	// logging, and Chrome ignores it too.
@@ -130,19 +127,31 @@ func CheckCTPolicy(leaf, issuer *x509.Certificate, delivered [][]byte, now time.
 		}
 		return out
 	}
-	embedded = verified(embedded, true)
+
+	// The TLS path needs no issuer, so it is tried before giving up on one.
 	tls = verified(tls, false)
+	if deliveredMeetsPolicy(tls) {
+		return CTPolicyResult{}
+	}
+	if len(embedded) > 0 && issuer == nil {
+		return CTPolicyResult{NotJudged: "no verified issuer to check the embedded SCTs against"}
+	}
+	embedded = verified(embedded, true)
 
 	need := 2
 	if leaf.NotAfter.Sub(leaf.NotBefore) > ctLongLifetime {
 		need = 3
 	}
-	if embeddedMeetsPolicy(embedded, need) || deliveredMeetsPolicy(tls) {
+	if embeddedMeetsPolicy(embedded, need) {
 		return CTPolicyResult{}
 	}
-	if unknown > 0 {
-		return CTPolicyResult{NotJudged: fmt.Sprintf("the SCTs it can check fall short, and %d from logs the bundled CT list does not know might make up the difference", unknown)}
+	// Abstain only if the unknown SCTs could close the gap, each counted as a
+	// live log from an operator not yet seen. Otherwise an SCT naming a
+	// made-up log would be enough to switch the check off.
+	if couldMeet(embedded, unknownEmbedded, need) || couldMeetDelivered(tls, unknownTLS) {
+		return CTPolicyResult{NotJudged: fmt.Sprintf("the SCTs it can check fall short, and %d from logs the bundled CT list does not know could make up the difference", unknownEmbedded+unknownTLS)}
 	}
+	invalid += unknownEmbedded + unknownTLS
 
 	embeddedLogs, embeddedOps := countEmbedded(embedded)
 	detail := fmt.Sprintf("Chrome requires embedded SCTs from %d distinct logs run by at least two operators, at least one from a log still accepting, or two SCTs sent in the TLS handshake from distinct live logs and operators; this certificate has %d counting embedded (%s)",
@@ -161,6 +170,25 @@ func CheckCTPolicy(leaf, issuer *x509.Certificate, delivered [][]byte, now time.
 		detail += "ask the CA to reissue it with enough SCTs"
 	}
 	return CTPolicyResult{Finding: &ConformanceFinding{Problem: ProblemInsufficientSCTs, Subject: displayName(leaf), Detail: detail}}
+}
+
+// couldMeet reports whether unknown more embedded SCTs, each from a new live
+// log and a new operator, would satisfy the embedded requirement.
+func couldMeet(scts []SCT, unknown, need int) bool {
+	if unknown == 0 {
+		return false
+	}
+	logs, operators := countEmbedded(scts)
+	return logs+unknown >= need && len(operators)+unknown >= 2
+}
+
+// couldMeetDelivered is couldMeet for the TLS path.
+func couldMeetDelivered(scts []SCT, unknown int) bool {
+	if unknown == 0 {
+		return false
+	}
+	logs, operators := countDelivered(scts)
+	return logs+unknown >= 2 && len(operators)+unknown >= 2
 }
 
 func ctListStale(now time.Time) bool {

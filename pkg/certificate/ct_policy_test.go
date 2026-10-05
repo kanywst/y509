@@ -315,6 +315,22 @@ func TestIssuerOfFindsTheSignerAnywhere(t *testing.T) {
 	}
 }
 
+// TestTLSPathDoesNotNeedTheIssuer: two good TLS-delivered SCTs meet the
+// policy even when the leaf's issuer was not sent, which only the embedded
+// SCTs need.
+func TestTLSPathDoesNotNeedTheIssuer(t *testing.T) {
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	issued := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	google := testLog(t, 18, "Google", "usable", "")
+	digicert := testLog(t, 19, "DigiCert", "usable", "")
+	f := newCTFixture(t)
+	leaf := f.leaf(t, 90*24*time.Hour, issued, google)
+	got := CheckCTPolicy(leaf, nil, [][]byte{delivered(t, google, leaf, issued), delivered(t, digicert, leaf, issued)}, now)
+	if got.Verdict() != "met" {
+		t.Errorf("Verdict() = %q, want met through the TLS path", got.Verdict())
+	}
+}
+
 func TestTBSWithoutSCTListRoundTrips(t *testing.T) {
 	google := testLog(t, 14, "Google", "usable", "")
 	f := newCTFixture(t)
@@ -353,7 +369,9 @@ func TestCheckCTPolicySaysWhyItDidNotJudge(t *testing.T) {
 		{"no SCTs", CheckCTPolicy(f.mint(t, 90*24*time.Hour, nil), f.issuer, nil, now), "not judged: no SCTs"},
 		{"met despite unknown", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google, digicert, ctTestLog{id: make([]byte, 32), key: google.key}), f.issuer, nil, now), "met"},
 		{"no issuer", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google), nil, nil, now), "not judged: no verified issuer"},
-		{"unknown log", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, ctTestLog{id: make([]byte, 32), key: google.key}), f.issuer, nil, now), "not judged: the SCTs it can check fall short"},
+		// An unknown log is abstained on only when it could close the gap.
+		{"unknown log could close the gap", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google, ctTestLog{id: make([]byte, 32), key: google.key}), f.issuer, nil, now), "not judged: the SCTs it can check fall short"},
+		{"unknown log could not close the gap", CheckCTPolicy(f.leaf(t, 200*24*time.Hour, issued, google, ctTestLog{id: make([]byte, 32), key: google.key}), f.issuer, nil, now), "not met"},
 		{"stale list", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google), f.issuer, nil, now.Add(200*24*time.Hour)), "not judged: the bundled CT log list"},
 	}
 	for _, tt := range tests {
