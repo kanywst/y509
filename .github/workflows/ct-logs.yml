@@ -1,0 +1,48 @@
+name: CT logs
+
+# Refresh the bundled CT log list. validate stops judging Chrome's CT policy
+# once the list is more than 70 days old, as Chrome does, so a list left alone
+# quietly switches the check off. This keeps main fresh; a release still has
+# to ship it.
+on:
+  schedule:
+    - cron: "17 3 1,15 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ct-logs
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Regenerate the list
+        run: go run scripts/gen_ct_logs.go
+
+      # The bundle is data the policy runs on: test it before it lands, since a
+      # push from this job does not start the Test workflow.
+      - name: Test the certificate package against it
+        run: go test ./pkg/certificate
+
+      - name: Commit and push if the list changed
+        run: |
+          if git diff --quiet -- pkg/certificate/ctlogs.json; then
+            echo "ctlogs.json unchanged, nothing to commit"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add pkg/certificate/ctlogs.json
+          git commit -m "chore(ct): refresh the bundled CT log list"
+          git push
