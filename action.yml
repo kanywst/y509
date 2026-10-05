@@ -87,6 +87,13 @@ outputs:
       Whether every certificate passes the rules clients enforce on their own.
       "true" for a release older than the check.
     value: ${{ steps.check.outputs.conformance-ok }}
+  ct-policy:
+    description: >-
+      Chrome's CT policy for the chain: "met", "not met", or "not judged:
+      <reason>". conformance-ok is not affected by a check that was not
+      judged; gate on this to require one. Empty for a release older than the
+      check.
+    value: ${{ steps.check.outputs.ct-policy }}
   revocation-ok:
     description: >-
       Whether the stapled OCSP response is sound. "true" when nothing was
@@ -241,6 +248,7 @@ runs:
         revocation_problems=$(jq -r '[.revocation.findings[]?.problem] | join(", ")' "$report")
         conformance_ok=$(jq -r 'if .conformance == null then "true" else (.conformance.ok | tostring) end' "$report")
         conformance_problems=$(jq -r '[.conformance.findings[]?.problem] | join(", ")' "$report")
+        ct_policy=$(jq -r '.conformance.ctPolicy // ""' "$report")
 
         {
           echo "trust-level=$level"
@@ -250,6 +258,7 @@ runs:
           echo "problems=$problems"
           echo "revocation-ok=$revocation_ok"
           echo "conformance-ok=$conformance_ok"
+          echo "ct-policy=$ct_policy"
           echo "report=$report"
         } >> "$GITHUB_OUTPUT"
 

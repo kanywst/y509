@@ -196,9 +196,10 @@ func printResults(results []targetResult) {
 			fmt.Println()
 			fmt.Println(conformance)
 		}
-		// Say so when the CT policy was skipped, or a skipped check would read
-		// the same as a pass.
-		if strings.HasPrefix(ctPolicy, "not judged") {
+		// Say so when the CT policy was skipped for a chain it applies to, or
+		// a skipped check would read the same as a pass. An internal or
+		// untrusted chain is not news; JSON still carries why.
+		if r.Result != nil && r.Result.SystemAnchored && strings.HasPrefix(ctPolicy, "not judged") {
 			fmt.Println()
 			fmt.Printf("CT policy: %s\n", ctPolicy)
 		}
@@ -332,25 +333,27 @@ func encodeReport(enc *json.Encoder, r targetResult) error {
 // conformanceFindings is the per-certificate rules plus the CT policy, which
 // only validate can judge: it needs a chain trusted through the system store,
 // since an internal PKI has no business with CT, and the SCTs the server sent.
-// The CT verdict is empty when the policy does not apply.
+// The CT verdict always says what happened, so its absence never stands for a
+// silent skip.
 func conformanceFindings(r targetResult) ([]certificate.ConformanceFinding, string) {
 	findings := certificate.ConformanceFindings(r.Report.Sent)
-	if r.Result == nil || !r.Result.SystemAnchored || len(r.Report.Sorted) == 0 {
-		return findings, ""
+	switch {
+	case r.Result == nil || r.Result.Level != certificate.TrustAnchored:
+		return findings, "not judged: the chain is not trusted"
+	case !r.Result.SystemAnchored:
+		return findings, "not judged: trusted through --roots, where CT does not apply"
+	case len(r.Report.Sorted) == 0:
+		return findings, "not judged: no leaf certificate"
 	}
 	leaf := r.Report.Sorted[0]
 	var delivered [][]byte
 	if r.Source != nil && r.Source.Conn != nil {
 		delivered = r.Source.Conn.SCTs
 	}
-	// The next certificate in the sorted chain is only the issuer if it
-	// signed the leaf. Anything else would make every embedded SCT look
-	// forged, blaming the SCTs for a chain problem.
-	var issuer *x509.Certificate
-	if len(r.Report.Sorted) > 1 && leaf.CheckSignatureFrom(r.Report.Sorted[1]) == nil {
-		issuer = r.Report.Sorted[1]
-	}
-	ct := certificate.CheckCTPolicy(leaf, issuer, delivered, time.Now())
+	// Whichever certificate the server sent that actually signed the leaf,
+	// wherever it sat. A misordered chain is a presentation finding, and must
+	// not turn into every embedded SCT looking forged.
+	ct := certificate.CheckCTPolicy(leaf, certificate.IssuerOf(leaf, r.Report.Sent), delivered, time.Now())
 	if ct.Finding != nil {
 		findings = append(findings, *ct.Finding)
 	}

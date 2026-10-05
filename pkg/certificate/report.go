@@ -317,9 +317,9 @@ type JSONConformance struct {
 	// critical extension" or, from validate only, "insufficient SCTs". Always
 	// an array, never null.
 	Findings []JSONFinding `json:"findings"`
-	// CTPolicy is set by validate for a chain trusted through the system
-	// store: "met", "not met", or "not judged: <reason>". Absent otherwise,
-	// including for an internal PKI, where CT does not apply.
+	// CTPolicy is set by validate: "met", "not met", or "not judged:
+	// <reason>", including why for a chain CT does not apply to. Absent from
+	// an inspection, which judges no policy.
 	CTPolicy string `json:"ctPolicy,omitempty"`
 }
 

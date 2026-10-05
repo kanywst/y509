@@ -75,8 +75,12 @@ type SCT struct {
 	// Timestamp is when the log promised to include the certificate.
 	Timestamp time.Time
 
-	// What the signature covers and the signature itself, kept for
-	// VerifySCT. Listing an SCT does not need them.
+	// signed is what VerifySCT needs: the signed fields and the signature.
+	// It sits behind a pointer so SCT stays comparable.
+	signed *sctSigned
+}
+
+type sctSigned struct {
 	timestampMS uint64
 	extensions  []byte
 	hashAlg     byte
@@ -170,13 +174,15 @@ func parseSCT(b []byte) (SCT, error) {
 		return SCT{}, errors.New("SCT signature length does not match its contents")
 	}
 	sct := SCT{
-		LogID:       id,
-		Timestamp:   time.UnixMilli(int64(ms)).UTC(),
-		timestampMS: ms,
-		extensions:  extensions,
-		hashAlg:     b[header+2+len(extensions)],
-		sigAlg:      b[header+2+len(extensions)+1],
-		signature:   signature,
+		LogID:     id,
+		Timestamp: time.UnixMilli(int64(ms)).UTC(),
+		signed: &sctSigned{
+			timestampMS: ms,
+			extensions:  extensions,
+			hashAlg:     b[header+2+len(extensions)],
+			sigAlg:      b[header+2+len(extensions)+1],
+			signature:   signature,
+		},
 	}
 	if l, ok := ctLogsByID[id]; ok {
 		sct.Log = &l

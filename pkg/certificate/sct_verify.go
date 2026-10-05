@@ -35,6 +35,10 @@ func VerifySCT(sct SCT, leaf, issuer *x509.Certificate, embedded bool) error {
 	if leaf == nil {
 		return errors.New("no certificate to check against")
 	}
+	if sct.signed == nil {
+		return errors.New("the SCT carries no signature")
+	}
+	sig := sct.signed
 	der, err := base64.StdEncoding.DecodeString(sct.Log.Key)
 	if err != nil {
 		return fmt.Errorf("the bundled key for %s is not base64: %w", sct.Name(), err)
@@ -47,7 +51,7 @@ func VerifySCT(sct SCT, leaf, issuer *x509.Certificate, embedded bool) error {
 	var b cryptobyte.Builder
 	b.AddUint8(0) // sct_version v1
 	b.AddUint8(0) // signature_type certificate_timestamp
-	b.AddUint64(sct.timestampMS)
+	b.AddUint64(sig.timestampMS)
 	if embedded {
 		if issuer == nil {
 			return errors.New("an embedded SCT needs the issuer to check")
@@ -64,29 +68,29 @@ func VerifySCT(sct SCT, leaf, issuer *x509.Certificate, embedded bool) error {
 		b.AddUint16(0) // x509_entry
 		b.AddUint24LengthPrefixed(func(c *cryptobyte.Builder) { c.AddBytes(leaf.Raw) })
 	}
-	b.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) { c.AddBytes(sct.extensions) })
+	b.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) { c.AddBytes(sig.extensions) })
 	signed, err := b.Bytes()
 	if err != nil {
 		return err
 	}
 
-	if sct.hashAlg != sctHashSHA256 {
-		return fmt.Errorf("SCT hash algorithm %d is not SHA-256", sct.hashAlg)
+	if sig.hashAlg != sctHashSHA256 {
+		return fmt.Errorf("SCT hash algorithm %d is not SHA-256", sig.hashAlg)
 	}
 	digest := sha256.Sum256(signed)
 	switch pub := key.(type) {
 	case *ecdsa.PublicKey:
-		if sct.sigAlg != sctSigECDSA {
+		if sig.sigAlg != sctSigECDSA {
 			return errors.New("SCT signature algorithm does not match the log's ECDSA key")
 		}
-		if !ecdsa.VerifyASN1(pub, digest[:], sct.signature) {
+		if !ecdsa.VerifyASN1(pub, digest[:], sig.signature) {
 			return errors.New("SCT signature does not verify")
 		}
 	case *rsa.PublicKey:
-		if sct.sigAlg != sctSigRSA {
+		if sig.sigAlg != sctSigRSA {
 			return errors.New("SCT signature algorithm does not match the log's RSA key")
 		}
-		if err := rsa.VerifyPKCS1v15(pub, crypto.SHA256, digest[:], sct.signature); err != nil {
+		if err := rsa.VerifyPKCS1v15(pub, crypto.SHA256, digest[:], sig.signature); err != nil {
 			return errors.New("SCT signature does not verify")
 		}
 	default:

@@ -59,16 +59,16 @@ func CTPolicyFinding(leaf, issuer *x509.Certificate, delivered [][]byte, now tim
 //
 //   - no SCTs at all. An enterprise root added to the system store looks the
 //     same as a public one from here, and Chrome does not enforce CT on it.
-//   - an SCT from a log the bundled list does not know, or knows without a
-//     key. The list may simply be older than the log, and counting that SCT
-//     as missing would blame the certificate for the list's age.
-//   - an embedded SCT list that does not parse, which sctError reports.
+//   - not met by the SCTs it can check, with SCTs from a log the bundled list
+//     does not know (or knows without a key) that might make up the
+//     shortfall. The list may simply be older than the log. When the known
+//     SCTs already meet the policy, the unknown ones do not matter.
 //   - embedded SCTs and no issuer to check them against.
 //   - a bundled log list more than 70 days older than now, as Chrome does.
 //
-// A TLS-delivered SCT that does not parse counts as one that does not verify.
-// SCTs in a stapled OCSP response are not read; a server relying only on
-// those would be reported.
+// An embedded SCT list or TLS-delivered SCT that does not parse counts as an
+// SCT that does not verify, as Chrome would treat it. SCTs in a stapled OCSP
+// response are not read; a server relying only on those would be reported.
 func CheckCTPolicy(leaf, issuer *x509.Certificate, delivered [][]byte, now time.Time) CTPolicyResult {
 	if leaf == nil {
 		return CTPolicyResult{NotJudged: "no leaf certificate"}
@@ -76,11 +76,14 @@ func CheckCTPolicy(leaf, issuer *x509.Certificate, delivered [][]byte, now time.
 	if ctListStale(now) {
 		return CTPolicyResult{NotJudged: fmt.Sprintf("the bundled CT log list (%s) is more than 70 days old", ctLogsList.Timestamp)}
 	}
+
+	invalid := 0
 	embedded, err := SCTs(leaf)
 	if err != nil {
-		return CTPolicyResult{NotJudged: "the embedded SCT list does not parse"}
+		// The SCTs read before the damage still count; the damage itself is
+		// an SCT that does not verify.
+		invalid++
 	}
-	invalid := 0
 	var tls []SCT
 	for _, raw := range delivered {
 		sct, err := parseSCT(raw)
@@ -93,16 +96,25 @@ func CheckCTPolicy(leaf, issuer *x509.Certificate, delivered [][]byte, now time.
 	if len(embedded)+len(tls)+invalid == 0 {
 		return CTPolicyResult{NotJudged: "no SCTs, which an internal CA in the system store would not have either"}
 	}
+
+	// SCTs from logs the list cannot vouch for are set aside, not counted as
+	// invalid: that would blame the certificate for the list.
+	unknown := 0
+	known := func(scts []SCT) []SCT {
+		var out []SCT
+		for _, sct := range scts {
+			if sct.Log == nil || sct.Log.Key == "" {
+				unknown++
+				continue
+			}
+			out = append(out, sct)
+		}
+		return out
+	}
+	embedded = known(embedded)
+	tls = known(tls)
 	if len(embedded) > 0 && issuer == nil {
 		return CTPolicyResult{NotJudged: "no verified issuer to check the embedded SCTs against"}
-	}
-	// A log the list does not know, or knows without a key, cannot be judged
-	// either way. Counting its SCT as invalid would blame the certificate for
-	// the list.
-	for _, sct := range append(append([]SCT{}, embedded...), tls...) {
-		if sct.Log == nil || sct.Log.Key == "" {
-			return CTPolicyResult{NotJudged: "an SCT from a log the bundled CT list does not know (" + sct.LogID + ")"}
-		}
 	}
 
 	// Only what verifies counts. A forged or corrupted SCT is not evidence of
@@ -127,6 +139,9 @@ func CheckCTPolicy(leaf, issuer *x509.Certificate, delivered [][]byte, now time.
 	}
 	if embeddedMeetsPolicy(embedded, need) || deliveredMeetsPolicy(tls) {
 		return CTPolicyResult{}
+	}
+	if unknown > 0 {
+		return CTPolicyResult{NotJudged: fmt.Sprintf("the SCTs it can check fall short, and %d from logs the bundled CT list does not know might make up the difference", unknown)}
 	}
 
 	embeddedLogs, embeddedOps := countEmbedded(embedded)
@@ -173,6 +188,23 @@ func logLive(sct SCT) bool {
 		return true
 	}
 	return false
+}
+
+// IssuerOf returns the certificate among candidates that signed leaf, or nil.
+// The leaf itself is skipped, so a self-signed leaf has no issuer here.
+func IssuerOf(leaf *x509.Certificate, candidates []*x509.Certificate) *x509.Certificate {
+	if leaf == nil {
+		return nil
+	}
+	for _, c := range candidates {
+		if c == nil || c.Equal(leaf) {
+			continue
+		}
+		if leaf.CheckSignatureFrom(c) == nil {
+			return c
+		}
+	}
+	return nil
 }
 
 // countEmbedded counts the distinct logs whose SCTs count, and their operators.

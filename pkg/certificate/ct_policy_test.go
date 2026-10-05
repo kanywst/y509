@@ -212,7 +212,11 @@ func TestCTPolicyFinding(t *testing.T) {
 		{"unknown log", f.leaf(t, short, issued, googleA, ctTestLog{id: make([]byte, 32), key: googleA.key}), f.issuer, nil, false},
 		{"no issuer", f.leaf(t, short, issued, googleA), nil, nil, false},
 		{"known log without a key", f.leaf(t, short, issued, googleA, keyless), f.issuer, nil, false},
-		{"damaged list", certWithSCTList(t, opaque16(opaque16([]byte{0, 1}))), f.issuer, nil, false},
+		// A damaged list is an SCT that does not verify, as Chrome sees it.
+		{"damaged list", certWithSCTList(t, opaque16(opaque16([]byte{0, 1}))), f.issuer, nil, true},
+		// Known SCTs that already meet the policy are enough; an unknown log
+		// beside them cannot switch the check off.
+		{"met despite an unknown log", f.leaf(t, short, issued, googleA, digicert, ctTestLog{id: make([]byte, 32), key: googleA.key}), f.issuer, nil, false},
 		{"nil leaf", nil, nil, nil, false},
 	}
 	for _, tt := range tests {
@@ -293,6 +297,24 @@ func TestCTPolicyFindingNamesWhatItCounted(t *testing.T) {
 	}
 }
 
+// TestIssuerOfFindsTheSignerAnywhere: a server that sends the chain out of
+// order still sent the issuer, and SCT verification must find it.
+func TestIssuerOfFindsTheSignerAnywhere(t *testing.T) {
+	f := newCTFixture(t)
+	other := newCTFixture(t)
+	leaf := f.mint(t, 90*24*time.Hour, nil)
+
+	if got := IssuerOf(leaf, []*x509.Certificate{leaf, other.issuer, f.issuer}); got != f.issuer {
+		t.Errorf("IssuerOf = %v, want the CA that signed the leaf", got)
+	}
+	if got := IssuerOf(leaf, []*x509.Certificate{leaf, other.issuer}); got != nil {
+		t.Errorf("IssuerOf = %v, want nil when the signer was not sent", got)
+	}
+	if IssuerOf(nil, nil) != nil {
+		t.Error("nil leaf has no issuer")
+	}
+}
+
 func TestTBSWithoutSCTListRoundTrips(t *testing.T) {
 	google := testLog(t, 14, "Google", "usable", "")
 	f := newCTFixture(t)
@@ -329,8 +351,9 @@ func TestCheckCTPolicySaysWhyItDidNotJudge(t *testing.T) {
 		{"met", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google, digicert), f.issuer, nil, now), "met"},
 		{"not met", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google), f.issuer, nil, now), "not met"},
 		{"no SCTs", CheckCTPolicy(f.mint(t, 90*24*time.Hour, nil), f.issuer, nil, now), "not judged: no SCTs"},
+		{"met despite unknown", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google, digicert, ctTestLog{id: make([]byte, 32), key: google.key}), f.issuer, nil, now), "met"},
 		{"no issuer", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google), nil, nil, now), "not judged: no verified issuer"},
-		{"unknown log", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, ctTestLog{id: make([]byte, 32), key: google.key}), f.issuer, nil, now), "not judged: an SCT from a log the bundled CT list does not know"},
+		{"unknown log", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, ctTestLog{id: make([]byte, 32), key: google.key}), f.issuer, nil, now), "not judged: the SCTs it can check fall short"},
 		{"stale list", CheckCTPolicy(f.leaf(t, 90*24*time.Hour, issued, google), f.issuer, nil, now.Add(200*24*time.Hour)), "not judged: the bundled CT log list"},
 	}
 	for _, tt := range tests {
