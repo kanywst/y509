@@ -175,6 +175,11 @@ func TestCTPolicyFinding(t *testing.T) {
 	retiredBefore := testLog(t, 6, "Let's Encrypt", "retired", "2026-08-01T00:00:00Z")
 	rejected := testLog(t, 7, "Cloudflare", "rejected", "2026-07-01T00:00:00Z")
 	ipng := testLog(t, 8, "IPng", "retired", "2026-09-20T00:00:00Z")
+	keyless := testLog(t, 15, "HARICA", "pending", "2026-09-01T00:00:00Z")
+	keylessID := base64.StdEncoding.EncodeToString(keyless.id)
+	entry := ctLogsByID[keylessID]
+	entry.Key = ""
+	ctLogsByID[keylessID] = entry
 
 	f := newCTFixture(t)
 	bare := f.mint(t, short, nil)
@@ -206,6 +211,7 @@ func TestCTPolicyFinding(t *testing.T) {
 		{"no SCTs at all", bare, f.issuer, nil, false},
 		{"unknown log", f.leaf(t, short, issued, googleA, ctTestLog{id: make([]byte, 32), key: googleA.key}), f.issuer, nil, false},
 		{"no issuer", f.leaf(t, short, issued, googleA), nil, nil, false},
+		{"known log without a key", f.leaf(t, short, issued, googleA, keyless), f.issuer, nil, false},
 		{"damaged list", certWithSCTList(t, opaque16(opaque16([]byte{0, 1}))), f.issuer, nil, false},
 		{"nil leaf", nil, nil, nil, false},
 	}

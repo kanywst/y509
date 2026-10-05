@@ -32,7 +32,8 @@ const ctListMaxAge = 70 * 24 * time.Hour
 //   - no SCTs at all. An enterprise root added to the system store looks the
 //     same as a public one from here, and Chrome does not enforce CT on it, so
 //     a certificate with no SCTs is not reported.
-//   - an SCT from a log the bundled list does not know. The list may simply be
+//   - an SCT from a log the bundled list does not know, or knows without a
+//     key. The list may simply be
 //     older than the log, and counting that SCT as missing would blame the
 //     certificate for the list's age.
 //   - an embedded SCT list that does not parse, which sctError reports.
@@ -63,8 +64,11 @@ func CTPolicyFinding(leaf, issuer *x509.Certificate, delivered [][]byte, now tim
 	if len(embedded) > 0 && issuer == nil {
 		return nil
 	}
+	// A log the list does not know, or knows without a key, cannot be judged
+	// either way. Counting its SCT as invalid would blame the certificate for
+	// the list.
 	for _, sct := range append(append([]SCT{}, embedded...), tls...) {
-		if sct.Log == nil {
+		if sct.Log == nil || sct.Log.Key == "" {
 			return nil
 		}
 	}

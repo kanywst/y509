@@ -84,7 +84,10 @@ func main() {
 	for _, op := range list.Operators {
 		for _, entries := range [][]logEntry{op.Logs, op.TiledLogs} {
 			for _, l := range entries {
-				name, since := state(l.State)
+				name, since, err := state(l.State)
+				if err != nil {
+					log.Fatalf("log %s (%s): %v", l.LogID, l.Description, err)
+				}
 				bundle.Logs = append(bundle.Logs, Log{
 					ID:          l.LogID,
 					Description: l.Description,
@@ -111,13 +114,22 @@ func main() {
 
 // state reads the single key of the log's state object (usable, qualified,
 // readonly, retired, rejected or pending) and the timestamp under it.
-func state(s map[string]json.RawMessage) (name, since string) {
+//
+// A state without a parseable timestamp fails the run rather than writing an
+// empty one: a retired log's timestamp decides whether its SCTs still count,
+// and an empty one would quietly stop them counting.
+func state(s map[string]json.RawMessage) (name, since string, err error) {
 	for key, raw := range s {
 		var body struct {
 			Timestamp string `json:"timestamp"`
 		}
-		_ = json.Unmarshal(raw, &body)
-		return key, body.Timestamp
+		if err := json.Unmarshal(raw, &body); err != nil {
+			return "", "", fmt.Errorf("state %q does not parse: %w", key, err)
+		}
+		if _, err := time.Parse(time.RFC3339, body.Timestamp); err != nil {
+			return "", "", fmt.Errorf("state %q has no RFC 3339 timestamp: %q", key, body.Timestamp)
+		}
+		return key, body.Timestamp, nil
 	}
-	return "", ""
+	return "", "", nil
 }
