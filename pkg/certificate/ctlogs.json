@@ -1,25 +1,28 @@
 {
   "source": "https://www.gstatic.com/ct/log_list/v3/all_logs_list.json",
-  "version": "93.4",
-  "timestamp": "2026-10-04T13:39:14Z",
+  "version": "95.0",
+  "timestamp": "2026-10-14T13:44:25Z",
   "logs": [
     {
       "id": "+ZgQ1evkfhzxtCH/beNb+MHsluJeBNv8dW9r5FxlXMo=",
+      "description": "HARICA Selene2028h2",
       "operator": "HARICA",
-      "state": "pending",
-      "stateSince": "2026-09-09T18:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-13T13:55:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhv69aIT5VqkDal/4d7ah2Wl7eTJxB5eDkPybJgLXuIwgPrxmVMocOPc7s0q1wX87wKWimGNUBf8HvarCUVuhPQ=="
     },
     {
       "id": "+mMSdJrcyBmVTj7zAR1CZ3aI1Ecc/vY1P4kdyHwSrNQ=",
+      "description": "Sectigo Tigger2027",
       "operator": "Sectigo",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtgd6K1O2eC+m8NHQwud/88kVUvRlY6R74OadAamS8203Y/EhLtX7clvh/VLbDD7Je+lbNe29R8WgTlT2E4Q0Ow=="
     },
     {
       "id": "/Cvx3M57P/mNzO4pdqi0IuiOCa6pt5mhesjSWzqR+MA=",
+      "description": "Sectigo Statue2028h1",
       "operator": "Sectigo",
-      "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEffgZsTRT+6CoRLKvp2VwyZbkyvkf8HLcP6VirHDuMAvQ9jKleGpJ/XhA2ycs2DNcMyFnraw02UOVjqHVATKKBQ=="
     },
     {
@@ -40,6 +43,7 @@
     },
     {
       "id": "0J1XydPITy4G3x5te1QjepibtE1vlbKeTR/dmG3ySq4=",
+      "description": "TrustAsia Taiji2028h2",
       "operator": "TrustAsia",
       "state": "pending",
       "stateSince": "2026-10-02T19:00:00Z",
@@ -261,9 +265,10 @@
     },
     {
       "id": "G3i5n/pJwlzEUFl1q/10eRTf3fp7/dOdKjW5WQStPog=",
+      "description": "Let's Encrypt Sycamore2028h1",
       "operator": "Let's Encrypt",
-      "state": "pending",
-      "stateSince": "2026-09-12T15:00:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEaQnfbBFBTK5HQP/VclILJBM+XaMfpGxuel793+IkpNv2DmHR55rR1t61qHp7DOvQq5gciEnkbTsWYPW9nii66g=="
     },
     {
@@ -276,9 +281,10 @@
     },
     {
       "id": "GZ9TRtShpGoaPdygptJx/Taqms3LslRJmOM+dVHZi8k=",
+      "description": "HARICA Selene2028h1",
       "operator": "HARICA",
-      "state": "pending",
-      "stateSince": "2026-09-09T18:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-13T13:55:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGJlHidjMrZ5jsmI9rU6INoPHv7FJ6NxlueXO8+p3e7EcTRj6uR2r2tjVKZyMdFM7zPT3QjPgi4jgM/fwtr5DKw=="
     },
     {
@@ -471,9 +477,10 @@
     },
     {
       "id": "Mk28xZLuH+bg6aYx4WURJaunVGze9l0TxxGtWhs4aqk=",
+      "description": "Sectigo Monument2028h1",
       "operator": "Sectigo",
-      "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE91RAoG4RS78L2dnlvN9uR7kSdPglMOYAR1Bwbh7p5Dv2yehL3OF/EiSyHCU9SaP846hR7XMNSYMIO4uYCloGgQ=="
     },
     {
@@ -532,6 +539,7 @@
     },
     {
       "id": "SGuYP1B0Yz0uwvx1b+RG84ybuU+PCLpdtIb+PWTYUXk=",
+      "description": "Let's Encrypt Twig2028h1",
       "operator": "Let's Encrypt",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOETgISLbYZr6JXUIQwca5xUC/RHNbf2p16YfsBnJasnFWQ1K8E6hWm/SXdpqTSn04gpihiRcPwxruGrRrPo9EA=="
     },
@@ -553,6 +561,7 @@
     },
     {
       "id": "TK5t0Fot3KD8SwUWYDUwEITH/9ksbzAfpQ3h06QaiLo=",
+      "description": "Let's Encrypt Twig2028h2",
       "operator": "Let's Encrypt",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPHuxhH0LSfU5ildQkc3Ble56eJKWm3Y/q0n4Ou3UiayUv911PVK2r/s+hqX1IhuMoCa7hlttsbS12rBkre4ZYA=="
     },
@@ -566,9 +575,10 @@
     },
     {
       "id": "V+RgJ5TwE01vJbkN3nyKr9cuefY8ogzD9dFPs4lFv1U=",
+      "description": "Sectigo Statue2027h2",
       "operator": "Sectigo",
-      "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEn+NsNAQqvjgRLZOhS78P8JsdDwMXsASG3ZO1gqeH3dAu7MojoOV4gEZVnFtfO4KPc8pw632rpKsi2edP6rtjxg=="
     },
     {
@@ -631,6 +641,7 @@
     },
     {
       "id": "YaNdw5gGGypZW/40RomVGPD+rBSwG+Aqk78FIUY6nb0=",
+      "description": "Sectigo Dumbo",
       "operator": "Sectigo",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEpb+NLT3zUoc4PAWOpxkkvEH24RKv0dn5QanhKK8Ap7ORfcMxhdWX6h21ZppbyVQ+6hA/pkXNBBGyEpi16VyAQA=="
     },
@@ -650,9 +661,10 @@
     },
     {
       "id": "Zw/v+c0tZeC4UfTSi9vY+BdtNeIL3fhbQhT74s+jXiM=",
+      "description": "Sectigo Statue2028h2",
       "operator": "Sectigo",
-      "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENWGrBZrsi2C7vFdCeHyMu5wMDcs1DavVuy9ngm2zhXPrvO4e+uEouxgsHsan4P3OkKC5RoYolyxRaOmuC0ys5w=="
     },
     {
@@ -683,9 +695,10 @@
     },
     {
       "id": "bHsR9YaIq7BLUlT3PyIbVVjgvpNRI3MlcGGfeugsbBA=",
+      "description": "Sectigo Monument2028h2",
       "operator": "Sectigo",
-      "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEI7iVUCkAaGP0gSWSox44MjTOQ5mngbn7cq9zS0Q3/+lMi3LNQ5J/yA8szRlS7HdkdnvfP4QFh4XMIbeCiYapYw=="
     },
     {
@@ -714,13 +727,15 @@
     },
     {
       "id": "caQ99zUpUI88YXJqTPeP+cknbMBSwvd3Zql1T9QKkMM=",
+      "description": "Let's Encrypt Willow2028h1",
       "operator": "Let's Encrypt",
-      "state": "pending",
-      "stateSince": "2026-09-12T15:00:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENShXFppi9EOLfbZl/UeDbhMd20q28ZwfzBvZ5dxg05YwU2IlVRdUkzSDXHDw2n8S3AGjbEm7DeCwLdyrIWG09w=="
     },
     {
       "id": "cd1QREFkibQDp3c0FPKGnt4CnXEI84DXfoJshKW/fls=",
+      "description": "TrustAsia Luoshu2028h1",
       "operator": "TrustAsia",
       "state": "pending",
       "stateSince": "2026-10-02T19:00:00Z",
@@ -728,9 +743,10 @@
     },
     {
       "id": "d+CXC8fTD+AkXF2y76h1TAjrOpDdwSu11U7iiv4neHA=",
+      "description": "Let's Encrypt Sycamore2028h2",
       "operator": "Let's Encrypt",
-      "state": "pending",
-      "stateSince": "2026-09-12T15:00:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExL5FIuf80L4x6aTRFesgGQ+yrIvN5yNxaK71YLp83Y4+U36M0oYKLct3nn2OffTQDqrLPCx9GJeUwHAXlwgPHw=="
     },
     {
@@ -767,9 +783,10 @@
     },
     {
       "id": "g92PTAqC4jctZFmPZBgRxF27h4JAz96XF7b9cOQAZ4c=",
+      "description": "HARICA Selene2027h1",
       "operator": "HARICA",
-      "state": "pending",
-      "stateSince": "2026-09-09T18:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-13T13:55:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEp31CH7O1ZoSn90SXs7AxRbijXxYlV8UDMS0Q/zBGafU2yHlDzhGcoauEjpmjvH45TF7IamA8EVe4NjAaXWdAnw=="
     },
     {
@@ -800,6 +817,7 @@
     },
     {
       "id": "jap0vUvSSHaUVxo2MsA8HZSVk3N5615qDROINcMzR8k=",
+      "description": "TrustAsia Luoshu2028h2",
       "operator": "TrustAsia",
       "state": "pending",
       "stateSince": "2026-10-02T19:00:00Z",
@@ -815,9 +833,10 @@
     },
     {
       "id": "k0C4iKejzC796l4cBupj6U7f6w4VXgIIZFIAYZlMotE=",
+      "description": "Sectigo Statue2027h1",
       "operator": "Sectigo",
-      "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEFiK9nBjtUDiFSLvuKxotVbJ2aX2ldnNhEa1KGSMfF1D3IDe/rFp6cbGJIPkLzwv8SZbXKbNbcz51kL1Wmukjrg=="
     },
     {
@@ -844,9 +863,10 @@
     },
     {
       "id": "lU+RNjI2rVhXzDYVRyLcQOf5ugowsOdS+/DHSylmVrg=",
+      "description": "Sectigo Monument2027h1",
       "operator": "Sectigo",
-      "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE35R0yxGn1SeQHYGCO82O4hAP5Ace6KRMyVY1karr/hWvO8KEm+EWYbk2xrWnlVsyeeBPsR/nOZFoXgbSs1EKQg=="
     },
     {
@@ -945,9 +965,10 @@
     },
     {
       "id": "sYdPqlxcQTingZPPo7kk2ImvyDNpOcfp+q0JVhrGpV4=",
+      "description": "HARICA Selene2027h2",
       "operator": "HARICA",
-      "state": "pending",
-      "stateSince": "2026-09-09T18:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-13T13:55:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzkHK2i2jO3Js7SToO7tc8d8qlxszbTjxt0wnnASCU+tIqKJLBJjmagsZsCGX7XrEK3mboD3p4Du7Viut6VcMGw=="
     },
     {
@@ -958,9 +979,10 @@
     },
     {
       "id": "tvzC6p+E49qX4wl/sfIW6R/w154KB0QDJbBvlPXmU8U=",
+      "description": "Sectigo Monument2027h2",
       "operator": "Sectigo",
-      "state": "pending",
-      "stateSince": "2026-09-12T17:30:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzAWvoYfHsDXwXaxHUTOAOYx+vESfGpSKTYPUwwDYIwKe1g4lsEmoMwlFJNP2wC8M3g721r663BQaU7I5tKa5jw=="
     },
     {
@@ -979,13 +1001,15 @@
     },
     {
       "id": "vey1qmLph0NZ/U7NvnDZ8G8+j71Fo6xrycKFEbx0wJw=",
+      "description": "Let's Encrypt Willow2028h2",
       "operator": "Let's Encrypt",
-      "state": "pending",
-      "stateSince": "2026-09-12T15:00:00Z",
+      "state": "qualified",
+      "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEnNwidB8P8uuMA2j+jT21aysX+4S1UcJTVvQdM+hfG/BUlJF43iCU6kUudwSgdL2cglVvlv8d+tVlqLkcTPn4tA=="
     },
     {
       "id": "vjHTZYjf2AXIbTUgKYSsyapEruOECAufz0LryHNV5Js=",
+      "description": "Sectigo Tigger2026",
       "operator": "Sectigo",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdh/cBL5t5uz1BRtpazOxuJfUTAQEwo/MtjyzdJqeFETFdjBKJxbOcQcQAhFrp7Ef1Zv998p0V2Rj9lloFDt9YA=="
     },
@@ -1061,6 +1085,7 @@
     },
     {
       "id": "zVMsH8M+555WnWLXjKJmKkfeR5AsQ2zq+JS5GDG0BXw=",
+      "description": "TrustAsia Taiji2028h1",
       "operator": "TrustAsia",
       "state": "pending",
       "stateSince": "2026-10-02T19:00:00Z",
