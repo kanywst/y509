@@ -15,18 +15,25 @@ Current release: v1.11.1. Landscape last reviewed 2026-09-17.
 - **Lifetimes are shrinking.** 200 days today, 100 from 2027-03-15. Less slack for a missed renewal.
 - **Inventory is a compliance requirement.** PCI DSS 4.0.1 since 2025-03-31, plus post-quantum migration.
 
+## Next
+
+- **Revocation pointers.** Report a certificate with no AIA, and one with no CRL distribution point when it is neither short-lived nor has an OCSP pointer. A missing OCSP pointer is never a finding. Any network check is CRL-only, opt-in and cached. Today a missing AIA only shows inside `missing issuer`, and nothing reads the CRL distribution point outside the Misc tab.
+
 ## Keeping up with X.509
 
 A valid certificate must render completely. A malformed one is a finding.
 
-- **Revocation findings.** Stapled responses are judged under `revocation`, gated by `fail-on: revocation`. A missing OCSP pointer is never a finding; a missing AIA is; a missing CRL distribution point is only when the certificate is neither short-lived nor has an OCSP pointer. Any network check is CRL-only, opt-in and cached.
+- **Presentation findings.** `missing issuer`, `redundant root`, `out of order`, `duplicate` and `unrelated`, judged on the chain as sent, under `presentation.findings` and gated by `fail-on: mis-served`. A missing issuer carries the AIA URL to fetch it from.
+- **Unreadable blocks.** A block that does not parse is listed under `unparsed` and in the TUI, never dropped.
+- **Revocation findings.** Stapled responses are judged under `revocation`, gated by `fail-on: revocation`.
 - **Conformance findings.** Hand-rolled rather than zlint, which mostly checks a CA's obligations and predicts no client failure. `conformance` reports a SHA-1 or MD5 signature, RSA under 2048 bits and a CN-only server certificate, gated by `fail-on: conformance`.
 - **Post-quantum names.** The floor is Go 1.27, which decodes ML-DSA itself. A signature or key algorithm Go does not know is named from its OID (`RawSignatureAlgorithm`, the SPKI): all twelve SLH-DSA parameter sets, or `unknown (OID …)`. Composite ML-DSA waits for its OIDs to leave draft. The FreeBSD port needs `USES=go:1.27,modules` from the release that raised the floor.
 - **Large post-quantum certificates are normal.** An ML-DSA-87 signature is 4,627 bytes, SLH-DSA-256f 49,856. Private CAs issue them today.
 - **Extensions view.** The Misc tab and `chain[].extensions` list every extension by name or OID, with the critical bit, and name Must-Staple. `conformance` reports a served precertificate and any critical extension Go does not process, which covers a leaf's `acmeIdentifier`. `nameConstraints` or `policyConstraints` on a leaf is not reported: RFC 5280 forbids it, but no client is known to reject it.
 - **Certificate Transparency, offline.** The Misc tab and `chain[].scts` list the embedded SCTs, naming each log, its operator and state from a bundled copy of Google's `all_logs_list.json`. `make ct-logs` refreshes it. `validate` reports `insufficient SCTs` under `conformance` against Chrome's CT policy, counting embedded and TLS-delivered SCTs whose signatures verify against the bundled log keys, for a chain trusted through the system store that carries at least one SCT. SCTs in a stapled OCSP response are not read. The check stops 70 days after the bundled list's date, as Chrome's does. A scheduled workflow keeps main's list fresh, but a binary only carries the list it was released with, so release at least every 60 days and run `make ct-logs` before tagging.
 - **International names.** A DNS SAN or common name with an `xn--` label is shown with its Unicode form, and a Unicode common name with its `xn--` form, in the TUI, the SAN text and `chain[].idns`. Search matches either form. A name that fails the IDNA lookup rules, such as an `xn--` label that does not decode, is labelled `invalid IDN`, with the reason in `idns[].error`. Columns are sized by display width (`uniseg`), so CJK names line up.
-- **No-expiry sentinel.** A `9999-12-31T23:59:59Z` `NotAfter` reads as "no expiry" in the TUI, `inventory` and `FormatValidity`, and as `noExpiry` in JSON, instead of a countdown that `time.Duration` saturated at 106,751 days.
+- **Lifetime limit.** `chain[].exceedsCabMaxLifetime` judges a leaf against the CA/Browser Forum maximum for its own `NotBefore`.
+- **No-expiry sentinel.** A `9999-12-31T23:59:59Z` `NotAfter` reads as "no expiry" in the TUI, "never" in `inventory` and `FormatValidity`, and as `noExpiry` in JSON, instead of a countdown that `time.Duration` saturated at 106,751 days.
 - **Watch.** Merkle Tree Certificates (experimental). TLS trust anchor identifiers (near approval) make serving different chains to different clients correct, so design for it now.
 
 ## Presentation rules
@@ -44,6 +51,7 @@ A valid certificate must render completely. A malformed one is a finding.
 
 - **Packaging.** winget (#138), AUR and nix (#139). Scoop already updates itself.
 - **Malformed-certificate fixtures.** One shared helper instead of every package building its own.
+- **Presentation rules not yet met.** `duplicate` and `unrelated` give no why or fix, and `missing issuer` and `out of order` give no fix. `validate` does not name the verifier or the trust source. JSON lacks key usage, extended key usage, basic constraints, AKI, SKI and the AIA, OCSP and CRL URLs the TUI shows. The landing page lists none of the subcommand flags.
 
 ## Non-goals
 
@@ -51,4 +59,4 @@ A valid certificate must render completely. A malformed one is a finding.
 - **No AIA chasing.** It would hide the exact misconfiguration y509 exists to find. Opt-in CRL checks are different: they add facts, they do not fill gaps.
 - **No issuance.** No CA, no key generation, no CSRs.
 - **Read-only.** Nothing mutates a remote.
-- **No second certificate parser.** Read raw ASN.1 only far enough to label it, as `isPKCSContainer` does.
+- **No second certificate parser.** Read raw ASN.1 only where `crypto/x509` stops: to find the certificates in a container, to read the SAN forms it drops, and to rebuild the TBS for SCT verification.
