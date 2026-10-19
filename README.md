@@ -195,7 +195,7 @@ y509 validate example.com:443 --json | jq .
 - `chain[].noExpiry` is true for the RFC 5280 `9999-12-31` sentinel, a certificate with no well-defined expiration. `daysUntilExpiry` and `validityDays` still carry the real arithmetic, so read `noExpiry` before printing them.
 - `chain[].scts` lists the embedded SCTs as `{logId, log, operator, logState, timestamp}`, with logs named from a bundled copy of Google's CT log list (`make ct-logs` refreshes it). Nothing is verified or fetched. `log`, `operator` and `logState` are absent for a log the list does not know. If the list is damaged, `sctError` says why and `scts` keeps what was read before the damage.
 - `chain[].extensions` lists every extension as `{oid, name, critical}`. `name` is absent for one y509 does not know.
-- `chain[].idns` lists the internationalized names among the common name and `dnsNames` as `{ascii, unicode}`. Absent when there are none.
+- `chain[].idns` lists the internationalized names among the common name and `dnsNames` as `{ascii, unicode}`. For an `xn--` label that does not decode, `unicode` is absent and `error` says why. Absent when there are none.
 
 The exit code alone cannot tell `self-anchored` from `broken`, or say anything about how the chain was served. JSON can:
 

@@ -299,9 +299,12 @@ type JSONExtension struct {
 }
 
 // JSONIDN is one internationalized name, as its xn-- form and as Unicode.
+// For an xn-- label that does not decode, unicode is absent and error says
+// why.
 type JSONIDN struct {
 	ASCII   string `json:"ascii"`
-	Unicode string `json:"unicode"`
+	Unicode string `json:"unicode,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // JSONSCT is one embedded SCT. Log, Operator and LogState are absent when the

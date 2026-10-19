@@ -10,39 +10,54 @@ import (
 
 func TestIDNForm(t *testing.T) {
 	tests := []struct {
-		name string
-		in   string
-		want string
+		name    string
+		in      string
+		want    string
+		wantErr bool
 	}{
-		{"ACE to Unicode", "xn--r8jz45g.jp", "例え.jp"},
-		{"uppercase ACE", "XN--R8JZ45G.JP", "例え.jp"},
-		{"wildcard", "*.xn--r8jz45g.jp", "*.例え.jp"},
-		{"homograph", "xn--80ak6aa92e.com", "аррӏе.com"},
-		{"Unicode to ACE", "例え.jp", "xn--r8jz45g.jp"},
-		{"plain ASCII", "example.com", ""},
-		{"undecodable label", "xn--zz.com", ""},
-		{"not a hostname", "Acme 株式会社", ""},
-		{"empty", "", ""},
-		{"bare wildcard", "*.", ""},
+		{name: "ACE to Unicode", in: "xn--r8jz45g.jp", want: "例え.jp"},
+		{name: "uppercase ACE", in: "XN--R8JZ45G.JP", want: "例え.JP"},
+		{name: "wildcard", in: "*.xn--r8jz45g.jp", want: "*.例え.jp"},
+		{name: "underscore elsewhere", in: "_acme.xn--r8jz45g.jp", want: "_acme.例え.jp"},
+		{name: "homograph", in: "xn--80ak6aa92e.com", want: "аррӏе.com"},
+		{name: "Unicode to ACE", in: "例え.jp", want: "xn--r8jz45g.jp"},
+		{name: "Unicode wildcard to ACE", in: "*.例え.jp", want: "*.xn--r8jz45g.jp"},
+		{name: "plain ASCII", in: "example.com"},
+		{name: "not a hostname", in: "Acme 株式会社"},
+		{name: "empty", in: ""},
+		{name: "bad punycode", in: "xn--zz.com", wantErr: true},
+		{name: "decodes to a C1 control", in: "xn--a.com", wantErr: true},
+		{name: "empty A-label", in: "xn--.com", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := IDNForm(tt.in); got != tt.want {
+			got, err := IDNForm(tt.in)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("IDNForm(%q) error = %v, wantErr %v", tt.in, err, tt.wantErr)
+			}
+			if got != tt.want {
 				t.Errorf("IDNForm(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
 	}
 }
 
+func TestWithIDNFormLabelsAnUndecodableName(t *testing.T) {
+	if got := WithIDNForm("xn--zz.com"); got != "xn--zz.com (undecodable IDN)" {
+		t.Errorf("WithIDNForm = %q", got)
+	}
+}
+
 func TestIDNsListsEachNameOnce(t *testing.T) {
 	cert := &x509.Certificate{
 		Subject:  pkix.Name{CommonName: "例え.jp"},
-		DNSNames: []string{"xn--r8jz45g.jp", "example.com", "*.xn--r8jz45g.jp"},
+		DNSNames: []string{"xn--r8jz45g.jp", "example.com", "*.xn--r8jz45g.jp", "xn--zz.com"},
 	}
 	got := IDNs(cert)
 	want := []IDNPair{
 		{ASCII: "xn--r8jz45g.jp", Unicode: "例え.jp"},
 		{ASCII: "*.xn--r8jz45g.jp", Unicode: "*.例え.jp"},
+		{ASCII: "xn--zz.com", Error: `idna: invalid label "zz"`},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("IDNs = %v, want %v", got, want)
