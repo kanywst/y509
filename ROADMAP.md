@@ -4,7 +4,7 @@ Themes, not dates. Nothing here is a commitment; the [issue tracker](https://git
 
 y509 answers two questions: *does this chain verify*, and *was it served correctly*. A check belongs here only if it predicts a client failure. It is not a general TLS scanner.
 
-Current release: v1.11.0. Landscape last reviewed 2026-09-17.
+Current release: v1.11.1. Landscape last reviewed 2026-09-17.
 
 ## Why it exists
 
@@ -14,10 +14,6 @@ Current release: v1.11.0. Landscape last reviewed 2026-09-17.
 - **Existing tools miss it.** `openssl s_client` exits 0 when verification fails. SSL Labs cannot reach an internal host.
 - **Lifetimes are shrinking.** 200 days today, 100 from 2027-03-15. Less slack for a missed renewal.
 - **Inventory is a compliance requirement.** PCI DSS 4.0.1 since 2025-03-31, plus post-quantum migration.
-
-## Next
-
-- **International names.** Show punycode next to Unicode. Column width must use display width (`uniseg`), not rune count.
 
 ## Keeping up with X.509
 
@@ -29,6 +25,7 @@ A valid certificate must render completely. A malformed one is a finding.
 - **Large post-quantum certificates are normal.** An ML-DSA-87 signature is 4,627 bytes, SLH-DSA-256f 49,856. Private CAs issue them today.
 - **Extensions view.** The Misc tab and `chain[].extensions` list every extension by name or OID, with the critical bit, and name Must-Staple. `conformance` reports a served precertificate and any critical extension Go does not process, which covers a leaf's `acmeIdentifier`. `nameConstraints` or `policyConstraints` on a leaf is not reported: RFC 5280 forbids it, but no client is known to reject it.
 - **Certificate Transparency, offline.** The Misc tab and `chain[].scts` list the embedded SCTs, naming each log, its operator and state from a bundled copy of Google's `all_logs_list.json`. `make ct-logs` refreshes it. `validate` reports `insufficient SCTs` under `conformance` against Chrome's CT policy, counting embedded and TLS-delivered SCTs whose signatures verify against the bundled log keys, for a chain trusted through the system store that carries at least one SCT. SCTs in a stapled OCSP response are not read. The check stops 70 days after the bundled list's date, as Chrome's does. A scheduled workflow keeps main's list fresh, but a binary only carries the list it was released with, so release at least every 60 days and run `make ct-logs` before tagging.
+- **International names.** A DNS SAN or common name with an `xn--` label is shown with its Unicode form, and a Unicode common name with its `xn--` form, in the TUI, the SAN text and `chain[].idns`. Search matches either form. A name that fails the IDNA lookup rules, such as an `xn--` label that does not decode, is labelled `invalid IDN`, with the reason in `idns[].error`. Columns are sized by display width (`uniseg`), so CJK names line up.
 - **No-expiry sentinel.** A `9999-12-31T23:59:59Z` `NotAfter` reads as "no expiry" in the TUI, `inventory` and `FormatValidity`, and as `noExpiry` in JSON, instead of a countdown that `time.Duration` saturated at 106,751 days.
 - **Watch.** Merkle Tree Certificates (experimental). TLS trust anchor identifiers (near approval) make serving different chains to different clients correct, so design for it now.
 

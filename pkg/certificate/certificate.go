@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/kanywst/y509/internal/textwidth"
 	"go.uber.org/zap"
 )
 
@@ -608,10 +609,8 @@ func generateCertificateLabel(cert *x509.Certificate, index int) string {
 		cn = "Unknown"
 	}
 
-	// Truncate long common names by rune so multibyte names aren't cut
-	// mid-character.
-	if r := []rune(cn); len(r) > 30 {
-		cn = string(r[:27]) + "..."
+	if textwidth.Width(cn) > 30 {
+		cn = textwidth.Truncate(cn, 27) + "..."
 	}
 
 	return fmt.Sprintf("%d. %s", index+1, cn)
@@ -867,7 +866,7 @@ func FormatSAN(cert *x509.Certificate) string {
 	if len(cert.DNSNames) > 0 {
 		details.WriteString("DNS Names:\n")
 		for _, dns := range cert.DNSNames {
-			details.WriteString(fmt.Sprintf("  %s\n", dns))
+			details.WriteString(fmt.Sprintf("  %s\n", WithIDNForm(dns)))
 		}
 		details.WriteString("\n")
 	}

@@ -18,8 +18,10 @@ func TestTruncateText(t *testing.T) {
 		{name: "Negative width", text: "abc", width: -5, want: ""},
 		{name: "Width equals three", text: "abcdef", width: 3, want: "..."},
 		{name: "Tiny width", text: "abcdef", width: 2, want: ".."},
-		{name: "Multibyte fits", text: "日本語", width: 5, want: "日本語"},
-		{name: "Multibyte truncated", text: "日本語テスト", width: 5, want: "日本..."},
+		{name: "Wide fits", text: "日本語", width: 6, want: "日本語"},
+		{name: "Wide truncated by cells", text: "日本語", width: 5, want: "日..."},
+		{name: "Wide not split", text: "日本語テスト", width: 8, want: "日本..."},
+		{name: "Grapheme cluster kept whole", text: "e\u0301e\u0301e\u0301e\u0301e\u0301", width: 4, want: "e\u0301..."},
 	}
 
 	for _, tt := range tests {

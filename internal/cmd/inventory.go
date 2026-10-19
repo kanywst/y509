@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/kanywst/y509/internal/logger"
+	"github.com/kanywst/y509/internal/textwidth"
 	"github.com/kanywst/y509/pkg/certificate"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -261,8 +262,8 @@ func writeInventoryText(rows []inventoryRow, failures []string) {
 			daysField(r),
 		}
 		for i, c := range row {
-			if len(c) > widths[i] {
-				widths[i] = len(c)
+			if w := textwidth.Width(c); w > widths[i] {
+				widths[i] = w
 			}
 		}
 		cells = append(cells, row)
@@ -275,7 +276,7 @@ func writeInventoryText(rows []inventoryRow, failures []string) {
 				sb.WriteString("  ")
 			}
 			sb.WriteString(c)
-			sb.WriteString(strings.Repeat(" ", widths[i]-len(c)))
+			sb.WriteString(strings.Repeat(" ", widths[i]-textwidth.Width(c)))
 		}
 		fmt.Println(strings.TrimRight(sb.String(), " "))
 	}

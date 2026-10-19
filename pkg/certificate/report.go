@@ -298,6 +298,15 @@ type JSONExtension struct {
 	Critical bool   `json:"critical"`
 }
 
+// JSONIDN is one internationalized name, as its xn-- form and as Unicode.
+// For one that fails IDNA validation, only the spelling the certificate
+// carries is present and error says why.
+type JSONIDN struct {
+	ASCII   string `json:"ascii,omitempty"`
+	Unicode string `json:"unicode,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
 // JSONSCT is one embedded SCT. Log, Operator and LogState are absent when the
 // bundled list does not know the log.
 type JSONSCT struct {
@@ -419,6 +428,9 @@ type JSONCertificate struct {
 	// rendered as "type: value". Without them a certificate whose only
 	// identity is one of these reports no names at all.
 	OtherNames []string `json:"otherNames,omitempty"`
+	// IDNs are the internationalized names among the subject common name and
+	// dnsNames, each in both spellings.
+	IDNs []JSONIDN `json:"idns,omitempty"`
 	// Extensions lists every X.509v3 extension, in the order the certificate
 	// carries them, so one that is not decoded anywhere else is still visible.
 	Extensions []JSONExtension `json:"extensions"`
@@ -529,6 +541,9 @@ func newJSONCertificate(index int, cert *x509.Certificate, now time.Time) JSONCe
 	}
 	for _, ip := range cert.IPAddresses {
 		entry.IPAddresses = append(entry.IPAddresses, ip.String())
+	}
+	for _, idn := range IDNs(cert) {
+		entry.IDNs = append(entry.IDNs, JSONIDN(idn))
 	}
 	entry.SCTs = []JSONSCT{}
 	scts, sctErr := SCTs(cert)
