@@ -18,44 +18,37 @@ import (
 // The Lookup profile rejects control characters, so a hostile label cannot
 // decode to an escape sequence on the terminal.
 func IDNForm(name string) (string, error) {
+	convert := idna.Lookup.ToUnicode
 	if isASCII(name) {
 		if !hasACELabel(name) {
 			return "", nil
 		}
-		// Label by label, so an underscore or a wildcard elsewhere in the
-		// name, which the profile rejects, does not stop the xn-- labels.
-		labels := strings.Split(name, ".")
-		for i, label := range labels {
-			if !isACELabel(label) {
-				continue
-			}
-			u, err := idna.Lookup.ToUnicode(label)
-			if err == nil && u == "" {
-				err = fmt.Errorf("idna: invalid label %q", label)
-			}
-			if err != nil {
-				return "", err
-			}
-			labels[i] = u
+	} else {
+		// A common name like "Acme 株式会社" is not a hostname and has no
+		// other spelling. One that looks like a hostname and fails is reported.
+		if !strings.Contains(name, ".") || strings.ContainsFunc(name, unicode.IsSpace) {
+			return "", nil
 		}
-		return strings.Join(labels, "."), nil
+		convert = idna.Lookup.ToASCII
 	}
 
-	// The profile rejects "*", so a wildcard is converted without it.
-	prefix, host := "", name
-	if rest, ok := strings.CutPrefix(name, "*."); ok {
-		prefix, host = "*.", rest
+	// Label by label, so a wildcard or an underscore elsewhere in the name,
+	// which the profile rejects, gets the same verdict in either spelling.
+	labels := strings.Split(name, ".")
+	for i, label := range labels {
+		if isASCII(label) && !isACELabel(label) {
+			continue
+		}
+		out, err := convert(label)
+		if err == nil && out == "" {
+			err = fmt.Errorf("idna: invalid label %q", label)
+		}
+		if err != nil {
+			return "", err
+		}
+		labels[i] = out
 	}
-	// A common name like "Acme 株式会社" is not a hostname and has no other
-	// spelling. One that looks like a hostname and still fails is reported.
-	if !strings.Contains(host, ".") || strings.ContainsFunc(host, unicode.IsSpace) {
-		return "", nil
-	}
-	a, err := idna.Lookup.ToASCII(host)
-	if err != nil {
-		return "", err
-	}
-	return prefix + a, nil
+	return strings.Join(labels, "."), nil
 }
 
 // WithIDNForm is name followed by its other spelling in parentheses, or by

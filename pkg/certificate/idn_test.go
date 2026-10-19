@@ -22,6 +22,7 @@ func TestIDNForm(t *testing.T) {
 		{name: "homograph", in: "xn--80ak6aa92e.com", want: "аррӏе.com"},
 		{name: "Unicode to ACE", in: "例え.jp", want: "xn--r8jz45g.jp"},
 		{name: "Unicode wildcard to ACE", in: "*.例え.jp", want: "*.xn--r8jz45g.jp"},
+		{name: "Unicode with an underscore elsewhere", in: "_acme.例え.jp", want: "_acme.xn--r8jz45g.jp"},
 		{name: "plain ASCII", in: "example.com"},
 		{name: "not a hostname", in: "Acme 株式会社"},
 		{name: "empty", in: ""},
@@ -58,7 +59,7 @@ func TestIDNsListsEachNameOnce(t *testing.T) {
 	}
 	got := IDNs(cert)
 	want := []IDNPair{
-		{Unicode: "1مثال.com", Error: `idna: invalid label "1مثال.com"`},
+		{Unicode: "1مثال.com", Error: `idna: invalid label "1مثال"`},
 		{ASCII: "xn--r8jz45g.jp", Unicode: "例え.jp"},
 		{ASCII: "*.xn--r8jz45g.jp", Unicode: "*.例え.jp"},
 		{ASCII: "xn--zz.com", Error: `idna: invalid label "zz"`},
