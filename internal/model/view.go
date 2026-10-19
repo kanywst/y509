@@ -500,7 +500,7 @@ func (m Model) renderTabContent(width int) string {
 	case "SANs":
 		hasSANs := false
 		for _, dns := range cert.Certificate.DNSNames {
-			kv("DNS", dns)
+			kv("DNS", certificate.WithIDNForm(dns))
 			hasSANs = true
 		}
 		for _, ip := range cert.Certificate.IPAddresses {
@@ -721,7 +721,7 @@ func (m Model) renderUnparsedDetail(failure certificate.ParseFailure) string {
 // renderer, including the attributes pkix.Name has no field for. Those come
 // last: they are the unusual ones, and an EV certificate carries several.
 func renderDN(kv func(key, value string), name pkix.Name) {
-	kv("CN", name.CommonName)
+	kv("CN", certificate.WithIDNForm(name.CommonName))
 	kv("Organization", strings.Join(name.Organization, ", "))
 	kv("OU", strings.Join(name.OrganizationalUnit, ", "))
 	kv("Country", strings.Join(name.Country, ", "))

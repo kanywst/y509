@@ -85,6 +85,7 @@ func TestSearchLogic(t *testing.T) {
 	certs[0].Certificate.Subject.CommonName = "FindMe"
 	certs[1].Certificate.Issuer.CommonName = "IssuerSearch"
 	certs[2].Certificate.Subject.Organization = []string{"OrgSearch"}
+	certs[2].Certificate.DNSNames = []string{"xn--r8jz45g.jp"}
 
 	m := *NewModel(certs, cfg)
 
@@ -108,6 +109,14 @@ func TestSearchLogic(t *testing.T) {
 		m = m.searchCertificates("OrgSearch")
 		if len(m.certificates) != 1 {
 			t.Errorf("Expected 1 match for 'OrgSearch', got %d", len(m.certificates))
+		}
+	})
+
+	t.Run("Search_IDN_Unicode", func(t *testing.T) {
+		m = m.resetView()
+		m = m.searchCertificates("例え")
+		if len(m.certificates) != 1 {
+			t.Errorf("Expected 1 match for '例え', got %d", len(m.certificates))
 		}
 	})
 }

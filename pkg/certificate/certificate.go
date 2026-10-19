@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/rivo/uniseg"
 	"go.uber.org/zap"
 )
 
@@ -608,10 +609,17 @@ func generateCertificateLabel(cert *x509.Certificate, index int) string {
 		cn = "Unknown"
 	}
 
-	// Truncate long common names by rune so multibyte names aren't cut
-	// mid-character.
-	if r := []rune(cn); len(r) > 30 {
-		cn = string(r[:27]) + "..."
+	// Truncate by display width, in whole grapheme clusters, so a CJK name
+	// takes no more cells than an ASCII one and isn't cut mid-character.
+	if uniseg.StringWidth(cn) > 30 {
+		var b strings.Builder
+		used := 0
+		g := uniseg.NewGraphemes(cn)
+		for g.Next() && used+g.Width() <= 27 {
+			used += g.Width()
+			b.WriteString(g.Str())
+		}
+		cn = b.String() + "..."
 	}
 
 	return fmt.Sprintf("%d. %s", index+1, cn)
@@ -867,7 +875,7 @@ func FormatSAN(cert *x509.Certificate) string {
 	if len(cert.DNSNames) > 0 {
 		details.WriteString("DNS Names:\n")
 		for _, dns := range cert.DNSNames {
-			details.WriteString(fmt.Sprintf("  %s\n", dns))
+			details.WriteString(fmt.Sprintf("  %s\n", WithIDNForm(dns)))
 		}
 		details.WriteString("\n")
 	}

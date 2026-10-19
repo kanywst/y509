@@ -201,9 +201,16 @@ func matchSearch(cert *x509.Certificate, query string) bool {
 		}
 	}
 
-	// Search in DNS Names (SANs)
+	// Search in DNS Names (SANs), and in both spellings of an IDN so a name
+	// typed in Unicode finds the xn-- form the certificate carries.
 	for _, dns := range cert.DNSNames {
 		if strings.Contains(strings.ToLower(dns), query) {
+			return true
+		}
+	}
+	for _, idn := range certificate.IDNs(cert) {
+		if strings.Contains(strings.ToLower(idn.ASCII), query) ||
+			strings.Contains(strings.ToLower(idn.Unicode), query) {
 			return true
 		}
 	}
