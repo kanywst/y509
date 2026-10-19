@@ -609,20 +609,25 @@ func generateCertificateLabel(cert *x509.Certificate, index int) string {
 		cn = "Unknown"
 	}
 
-	// Truncate by display width, in whole grapheme clusters, so a CJK name
-	// takes no more cells than an ASCII one and isn't cut mid-character.
 	if uniseg.StringWidth(cn) > 30 {
-		var b strings.Builder
-		used := 0
-		g := uniseg.NewGraphemes(cn)
-		for g.Next() && used+g.Width() <= 27 {
-			used += g.Width()
-			b.WriteString(g.Str())
-		}
-		cn = b.String() + "..."
+		cn = TruncateWidth(cn, 27) + "..."
 	}
 
 	return fmt.Sprintf("%d. %s", index+1, cn)
+}
+
+// TruncateWidth is the longest prefix of s, in whole grapheme clusters, that
+// is at most width terminal cells wide. A CJK character takes two cells, so
+// counting runes overflows a column.
+func TruncateWidth(s string, width int) string {
+	var b strings.Builder
+	used := 0
+	g := uniseg.NewGraphemes(s)
+	for g.Next() && used+g.Width() <= width {
+		used += g.Width()
+		b.WriteString(g.Str())
+	}
+	return b.String()
 }
 
 // IsExpired checks if certificate is expired

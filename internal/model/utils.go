@@ -4,6 +4,7 @@ package model
 import (
 	"strings"
 
+	"github.com/kanywst/y509/pkg/certificate"
 	"github.com/rivo/uniseg"
 )
 
@@ -25,21 +26,5 @@ func truncateText(text string, width int) string {
 	if width <= 3 {
 		return strings.Repeat(".", width)
 	}
-	return truncateWidth(text, width-3) + "..."
-}
-
-// truncateWidth is the longest prefix of text, in whole grapheme clusters,
-// that is at most width cells wide.
-func truncateWidth(text string, width int) string {
-	var b strings.Builder
-	used := 0
-	g := uniseg.NewGraphemes(text)
-	for g.Next() {
-		if used+g.Width() > width {
-			break
-		}
-		used += g.Width()
-		b.WriteString(g.Str())
-	}
-	return b.String()
+	return certificate.TruncateWidth(text, width-3) + "..."
 }
