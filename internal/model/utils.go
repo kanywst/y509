@@ -4,8 +4,7 @@ package model
 import (
 	"strings"
 
-	"github.com/kanywst/y509/pkg/certificate"
-	"github.com/rivo/uniseg"
+	"github.com/kanywst/y509/internal/textwidth"
 )
 
 // getMinimumSize returns the minimum required width and height for the TUI
@@ -20,11 +19,11 @@ func truncateText(text string, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	if uniseg.StringWidth(text) <= width {
+	if textwidth.Width(text) <= width {
 		return text
 	}
 	if width <= 3 {
 		return strings.Repeat(".", width)
 	}
-	return certificate.TruncateWidth(text, width-3) + "..."
+	return textwidth.Truncate(text, width-3) + "..."
 }

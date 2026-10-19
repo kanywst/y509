@@ -19,7 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/rivo/uniseg"
+	"github.com/kanywst/y509/internal/textwidth"
 	"go.uber.org/zap"
 )
 
@@ -609,25 +609,11 @@ func generateCertificateLabel(cert *x509.Certificate, index int) string {
 		cn = "Unknown"
 	}
 
-	if uniseg.StringWidth(cn) > 30 {
-		cn = TruncateWidth(cn, 27) + "..."
+	if textwidth.Width(cn) > 30 {
+		cn = textwidth.Truncate(cn, 27) + "..."
 	}
 
 	return fmt.Sprintf("%d. %s", index+1, cn)
-}
-
-// TruncateWidth is the longest prefix of s, in whole grapheme clusters, that
-// is at most width terminal cells wide. A CJK character takes two cells, so
-// counting runes overflows a column.
-func TruncateWidth(s string, width int) string {
-	var b strings.Builder
-	used := 0
-	g := uniseg.NewGraphemes(s)
-	for g.Next() && used+g.Width() <= width {
-		used += g.Width()
-		b.WriteString(g.Str())
-	}
-	return b.String()
 }
 
 // IsExpired checks if certificate is expired

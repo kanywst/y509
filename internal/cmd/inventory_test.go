@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rivo/uniseg"
+	"github.com/kanywst/y509/internal/textwidth"
 )
 
 func TestInventoryListsEveryCertificate(t *testing.T) {
@@ -216,11 +216,11 @@ func TestInventoryTextAlignsWideNames(t *testing.T) {
 	}
 	oldStdout := os.Stdout
 	os.Stdout = w
+	defer func() { os.Stdout = oldStdout }()
 	writeInventoryText([]inventoryRow{
 		{Target: "a", CommonName: "例え.jp", KeyAlgorithm: "ECDSA", SignatureAlgorithm: "x", NotAfter: "2027-01-01"},
 		{Target: "b", CommonName: "example.jp", KeyAlgorithm: "ECDSA", SignatureAlgorithm: "x", NotAfter: "2027-01-01"},
 	}, nil)
-	os.Stdout = oldStdout
 	if err := w.Close(); err != nil {
 		t.Fatalf("closing the pipe: %v", err)
 	}
@@ -233,7 +233,13 @@ func TestInventoryTextAlignsWideNames(t *testing.T) {
 	if len(lines) != 3 {
 		t.Fatalf("want a header and two rows:\n%s", out)
 	}
-	col := func(line string) int { return uniseg.StringWidth(line[:strings.Index(line, "ECDSA")]) }
+	col := func(line string) int {
+		i := strings.Index(line, "ECDSA")
+		if i < 0 {
+			t.Fatalf("no KEY column in %q", line)
+		}
+		return textwidth.Width(line[:i])
+	}
 	if col(lines[1]) != col(lines[2]) {
 		t.Errorf("KEY column starts at cell %d and %d:\n%s", col(lines[1]), col(lines[2]), out)
 	}

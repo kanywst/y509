@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/kanywst/y509/internal/logger"
+	"github.com/kanywst/y509/internal/textwidth"
 	"github.com/kanywst/y509/pkg/certificate"
-	"github.com/rivo/uniseg"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -262,7 +262,7 @@ func writeInventoryText(rows []inventoryRow, failures []string) {
 			daysField(r),
 		}
 		for i, c := range row {
-			if w := uniseg.StringWidth(c); w > widths[i] {
+			if w := textwidth.Width(c); w > widths[i] {
 				widths[i] = w
 			}
 		}
@@ -276,7 +276,7 @@ func writeInventoryText(rows []inventoryRow, failures []string) {
 				sb.WriteString("  ")
 			}
 			sb.WriteString(c)
-			sb.WriteString(strings.Repeat(" ", widths[i]-uniseg.StringWidth(c)))
+			sb.WriteString(strings.Repeat(" ", widths[i]-textwidth.Width(c)))
 		}
 		fmt.Println(strings.TrimRight(sb.String(), " "))
 	}
