@@ -25,6 +25,7 @@ func TestIDNForm(t *testing.T) {
 		{name: "Unicode with an underscore elsewhere", in: "_acme.例え.jp", want: "_acme.xn--r8jz45g.jp"},
 		{name: "plain ASCII", in: "example.com"},
 		{name: "not a hostname", in: "Acme 株式会社"},
+		{name: "ASCII with a space is not a hostname", in: "xn--zz Corp.com"},
 		{name: "empty", in: ""},
 		{name: "bad punycode", in: "xn--zz.com", wantErr: true},
 		{name: "decodes to a C1 control", in: "xn--a.com", wantErr: true},

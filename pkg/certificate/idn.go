@@ -18,15 +18,18 @@ import (
 // The Lookup profile rejects control characters, so a hostile label cannot
 // decode to an escape sequence on the terminal.
 func IDNForm(name string) (string, error) {
+	// A common name like "Acme 株式会社" is not a hostname and has no other
+	// spelling. One that looks like a hostname and fails is reported.
+	if strings.ContainsFunc(name, unicode.IsSpace) {
+		return "", nil
+	}
 	convert := idna.Lookup.ToUnicode
 	if isASCII(name) {
 		if !hasACELabel(name) {
 			return "", nil
 		}
 	} else {
-		// A common name like "Acme 株式会社" is not a hostname and has no
-		// other spelling. One that looks like a hostname and fails is reported.
-		if !strings.Contains(name, ".") || strings.ContainsFunc(name, unicode.IsSpace) {
+		if !strings.Contains(name, ".") {
 			return "", nil
 		}
 		convert = idna.Lookup.ToASCII
