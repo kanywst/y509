@@ -3,9 +3,13 @@ package cmd
 import (
 	"encoding/csv"
 	"encoding/json"
+	"io"
+	"os"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/rivo/uniseg"
 )
 
 func TestInventoryListsEveryCertificate(t *testing.T) {
@@ -199,5 +203,38 @@ func TestInventoryCSVCarriesTheUnreadableColumn(t *testing.T) {
 	}
 	if records[2][col] == "" {
 		t.Errorf("the unreadable row has an empty reason: %v", records[2])
+	}
+}
+
+// TestInventoryTextAlignsWideNames pads by display width: a CJK subject takes
+// two cells per character, and padding by byte count pushed every later
+// column out of line.
+func TestInventoryTextAlignsWideNames(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	oldStdout := os.Stdout
+	os.Stdout = w
+	writeInventoryText([]inventoryRow{
+		{Target: "a", CommonName: "例え.jp", KeyAlgorithm: "ECDSA", SignatureAlgorithm: "x", NotAfter: "2027-01-01"},
+		{Target: "b", CommonName: "example.jp", KeyAlgorithm: "ECDSA", SignatureAlgorithm: "x", NotAfter: "2027-01-01"},
+	}, nil)
+	os.Stdout = oldStdout
+	if err := w.Close(); err != nil {
+		t.Fatalf("closing the pipe: %v", err)
+	}
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("reading stdout: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("want a header and two rows:\n%s", out)
+	}
+	col := func(line string) int { return uniseg.StringWidth(line[:strings.Index(line, "ECDSA")]) }
+	if col(lines[1]) != col(lines[2]) {
+		t.Errorf("KEY column starts at cell %d and %d:\n%s", col(lines[1]), col(lines[2]), out)
 	}
 }
