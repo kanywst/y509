@@ -1,7 +1,7 @@
 {
   "source": "https://www.gstatic.com/ct/log_list/v3/all_logs_list.json",
-  "version": "95.0",
-  "timestamp": "2026-10-14T13:44:25Z",
+  "version": "95.3",
+  "timestamp": "2026-10-17T13:37:58Z",
   "logs": [
     {
       "id": "+ZgQ1evkfhzxtCH/beNb+MHsluJeBNv8dW9r5FxlXMo=",
@@ -51,13 +51,13 @@
     },
     {
       "id": "0UNvAl0dnyOdvMGLuf+ksRm5lU1hDIPr7KA1oVaWvYE=",
-      "description": "Let's Encrypt 'Twig2027h2'",
+      "description": "Let's Encrypt Twig2027h2",
       "operator": "Let's Encrypt",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEr7GDfmQg4jsIQ7XjMicNTYLHdQKbkjhchr4QoXVEGa5lpl4ob0ObW2sDxcvAFLDQThX76XPd+BVBU6lDscD0uQ=="
     },
     {
       "id": "0W6ppWgHfmY1oD83pd28A6U8QRIU1IgY9ekxsyPLlQQ=",
-      "description": "Sectigo 'Elephant2026h1'",
+      "description": "Sectigo Elephant2026h1",
       "operator": "Sectigo",
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
@@ -73,7 +73,7 @@
     },
     {
       "id": "1219ENGn9XfCx+lf1wC/+YLJM1pl4dCzAXMXwMjFaXc=",
-      "description": "Google 'Argon2026h2' log",
+      "description": "Google Argon2026h2",
       "operator": "Google",
       "state": "usable",
       "stateSince": "2024-09-30T22:19:27Z",
@@ -81,7 +81,7 @@
     },
     {
       "id": "1d5V7roItgyf/BjFE75qYLoARga8WVuWu0T2LMV9Ofo=",
-      "description": "Geomys 'Tuscolo2027h2'",
+      "description": "Geomys Tuscolo2027h2",
       "operator": "Geomys",
       "state": "usable",
       "stateSince": "2025-10-08T21:00:00Z",
@@ -89,7 +89,7 @@
     },
     {
       "id": "1tWNqdAXU/NqSqDHV0kCr+vH3CzTjNn3ZMgMiRkenwI=",
-      "description": "Google 'Argon2027h1'",
+      "description": "Google Argon2027h1",
       "operator": "Google",
       "state": "usable",
       "stateSince": "2025-12-28T00:30:00Z",
@@ -97,7 +97,7 @@
     },
     {
       "id": "2AlVO5RPev/IFhlvlE+Fq7D4/F6HVSYPFdEucrtFSxQ=",
-      "description": "Google 'Xenon2026h2' log",
+      "description": "Google Xenon2026h2",
       "operator": "Google",
       "state": "usable",
       "stateSince": "2024-09-30T22:19:27Z",
@@ -125,7 +125,7 @@
     },
     {
       "id": "4yON8o2iiOCq4Kzw+pDJhfC2v/XSpSewAfwcRFjEtug=",
-      "description": "Let's Encrypt 'Willow2026h1'",
+      "description": "Let's Encrypt Willow2026h1",
       "operator": "Let's Encrypt",
       "state": "rejected",
       "stateSince": "2026-06-25T13:40:00Z",
@@ -133,7 +133,7 @@
     },
     {
       "id": "5eNiR9ku9K2jhYO1NZHbcp/C8ArktnRRdNPd/GqiU4g=",
-      "description": "Let's Encrypt 'Sycamore2027h2'",
+      "description": "Let's Encrypt Sycamore2027h2",
       "operator": "Let's Encrypt",
       "state": "usable",
       "stateSince": "2025-11-27T03:00:00Z",
@@ -157,13 +157,13 @@
     },
     {
       "id": "7PBUNaSTKW0Kvz7J0JbyGycBLEcaHoPngTZnpglSvqY=",
-      "description": "Google 'CoachAndHorses2027h2' log",
+      "description": "Google CoachAndHorses2027h2",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc3Si5lBbzwec+dc+rf1kzMt6SmTjlzEXJe0YH7tbHCKhOiggbxL/q/Hime2H/FxjcBspBQCwAv0ocWJMA6ghyA=="
     },
     {
       "id": "7drrgVxjITRJtHvlB3kFq9DZMUfCesUUazvFjkPptsc=",
-      "description": "TrustAsia 'HETU2027'",
+      "description": "TrustAsia HETU2027",
       "operator": "TrustAsia",
       "state": "usable",
       "stateSince": "2025-12-28T00:30:00Z",
@@ -193,7 +193,7 @@
     },
     {
       "id": "A4AqwmL24F4D+Lxve5hRMk/Xaj31t1lRdeIi+46b1fY=",
-      "description": "Sectigo 'Tiger2027h2'",
+      "description": "Sectigo Tiger2027h2",
       "operator": "Sectigo",
       "state": "usable",
       "stateSince": "2025-09-18T23:00:00Z",
@@ -201,7 +201,7 @@
     },
     {
       "id": "ABpdGhwtk3W2SFV4+C9xoa5u7zl9KXyK4xV7yt7hoB4=",
-      "description": "DigiCert 'Wyvern2027h1'",
+      "description": "DigiCert Wyvern2027h1",
       "operator": "DigiCert",
       "state": "usable",
       "stateSince": "2025-12-20T18:00:00Z",
@@ -225,7 +225,7 @@
     },
     {
       "id": "CRV/Yy1Gx/dtlSZUk7wPALOVrF2zorJr+wQ9ukrGOJM=",
-      "description": "IPng Networks 'Halloumi2027h2'",
+      "description": "IPng Networks Halloumi2027h2",
       "operator": "IPng Networks",
       "state": "usable",
       "stateSince": "2025-12-17T18:30:00Z",
@@ -233,7 +233,7 @@
     },
     {
       "id": "DleUvPOuqT4zGyyZB7P3kN+bwj1xMiXdIaklrGHFTiE=",
-      "description": "Google 'Argon2026h1' log",
+      "description": "Google Argon2026h1",
       "operator": "Google",
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
@@ -257,7 +257,7 @@
     },
     {
       "id": "FoMtq/CpJQ8P8DqlRf/Iv8gj0IdL9gQpJ/jnHzMT9fo=",
-      "description": "Sectigo 'Tiger2026h1'",
+      "description": "Sectigo Tiger2026h1",
       "operator": "Sectigo",
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
@@ -273,7 +273,7 @@
     },
     {
       "id": "GYbUxyiqb/66A294Kk0BkarOLXIxD67OXXBBLSVMx9Q=",
-      "description": "Let's Encrypt 'Oak2026h1'",
+      "description": "Let's Encrypt Oak2026h1",
       "operator": "Let's Encrypt",
       "state": "rejected",
       "stateSince": "2026-07-27T13:40:00Z",
@@ -289,7 +289,7 @@
     },
     {
       "id": "Gouda43XkdHNBUnttgNV1ga2T60w23H+eI8Px8j7xLE=",
-      "description": "IPng Networks 'Gouda2027h1'",
+      "description": "IPng Networks Gouda2027h1",
       "operator": "IPng Networks",
       "state": "usable",
       "stateSince": "2025-11-27T03:00:00Z",
@@ -297,7 +297,7 @@
     },
     {
       "id": "GoudaUpXmMiZoMqIvfSPwLRWYMzDYA0fcfRp/8fRrKM=",
-      "description": "IPng Networks 'Gouda2026h1'",
+      "description": "IPng Networks Gouda2026h1",
       "operator": "IPng Networks",
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
@@ -305,7 +305,7 @@
     },
     {
       "id": "GoudaVNi2GSSp7niI2BuNOzp4xC6NPuTBXhdKc5XV+s=",
-      "description": "IPng Networks 'Gouda2027h2'",
+      "description": "IPng Networks Gouda2027h2",
       "operator": "IPng Networks",
       "state": "usable",
       "stateSince": "2025-11-27T03:00:00Z",
@@ -313,7 +313,7 @@
     },
     {
       "id": "Goudaw/+v4G0eTnG0jEKhtbRAtTwRuIYLJ3jX14mJe8=",
-      "description": "IPng Networks 'Gouda2026h2'",
+      "description": "IPng Networks Gouda2026h2",
       "operator": "IPng Networks",
       "state": "usable",
       "stateSince": "2025-11-27T03:00:00Z",
@@ -335,7 +335,7 @@
     },
     {
       "id": "H1bRq5RwSkHdP+r99GmTVTAsFDG/5hNGCJ//rnldzC8=",
-      "description": "Sectigo 'Sabre2026h2'",
+      "description": "Sectigo Sabre2026h2",
       "operator": "Sectigo",
       "state": "readonly",
       "stateSince": "2025-09-18T17:20:00Z",
@@ -343,7 +343,7 @@
     },
     {
       "id": "H7D4qS2K3aEhd2wF4qouFbrLxitlOTaVV2qqtS4R0R0=",
-      "description": "DigiCert 'sphinx2027h2'",
+      "description": "DigiCert Sphinx2027h2",
       "operator": "DigiCert",
       "state": "usable",
       "stateSince": "2025-12-20T18:00:00Z",
@@ -351,7 +351,7 @@
     },
     {
       "id": "HIl0B+YBCgEpO7Z439ejaM6xjMpSHcyk04bkoy5bXQQ=",
-      "description": "Google 'ParcelYard2027h1' log",
+      "description": "Google ParcelYard2027h1",
       "operator": "Google",
       "state": "usable",
       "stateSince": "2026-08-31T13:50:00Z",
@@ -359,7 +359,7 @@
     },
     {
       "id": "HJ9oLOn68EVpUPgbloqH3dsyENhM5siy44JSSsTPWZ8=",
-      "description": "Sectigo 'Tiger2027h1'",
+      "description": "Sectigo Tiger2027h1",
       "operator": "Sectigo",
       "state": "usable",
       "stateSince": "2025-09-18T23:00:00Z",
@@ -367,13 +367,13 @@
     },
     {
       "id": "HQJLjrFJizRN/YfqPvwJlvdQbyNdHUlwYaR3PEOcJfs=",
-      "description": "Google 'Daedalus' log",
+      "description": "Google Daedalus",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbgwcuu4rakGFYB17fqsILPwMCqUIsz7VcCTRbR0ttrfzizbcI02VYxK75IaNzOnR7qFAot8LowYKMMqNrKQpVg=="
     },
     {
       "id": "IPBfqqOkkvxqwUjMM6ICNhhrSfqpfmuzkk+yXsNrHDU=",
-      "description": "Google 'PlumbersArms2026h2' log",
+      "description": "Google PlumbersArms2026h2",
       "operator": "Google",
       "state": "usable",
       "stateSince": "2026-08-31T13:50:00Z",
@@ -381,37 +381,37 @@
     },
     {
       "id": "IPng7N+kfJEgOWLvg8kCWPeQbZ03SYvh/9hJVBcyCyA=",
-      "description": "IPng Networks 'Rennet2026h1'",
+      "description": "IPng Networks Rennet2026h1",
       "operator": "IPng Networks",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjjELwgGMea6d7YAOP1h1Q3z5IGFOFV/kmbT0qdRgMbhQCYZdDU/fObbHf7dPEGjlg/XbBCnmHJKJySK85tzC2w=="
     },
     {
       "id": "IPngONeE+PfIWiV4c8W5xL8kvQJlq9F3lPXT32yFW6s=",
-      "description": "IPng Networks 'Rennet2027h2'",
+      "description": "IPng Networks Rennet2027h2",
       "operator": "IPng Networks",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEi6aOJ3BVylIR4qc3UHBMON1VrUUTJSx2RrLUAf8Fo3/KImSvQuEZKrQSanLqsvvox8ExlLK5mPetb8JCS/0TYA=="
     },
     {
       "id": "IPngiezr0NlfrYnreI+2QK/E2J+7QNyCETQxnDW/CNo=",
-      "description": "IPng Networks 'Rennet2026h2'",
+      "description": "IPng Networks Rennet2026h2",
       "operator": "IPng Networks",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDjJrRh/NjSFYybFPOmilmqVHySfQ4a8ctJKYhWDuRLBLNLwy2PXxqVWwQStfjHXv0JofEAC00Xfrbd4aVz/7Bw=="
     },
     {
       "id": "IPngmrbD1ZzKxMv9sDFnjmgsvhhIV4z/L8d05K0vULE=",
-      "description": "IPng Networks 'Rennet2027h1'",
+      "description": "IPng Networks Rennet2027h1",
       "operator": "IPng Networks",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErtwy8ljIL7OS99Fq0QMnXkep69geGFwjlex7/Wrii2cT+SCFl7Nw8JIAZTp24a5+RDrfoETMtUrkELVgmVeCVA=="
     },
     {
       "id": "Ida8pGWG3oR5BIvzeNP2lqX0zFFs73zy2H/15xN0Ht0=",
-      "description": "Google 'CoachAndHorses2026h1' log",
+      "description": "Google CoachAndHorses2026h1",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECHOhXfvYgTcu+Fnl7M7niFj3FgqWlQpXUSWUDw2KAaJXvhGxdJTtmyciN5rWTiDtpeNENVmsUTHFS4XQgeRE0g=="
     },
     {
       "id": "J+sqNJffaHpkC2Q4TkhW/Nyj6H+NzWbzTtbxvkKB7fw=",
-      "description": "Google 'Arche2026h1' log",
+      "description": "Google Arche2026h1",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ+3YKoZTMruov4cmlImbk4MckBNzEdCyMuHlwGgJ8BUrzFLlR5U0619xDDXIXespkpBgCNVQAkhMTTXakM6KMg=="
     },
@@ -423,7 +423,7 @@
     },
     {
       "id": "JS+Uwisp6W6fQRpyBytpXFtS/5epDSVAu/zcUexN7gs=",
-      "description": "Sectigo 'Mammoth2026h1'",
+      "description": "Sectigo Mammoth2026h1",
       "operator": "Sectigo",
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
@@ -431,7 +431,7 @@
     },
     {
       "id": "Jbfv3qETAZPtkweXcKoyKiZiDeNayKp8dRl94LGp4GU=",
-      "description": "TrustAsia 'log2026b'",
+      "description": "TrustAsia log2026b",
       "operator": "TrustAsia",
       "state": "usable",
       "stateSince": "2024-09-20T00:00:00Z",
@@ -439,7 +439,7 @@
     },
     {
       "id": "JuNkblhpISO8ND9HJDWbN5LNJFqI2BXTkzP9mRirRyM=",
-      "description": "IPng Networks 'Halloumi2026h2a'",
+      "description": "IPng Networks Halloumi2026h2a",
       "operator": "IPng Networks",
       "state": "usable",
       "stateSince": "2026-01-01T07:30:00Z",
@@ -463,7 +463,7 @@
     },
     {
       "id": "M3qex8rmqQSLdS8tk65+SyqQLSG0lxKdg+J5x1PJL4w=",
-      "description": "Google 'PlumbersArms2027h2' log",
+      "description": "Google PlumbersArms2027h2",
       "operator": "Google",
       "state": "usable",
       "stateSince": "2026-08-31T13:50:00Z",
@@ -471,7 +471,7 @@
     },
     {
       "id": "MIQn6dbJsGQ5/rsS4QFNbqJ2NlTgQ19Z48RWY2ZbuOo=",
-      "description": "Let's Encrypt 'Twig2027h1'",
+      "description": "Let's Encrypt Twig2027h1",
       "operator": "Let's Encrypt",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGHGl4ihlmfbfwJyONqNpBaLsRNnInohynCns6HTZeWRGZ3WLGA8VhbUJhlY2oAHH93mtoU+Pvtj/3MD4OqEJ5w=="
     },
@@ -485,7 +485,7 @@
     },
     {
       "id": "N6oHzCFvLm2RnHCdJNj3MbAPKxR8YhzAkaX6GoTYFt0=",
-      "description": "DigiCert 'Wyvern2027h2'",
+      "description": "DigiCert Wyvern2027h2",
       "operator": "DigiCert",
       "state": "usable",
       "stateSince": "2025-12-20T18:00:00Z",
@@ -501,13 +501,13 @@
     },
     {
       "id": "PeSSqJiTrXBeeEbtIdSNyvutE56mTtHjSfkAsKLNpeI=",
-      "description": "Google 'Solera2027h1' log",
+      "description": "Google Solera2027h1",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKLDCw61qHAIp9mt8+QBx92gqIAhp3QhqS6h+bogJAe/FwaCSxMyb2H5xAO2SArXJnzm5vdBGifOcS5SXRZMP9Q=="
     },
     {
       "id": "RMK9DOkUDmSlyUoBkwpaobs1lw4A7hEWiWgqHETXtWY=",
-      "description": "Google 'Xenon2027h1'",
+      "description": "Google Xenon2027h1",
       "operator": "Google",
       "state": "usable",
       "stateSince": "2025-12-28T00:30:00Z",
@@ -515,7 +515,7 @@
     },
     {
       "id": "ROgi/CurDpLu0On61pZkYCd20Bdg4IkFCckjobA/w38=",
-      "description": "IPng Networks 'Halloumi2027h1'",
+      "description": "IPng Networks Halloumi2027h1",
       "operator": "IPng Networks",
       "state": "usable",
       "stateSince": "2025-12-17T18:30:00Z",
@@ -523,7 +523,7 @@
     },
     {
       "id": "Rq+GPTs+5Z+ld96oJF02sNntIqIj9GF3QSKUUu6VUF8=",
-      "description": "Geomys 'Tuscolo2026h2'",
+      "description": "Geomys Tuscolo2026h2",
       "operator": "Geomys",
       "state": "usable",
       "stateSince": "2025-08-31T07:00:00Z",
@@ -531,7 +531,7 @@
     },
     {
       "id": "RqI5Z8YNtkaHxm89+ZmUdpOmphEghFfVVefj0KHZtkY=",
-      "description": "DigiCert 'sphinx2027h1'",
+      "description": "DigiCert Sphinx2027h1",
       "operator": "DigiCert",
       "state": "usable",
       "stateSince": "2025-12-20T18:00:00Z",
@@ -545,7 +545,7 @@
     },
     {
       "id": "SZybad4dfOz8Nt7Nh2SmuFuvCoeAGdFVUvvp6ynd+MM=",
-      "description": "DigiCert 'Sphinx2026h1'",
+      "description": "DigiCert Sphinx2026h1",
       "operator": "DigiCert",
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
@@ -553,7 +553,7 @@
     },
     {
       "id": "TGPcmOWcHauI9h6KPd6uj6tEozd7X5uUw/uhnPzBviY=",
-      "description": "Cloudflare 'Nimbus2027'",
+      "description": "Cloudflare Nimbus2027",
       "operator": "Cloudflare",
       "state": "usable",
       "stateSince": "2025-11-15T00:00:00Z",
@@ -583,7 +583,7 @@
     },
     {
       "id": "VmzVo3a+g9/jQrZ1xJwjJJinabrDgsurSaOHfZqzLQE=",
-      "description": "Sectigo 'Sabre2026h1'",
+      "description": "Sectigo Sabre2026h1",
       "operator": "Sectigo",
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
@@ -599,13 +599,13 @@
     },
     {
       "id": "WUSCTUXhQ2fKUHvFtaSmfyox7je4S+Qnx6+LKKVk0Ss=",
-      "description": "Let's Encrypt 'Twig2026h1'",
+      "description": "Let's Encrypt Twig2026h1",
       "operator": "Let's Encrypt",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5xh2NJZD3AYbBgaMlzB/xrD2MDHNQPbm0SUzhXI+cMAcCknQoL1CA38su6Gi1TtXOGr+ntegPTWCf5SNILWSmQ=="
     },
     {
       "id": "WW5sM4aUsllyolbIoOjdkEp26Ag92oc7AQg4KBQ87lk=",
-      "description": "Geomys 'Tuscolo2027h1'",
+      "description": "Geomys Tuscolo2027h1",
       "operator": "Geomys",
       "state": "usable",
       "stateSince": "2025-10-08T21:00:00Z",
@@ -613,7 +613,7 @@
     },
     {
       "id": "X/nA+6QtrHjOZELrGazggaKb1OL7U68MYzB55QWCBMk=",
-      "description": "Google 'PlumbersArms2027h1' log",
+      "description": "Google PlumbersArms2027h1",
       "operator": "Google",
       "state": "usable",
       "stateSince": "2026-08-31T13:50:00Z",
@@ -627,13 +627,13 @@
     },
     {
       "id": "Xk+hRjqD27R5prdS05bhyQxjDbDZ9sDelTzC7dZPUKM=",
-      "description": "Google 'CoachAndHorses2026h2' log",
+      "description": "Google CoachAndHorses2026h2",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4yJ0Wz+EaKTI1Ae2PXKMk1VYjy9bt6YhcYM8p+gLq47ETwSgjx925dLf7jGjUEiVT/Q2bN2q8R6m2bMI09tL7Q=="
     },
     {
       "id": "YEyar3p/d18B1Ab8kg3ImesLHH34yVIb+voXdzuXi8k=",
-      "description": "Sectigo 'Elephant2027h1'",
+      "description": "Sectigo Elephant2027h1",
       "operator": "Sectigo",
       "state": "usable",
       "stateSince": "2025-07-22T01:33:20Z",
@@ -647,13 +647,13 @@
     },
     {
       "id": "YukAYASjB5VadUS01YSpYmjKHW5Fha3wkW3+X9wfBNs=",
-      "description": "Google 'Solera2026h2' log",
+      "description": "Google Solera2026h2",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4kP79ikDxwWHe9xBgN+DMaC5Wc0x9khy7TWGFkvDN0ift3Ens1AsuN20BCJrTN9t8eo86H+wwdUOxz6IQbkg6Q=="
     },
     {
       "id": "ZBHEbKQS7KeJHKICLgC8q08oB9QeNSer6v7VA8l9zfA=",
-      "description": "DigiCert 'Wyvern2026h1'",
+      "description": "DigiCert Wyvern2026h1",
       "operator": "DigiCert",
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
@@ -669,7 +669,7 @@
     },
     {
       "id": "aYS3IzyydLLRRn2l4EDXH+upCiHniGU3Srn5vPhocjc=",
-      "description": "Google 'ParcelYard2027h2' log",
+      "description": "Google ParcelYard2027h2",
       "operator": "Google",
       "state": "usable",
       "stateSince": "2026-08-31T13:50:00Z",
@@ -683,13 +683,13 @@
     },
     {
       "id": "atJoPkfo0oBkkUI/1kQCGiJuzbhhm+1acN9ps2hPqi0=",
-      "description": "Google 'CoachAndHorses2027h1' log",
+      "description": "Google CoachAndHorses2027h1",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYRzG+Eugt1AOXUT9UpX1K71DCd9zOhVqjQ/DPDfqaIl/3UIrz4Gm1sFaNhcv9SqbMg7Imj+NbN6DR09mcmh8lQ=="
     },
     {
       "id": "b8whyKsJkXnvusRMwpnQ7EENf77I4306CVV2zZ9jxgg=",
-      "description": "IPng Networks 'Lipase2026h1'",
+      "description": "IPng Networks Lipase2026h1",
       "operator": "IPng Networks",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErPjPlZYd4uo5aH/eIfHevbWqGHIiQIb7CXg0OszD+a0jbGERdUrnBP8afGBq6ey4/vDgI9aqqGiCmT9YGb1x4A=="
     },
@@ -703,7 +703,7 @@
     },
     {
       "id": "bP5QGUOoXqkWvFLRM+TcyR7xQRx9JYQg0XOAnhgY6zo=",
-      "description": "Let's Encrypt 'Sycamore2026h2'",
+      "description": "Let's Encrypt Sycamore2026h2",
       "operator": "Let's Encrypt",
       "state": "usable",
       "stateSince": "2025-11-27T03:00:00Z",
@@ -719,7 +719,7 @@
     },
     {
       "id": "cX6V88I4im2x44RJPTHhWqliCHYtQgDgBQzQZ7WmYeI=",
-      "description": "Geomys 'Tuscolo2026h1'",
+      "description": "Geomys Tuscolo2026h1",
       "operator": "Geomys",
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
@@ -751,7 +751,7 @@
     },
     {
       "id": "dNudWPfUfp39eHoWKpkcGM9pjafHKZGMmhiwRQ26RLw=",
-      "description": "TrustAsia 'log2026a'",
+      "description": "TrustAsia log2026a",
       "operator": "TrustAsia",
       "state": "usable",
       "stateSince": "2024-09-20T00:00:00Z",
@@ -775,7 +775,7 @@
     },
     {
       "id": "fz035/iSPY5xZb6w0+q+5yoivkbAy4TEFtTkuYJky8I=",
-      "description": "IPng Networks 'Halloumi2026h1'",
+      "description": "IPng Networks Halloumi2026h1",
       "operator": "IPng Networks",
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
@@ -825,7 +825,7 @@
     },
     {
       "id": "jspHC6zeavOiBrCkeoS3Rv4fxr+VPiXmm07kAkjzxug=",
-      "description": "Let's Encrypt 'Sycamore2027h1'",
+      "description": "Let's Encrypt Sycamore2027h1",
       "operator": "Let's Encrypt",
       "state": "usable",
       "stateSince": "2025-11-27T03:00:00Z",
@@ -847,7 +847,7 @@
     },
     {
       "id": "lE5Dh/rswe+B8xkkJqgYZQHH0184AgE/cmd9VTcuGdg=",
-      "description": "DigiCert 'Sphinx2026h2'",
+      "description": "DigiCert Sphinx2026h2",
       "operator": "DigiCert",
       "state": "usable",
       "stateSince": "2024-11-08T00:00:00Z",
@@ -855,7 +855,7 @@
     },
     {
       "id": "lLHBirDQV8R74KwEDh8svI3DdXJ7yVHyClJhJoY7pzw=",
-      "description": "Sectigo 'Mammoth2026h2'",
+      "description": "Sectigo Mammoth2026h2",
       "operator": "Sectigo",
       "state": "readonly",
       "stateSince": "2025-09-18T17:20:00Z",
@@ -871,13 +871,13 @@
     },
     {
       "id": "lobDwHKqsHMHbjlGc7fpkBd6BWGOonZNS6ZQqQ6eCMw=",
-      "description": "IPng Networks 'Lipase2027h1'",
+      "description": "IPng Networks Lipase2027h1",
       "operator": "IPng Networks",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEk3QA2r+4a13klobghHrz4PYkYfvCFDw3sIYwtnLjQMRij9jFucMgoCca5KOv42tJh6JJpYt2JjG8I28AxlLk3g=="
     },
     {
       "id": "lpdkv1VYl633Q4doNwhCd+nwOtX2pPM2bkakPw/KqcY=",
-      "description": "Google 'Xenon2026h1' log",
+      "description": "Google Xenon2026h1",
       "operator": "Google",
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
@@ -897,7 +897,7 @@
     },
     {
       "id": "okkM3NuOM6QAMhdg1tTVGiA2GR6nfZaL4mqKAPb///c=",
-      "description": "Sectigo 'Elephant2027h2'",
+      "description": "Sectigo Elephant2027h2",
       "operator": "Sectigo",
       "state": "usable",
       "stateSince": "2025-07-22T01:33:20Z",
@@ -905,7 +905,7 @@
     },
     {
       "id": "ooEAGHNOF24dR+CVQPOBulRml81jqENQcW64CU7a8Q0=",
-      "description": "Let's Encrypt 'Willow2027h1'",
+      "description": "Let's Encrypt Willow2027h1",
       "operator": "Let's Encrypt",
       "state": "usable",
       "stateSince": "2025-11-27T03:00:00Z",
@@ -913,7 +913,7 @@
     },
     {
       "id": "pcl4kl1XRheChw3YiWYLXFVki30AQPLsB2hR0YhpGfc=",
-      "description": "Let's Encrypt 'Sycamore2026h1'",
+      "description": "Let's Encrypt Sycamore2026h1",
       "operator": "Let's Encrypt",
       "state": "rejected",
       "stateSince": "2026-06-25T13:40:00Z",
@@ -921,7 +921,7 @@
     },
     {
       "id": "ppWirZJtb5lujvxJAUJX2LvwRqfWJYm4jcLXh2x45S8=",
-      "description": "Let's Encrypt 'Willow2027h2'",
+      "description": "Let's Encrypt Willow2027h2",
       "operator": "Let's Encrypt",
       "state": "usable",
       "stateSince": "2025-11-27T03:00:00Z",
@@ -929,7 +929,7 @@
     },
     {
       "id": "qCbL4wrGNRJGUz/gZfFPGdluGQgTxB3ZbXkAsxI8VSc=",
-      "description": "Let's Encrypt 'Willow2026h2'",
+      "description": "Let's Encrypt Willow2026h2",
       "operator": "Let's Encrypt",
       "state": "usable",
       "stateSince": "2025-11-27T03:00:00Z",
@@ -937,13 +937,13 @@
     },
     {
       "id": "qJnYeAySkKr0YvMYgMz71SRR6XDQ+/WR73Ww2ZtkVoE=",
-      "description": "Google 'Submariner' log",
+      "description": "Google Submariner",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOfifIGLUV1Voou9JLfA5LZreRLSUMOCeeic8q3Dw0fpRkGMWV0Gtq20fgHQweQJeLVmEByQj9p81uIW4QkWkTw=="
     },
     {
       "id": "r2eIO1ewTt2Pptl+9i6o64EKx3Fg8CReVdYML+eFhzo=",
-      "description": "Sectigo 'Elephant2026h2'",
+      "description": "Sectigo Elephant2026h2",
       "operator": "Sectigo",
       "state": "usable",
       "stateSince": "2025-07-22T01:33:20Z",
@@ -951,7 +951,7 @@
     },
     {
       "id": "rKswcGzr7IQx9BPS9JFfER5CJEOx8qaMTzwrO6ceAsM=",
-      "description": "Let's Encrypt 'Oak2026h2'",
+      "description": "Let's Encrypt Oak2026h2",
       "operator": "Let's Encrypt",
       "state": "retired",
       "stateSince": "2026-02-28T00:00:00Z",
@@ -959,7 +959,7 @@
     },
     {
       "id": "sMyD5aX5fWuvfAnMKEkEhyrH6IsTLGNQt8b9JuFsbHc=",
-      "description": "Google 'Testtube' log",
+      "description": "Google Testtube",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEw8i8S7qiGEs9NXv0ZJFh6uuOmR2Q7dPprzk9XNNGkUXjzqx2SDvRfiwKYwBljfWujozHESVPQyydGaHhkaSz/g=="
     },
@@ -987,7 +987,7 @@
     },
     {
       "id": "utuIpG+cr6QJDoLlk1bbbni0pT9YLbCBl5UkLym2jJg=",
-      "description": "Google 'ParcelYard2026h2' log",
+      "description": "Google ParcelYard2026h2",
       "operator": "Google",
       "state": "usable",
       "stateSince": "2026-08-31T13:50:00Z",
@@ -995,7 +995,7 @@
     },
     {
       "id": "vDvULt2EjVnlRf/XkJcMGs3KpHmmbmmVMI49ZsSR/kA=",
-      "description": "IPng Networks 'Lipase2027h2'",
+      "description": "IPng Networks Lipase2027h2",
       "operator": "IPng Networks",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1aNm1Y4mLoC1AiEtf9PebaUapA5jA0sEoNV8KmNgMEjdAvHXJRONdqVKD5e0rlLIc2UlZMwe5Qi3b+dtiPlCeA=="
     },
@@ -1015,13 +1015,13 @@
     },
     {
       "id": "w78Dp+HKiEHGB7rj/0Jw/KXsRbGG675OLPP8d4Yw9fY=",
-      "description": "Google 'Crucible' log",
+      "description": "Google Crucible",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKATl2B3SAbxyzGOfNRB+AytNTGvdF/FFY6HzWb+/HPE4lJ37vx2nEm99KYUy9SoNzF5VyTwCQG5nL/c5Q77yQQ=="
     },
     {
       "id": "wjF+V0UZo0XufzjespBB68fCIVoiv3/Vta12mtkOUs0=",
-      "description": "DigiCert 'Wyvern2026h2'",
+      "description": "DigiCert Wyvern2026h2",
       "operator": "DigiCert",
       "state": "usable",
       "stateSince": "2024-11-08T00:00:00Z",
@@ -1029,13 +1029,13 @@
     },
     {
       "id": "wrITHXl+UNevVCq6lNe/gvkblit8VSpx1d6TA3oaZHo=",
-      "description": "IPng Networks 'Lipase2026h2'",
+      "description": "IPng Networks Lipase2026h2",
       "operator": "IPng Networks",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzbuyo3fveONSA2O1SGsO+FH+H3nKfkOBGeDYAUwvP9xVt4leZF5ATRrvyAq6fh1ryXrq3KpIGjVkZxetF4c3QQ=="
     },
     {
       "id": "xn2BnpPBLPrrX2WgTQja4wqOXCf7fRUc73xH4tXLHe0=",
-      "description": "Let's Encrypt 'Twig2026h2'",
+      "description": "Let's Encrypt Twig2026h2",
       "operator": "Let's Encrypt",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKM7Fje9bHCZbaJj65sHgw1FBDjLwD5rgUawPYMz4U3u4+g2S6XOWcr5h2NtmGOgore78IpDsg/jsXh+FyeibUg=="
     },
@@ -1049,13 +1049,13 @@
     },
     {
       "id": "yEuQege+qimmFMJFhLej9mJDlGh7Jf5ig4tx7EIq0vk=",
-      "description": "Google 'Solera2026h1' log",
+      "description": "Google Solera2026h1",
       "operator": "Google",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGIEKGwhsBrD0dHERCo7HCeFvQiia/GOTd27XqCh6zDQhrtgaeeHiwGXcc77eyUv9EW65FuR4iLQ5TqSYRl6hpQ=="
     },
     {
       "id": "yKPEf8ezrbk1awE/anoSbeM6TkOlxkb5l605dZkdz5o=",
-      "description": "Sectigo 'Tiger2026h2'",
+      "description": "Sectigo Tiger2026h2",
       "operator": "Sectigo",
       "state": "usable",
       "stateSince": "2025-09-18T23:00:00Z",
@@ -1071,7 +1071,7 @@
     },
     {
       "id": "yzj3FYl8hKFEX1vB3fvJbvKaWc1HCmkFhbDLFMMUWOc=",
-      "description": "Cloudflare 'Nimbus2026'",
+      "description": "Cloudflare Nimbus2026",
       "operator": "Cloudflare",
       "state": "usable",
       "stateSince": "2024-11-08T18:00:00Z",
