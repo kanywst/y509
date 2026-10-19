@@ -28,6 +28,9 @@ func TestIDNForm(t *testing.T) {
 		{name: "bad punycode", in: "xn--zz.com", wantErr: true},
 		{name: "decodes to a C1 control", in: "xn--a.com", wantErr: true},
 		{name: "empty A-label", in: "xn--.com", wantErr: true},
+		{name: "Unicode hostname with a control character", in: "例え\a.jp", wantErr: true},
+		{name: "Unicode hostname breaking the bidi rule", in: "1مثال.com", wantErr: true},
+		{name: "Unicode without a dot", in: "株式会社テスト"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -42,19 +45,20 @@ func TestIDNForm(t *testing.T) {
 	}
 }
 
-func TestWithIDNFormLabelsAnUndecodableName(t *testing.T) {
-	if got := WithIDNForm("xn--zz.com"); got != "xn--zz.com (undecodable IDN)" {
+func TestWithIDNFormLabelsAnInvalidName(t *testing.T) {
+	if got := WithIDNForm("xn--zz.com"); got != "xn--zz.com (invalid IDN)" {
 		t.Errorf("WithIDNForm = %q", got)
 	}
 }
 
 func TestIDNsListsEachNameOnce(t *testing.T) {
 	cert := &x509.Certificate{
-		Subject:  pkix.Name{CommonName: "例え.jp"},
-		DNSNames: []string{"xn--r8jz45g.jp", "example.com", "*.xn--r8jz45g.jp", "xn--zz.com"},
+		Subject:  pkix.Name{CommonName: "1مثال.com"},
+		DNSNames: []string{"xn--r8jz45g.jp", "example.com", "*.xn--r8jz45g.jp", "xn--zz.com", "XN--R8JZ45G.jp"},
 	}
 	got := IDNs(cert)
 	want := []IDNPair{
+		{Unicode: "1مثال.com", Error: `idna: invalid label "1مثال.com"`},
 		{ASCII: "xn--r8jz45g.jp", Unicode: "例え.jp"},
 		{ASCII: "*.xn--r8jz45g.jp", Unicode: "*.例え.jp"},
 		{ASCII: "xn--zz.com", Error: `idna: invalid label "zz"`},

@@ -299,10 +299,10 @@ type JSONExtension struct {
 }
 
 // JSONIDN is one internationalized name, as its xn-- form and as Unicode.
-// For an xn-- label that does not decode, unicode is absent and error says
-// why.
+// For one that fails IDNA validation, only the spelling the certificate
+// carries is present and error says why.
 type JSONIDN struct {
-	ASCII   string `json:"ascii"`
+	ASCII   string `json:"ascii,omitempty"`
 	Unicode string `json:"unicode,omitempty"`
 	Error   string `json:"error,omitempty"`
 }
