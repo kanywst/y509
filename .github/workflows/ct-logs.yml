@@ -32,8 +32,8 @@ jobs:
 
       # The bundle is data the policy runs on: test it before it lands, since a
       # push from this job does not start the Test workflow.
-      - name: Test the certificate package against it
-        run: go test ./pkg/certificate
+      - name: Test against it
+        run: go test ./...
 
       - name: Commit and push if the list changed
         run: |
