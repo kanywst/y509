@@ -59,7 +59,10 @@ func TestSCTsNamesTheLogs(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("read %d SCTs, want 2", len(got))
 	}
-	if got[0].Log == nil || got[0].Log.Operator != "Google" || got[0].Name() != "Google 'Argon2026h1' log" {
+	// Matched on what Google's list calls the log, which it has renamed
+	// before, rather than on a copy of that name.
+	if got[0].Log == nil || got[0].Log.Operator != "Google" ||
+		!strings.Contains(got[0].Name(), "Argon2026h1") || got[0].Name() != got[0].Log.Description {
 		t.Errorf("known log = %+v (%s)", got[0].Log, got[0].Name())
 	}
 	if !got[0].Timestamp.Equal(ts) {
@@ -129,11 +132,16 @@ func TestJSONCertificateCarriesSCTs(t *testing.T) {
 	known, _ := base64.StdEncoding.DecodeString(argon2026h1)
 	cert := certWithSCTList(t, opaque16(opaque16(serializedSCT(t, known, time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)))))
 
+	scts, err := SCTs(cert)
+	if err != nil || len(scts) != 1 || scts[0].Log == nil {
+		t.Fatalf("SCTs = %+v, %v", scts, err)
+	}
+
 	out, err := json.Marshal(newJSONCertificate(0, cert, time.Now()))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `"scts":[{"logId":"` + argon2026h1 + `","log":"Google 'Argon2026h1' log","operator":"Google","logState":`
+	want := `"scts":[{"logId":"` + argon2026h1 + `","log":"` + scts[0].Log.Description + `","operator":"Google","logState":`
 	if !strings.Contains(string(out), want) {
 		t.Errorf("certificate JSON is missing %s:\n%s", want, out)
 	}

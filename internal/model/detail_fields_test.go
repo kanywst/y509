@@ -272,8 +272,14 @@ func TestMiscTabNamesTheCTLogs(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// The log's name comes from Google's list, which has renamed it before.
+	scts, err := certificate.SCTs(cert)
+	if err != nil || len(scts) != 1 || !strings.Contains(scts[0].Name(), "Argon2026h1") {
+		t.Fatalf("SCTs = %+v, %v", scts, err)
+	}
+
 	got := tabContent(t, cert, "Misc")
-	for _, want := range []string{"Certificate Transparency", "1 embedded", "Google 'Argon2026h1' log · 2026-01-15 (rejected)"} {
+	for _, want := range []string{"Certificate Transparency", "1 embedded", scts[0].Name() + " · 2026-01-15 (rejected)"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("Misc tab does not show %q:\n%s", want, got)
 		}
