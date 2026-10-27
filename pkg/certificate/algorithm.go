@@ -10,8 +10,8 @@ import (
 // pqcAlgorithmNames names the post-quantum OIDs crypto/x509 does not decode.
 // ML-DSA is not here: Go 1.27 names it, as x509.MLDSA44 and friends.
 //
-// The SLH-DSA and ML-KEM OIDs are NIST's (CSOR), as RFC 9909 uses them for
-// X.509. Composite ML-DSA is left out until its OIDs leave draft: naming a
+// The SLH-DSA OIDs are NIST's (CSOR, id-slh-dsa-*), as RFC 9909 uses them for
+// X.509, and so are ML-KEM's (id-alg-ml-kem-*). Composite ML-DSA is left out until its OIDs leave draft: naming a
 // draft OID would label a certificate with what the draft said that month.
 var pqcAlgorithmNames = map[string]string{
 	"2.16.840.1.101.3.4.3.20": "SLH-DSA-SHA2-128s",
