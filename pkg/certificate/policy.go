@@ -57,21 +57,43 @@ const fipsMinRSABits = 2048
 
 // approvedSLHDSA is the SLH-DSA parameter sets (FIPS 205), matched by name
 // since Go does not decode them.
-var approvedSLHDSA = func() map[string]bool {
+var approvedSLHDSA = namesWithPrefix("SLH-DSA-")
+
+func namesWithPrefix(prefix string) map[string]bool {
 	out := make(map[string]bool, len(pqcAlgorithmNames))
 	for _, name := range pqcAlgorithmNames {
-		if strings.HasPrefix(name, "SLH-DSA-") {
+		if strings.HasPrefix(name, prefix) {
 			out[name] = true
 		}
 	}
 	return out
-}()
+}
+
+// policyRules is what a policy checks, and the advice after each finding.
+type policyRules struct {
+	signatureOK func(*x509.Certificate) bool
+	// signatureWhy follows "signed with <algorithm>, ".
+	signatureWhy string
+	keyProblem   func(*x509.Certificate) string
+	// keyWhy follows what keyProblem said.
+	keyWhy string
+}
+
+var rulesFor = map[Policy]policyRules{
+	PolicyFIPS: {
+		signatureOK:  fipsApprovedSignature,
+		signatureWhy: "which FIPS 140-3 does not approve, so a client in FIPS mode rejects the chain; reissue it signed with RSA or ECDSA over SHA-256 or stronger, Ed25519 or ML-DSA",
+		keyProblem:   fipsKeyProblem,
+		keyWhy:       ", which a client in FIPS mode refuses to verify with; reissue it with a new key",
+	},
+}
 
 // PolicyFindings checks each certificate against the policy. A policy
 // ParsePolicy does not accept fails rather than passing unchecked. The findings
 // are kept out of conformance, so conformance.ok keeps its meaning.
 func PolicyFindings(policy Policy, certs []*x509.Certificate) []ConformanceFinding {
-	if policy != PolicyFIPS {
+	rules, ok := rulesFor[policy]
+	if !ok {
 		return []ConformanceFinding{{
 			Problem: ProblemUnknownPolicy,
 			Subject: string(policy),
@@ -87,20 +109,19 @@ func PolicyFindings(policy Policy, certs []*x509.Certificate) []ConformanceFindi
 		name := displayName(cert)
 
 		// As in conformance: a root's own signature is never checked.
-		if !fipsApprovedSignature(cert) && !isGenuinelySelfSigned(cert) {
+		if !rules.signatureOK(cert) && !isGenuinelySelfSigned(cert) {
 			out = append(out, ConformanceFinding{
 				Problem: ProblemUnapprovedSignature,
 				Subject: name,
-				Detail: fmt.Sprintf("signed with %s, which FIPS 140-3 does not approve, so a client in FIPS mode rejects the chain; reissue it signed with RSA or ECDSA over SHA-256 or stronger, Ed25519 or ML-DSA",
-					SignatureAlgorithmName(cert)),
+				Detail:  fmt.Sprintf("signed with %s, %s", SignatureAlgorithmName(cert), rules.signatureWhy),
 			})
 		}
 
-		if why := fipsKeyProblem(cert); why != "" {
+		if why := rules.keyProblem(cert); why != "" {
 			out = append(out, ConformanceFinding{
 				Problem: ProblemUnapprovedKey,
 				Subject: name,
-				Detail:  why + ", which a client in FIPS mode refuses to verify with; reissue it with a new key",
+				Detail:  why + rules.keyWhy,
 			})
 		}
 	}
