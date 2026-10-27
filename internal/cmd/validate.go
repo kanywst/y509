@@ -38,8 +38,9 @@ object it always did; several produce {"targets": [...]}, so a consumer written
 against the single-target shape keeps working.
 
 --policy fips also judges the certificates against the FIPS 140-3 approved
-algorithms, as a client in FIPS-only mode enforces them. A trusted chain that
-breaks it exits non-zero.`,
+algorithms, as a client in FIPS-only mode enforces them. --policy pqc requires
+post-quantum algorithms throughout: ML-DSA or SLH-DSA signatures, and ML-DSA,
+SLH-DSA or ML-KEM keys. A trusted chain that breaks the policy exits non-zero.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targets := args
 		if len(targets) == 0 {
@@ -470,6 +471,6 @@ func init() {
 	validateCmd.Flags().Bool("no-system-roots", false, "Do not trust the system store; use only --roots")
 	validateCmd.Flags().String("host", "", "Also check that the leaf is valid for this hostname")
 	validateCmd.Flags().Bool("json", false, "Emit the result as JSON instead of text")
-	validateCmd.Flags().String("policy", "", "Also judge the algorithms against a policy: fips")
+	validateCmd.Flags().String("policy", "", "Also judge the algorithms against a policy: fips, pqc")
 	RootCmd.AddCommand(validateCmd)
 }

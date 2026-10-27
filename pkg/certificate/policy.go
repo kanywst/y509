@@ -20,7 +20,11 @@ type Policy string
 // enforces them when verifying (checkFIPS140OnlyPublicKey in crypto/rsa).
 const PolicyFIPS Policy = "fips"
 
-var policies = []Policy{PolicyFIPS}
+// PolicyPQC is ML-DSA (FIPS 204) and SLH-DSA (FIPS 205) signatures, and keys
+// of those or ML-KEM (FIPS 203).
+const PolicyPQC Policy = "pqc"
+
+var policies = []Policy{PolicyFIPS, PolicyPQC}
 
 // ParsePolicy reads a policy name.
 func ParsePolicy(name string) (Policy, error) {
@@ -41,6 +45,8 @@ func (p Policy) Title() string {
 	switch p {
 	case PolicyFIPS:
 		return "FIPS 140-3"
+	case PolicyPQC:
+		return "Post-quantum"
 	}
 	return string(p)
 }
@@ -58,6 +64,9 @@ const fipsMinRSABits = 2048
 // approvedSLHDSA is the SLH-DSA parameter sets (FIPS 205), matched by name
 // since Go does not decode them.
 var approvedSLHDSA = namesWithPrefix("SLH-DSA-")
+
+// approvedMLKEM is the ML-KEM parameter sets (FIPS 203), a subject key only.
+var approvedMLKEM = namesWithPrefix("ML-KEM-")
 
 func namesWithPrefix(prefix string) map[string]bool {
 	out := make(map[string]bool, len(pqcAlgorithmNames))
@@ -85,6 +94,12 @@ var rulesFor = map[Policy]policyRules{
 		signatureWhy: "which FIPS 140-3 does not approve, so a client in FIPS mode rejects the chain; reissue it signed with RSA or ECDSA over SHA-256 or stronger, Ed25519 or ML-DSA",
 		keyProblem:   fipsKeyProblem,
 		keyWhy:       ", which a client in FIPS mode refuses to verify with; reissue it with a new key",
+	},
+	PolicyPQC: {
+		signatureOK:  pqcSignature,
+		signatureWhy: "which a quantum computer could forge; reissue it signed with ML-DSA or SLH-DSA",
+		keyProblem:   pqcKeyProblem,
+		keyWhy:       "; reissue it with an ML-DSA, SLH-DSA or ML-KEM key",
 	},
 }
 
@@ -170,10 +185,31 @@ func fipsKeyProblem(cert *x509.Certificate) string {
 	case *dsa.PublicKey:
 		return "a DSA key, which FIPS 186-5 no longer approves for signatures"
 	}
-	if approvedSLHDSA[PublicKeyAlgorithmName(cert)] {
+	if name := PublicKeyAlgorithmName(cert); approvedSLHDSA[name] || approvedMLKEM[name] {
 		return ""
 	}
 	return fmt.Sprintf("a %s key, which FIPS 140-3 does not approve", PublicKeyAlgorithmName(cert))
+}
+
+func pqcSignature(cert *x509.Certificate) bool {
+	switch cert.SignatureAlgorithm {
+	case x509.MLDSA44, x509.MLDSA65, x509.MLDSA87:
+		return true
+	case x509.UnknownSignatureAlgorithm:
+		return approvedSLHDSA[SignatureAlgorithmName(cert)]
+	}
+	return false
+}
+
+func pqcKeyProblem(cert *x509.Certificate) string {
+	if _, ok := cert.PublicKey.(*mldsa.PublicKey); ok {
+		return ""
+	}
+	name := PublicKeyAlgorithmName(cert)
+	if approvedSLHDSA[name] || approvedMLKEM[name] {
+		return ""
+	}
+	return fmt.Sprintf("the %s key, which a quantum computer could break", name)
 }
 
 func curveName(pub *ecdsa.PublicKey) string {

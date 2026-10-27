@@ -107,8 +107,11 @@ y509 validate www.example.com:443 api.example.com:443 smtp.example.com:587
 
 `--policy fips` also checks the verified chain, root included, against the FIPS 140-3 approved algorithms, as a client in FIPS-only mode (`GODEBUG=fips140=only`, OpenSSL's FIPS provider) enforces them: RSA or ECDSA over SHA-256, SHA-384 or SHA-512, Ed25519, ML-DSA or SLH-DSA; ECDSA keys on P-256, P-384 or P-521; RSA keys of at least 2048 bits, an even size, with an odd public exponent above 65536. A trusted chain that breaks it exits 1.
 
+`--policy pqc` requires post-quantum algorithms throughout the same chain: ML-DSA (FIPS 204) or SLH-DSA (FIPS 205) signatures, and ML-DSA, SLH-DSA or ML-KEM (FIPS 203) keys. Composite ML-DSA fails it.
+
 ```bash
 y509 validate example.com:443 --policy fips
+y509 validate chain.pem --roots root.pem --policy pqc
 ```
 
 ### How the chain was served
@@ -219,6 +222,9 @@ y509 validate example.com:443 --json | jq -e '.conformance.ok'
 # Fail on anything a FIPS-mode client would reject.
 y509 validate example.com:443 --policy fips --json | jq -e '.policy.ok'
 
+# Fail on any signature or key that is not post-quantum.
+y509 validate example.com:443 --policy pqc --json | jq -e '.policy.ok'
+
 # Fail on a revoked or stale stapled OCSP response.
 y509 validate example.com:443 --json | jq -e '.revocation.ok'
 
@@ -267,7 +273,7 @@ Downloads a release binary, verifies its checksum, and fails the job on the find
 | `servername` |  | SNI name, when it differs from the host dialled |
 | `roots` |  | PEM file of extra trust anchors, for an internal PKI |
 | `no-system-roots` | `false` | trust only `roots` |
-| `policy` |  | `fips`, passed to `--policy` |
+| `policy` |  | `fips` or `pqc`, passed to `--policy` |
 | `summary` | `true` | write a report to the job summary |
 
 `revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable. No staple passes. `conformance` fails on a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name only in the common name, a served precertificate, a critical extension Go does not process, or too few SCTs for Chrome's CT policy.
