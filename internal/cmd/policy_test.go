@@ -12,10 +12,8 @@ import (
 	"time"
 )
 
-// fipsBreakingChain is a chain that verifies but breaks FIPS: its leaf carries
-// an RSA key with public exponent 3, which every client accepts and a FIPS-mode
-// client refuses. Only the CA signs anything, so the leaf's key needs no
-// private half.
+// fipsBreakingChain verifies, but its leaf has an RSA key with exponent 3,
+// which only a FIPS-mode client refuses.
 func fipsBreakingChain(t *testing.T) (chainPath, rootsPath string) {
 	t.Helper()
 
@@ -96,8 +94,6 @@ func TestValidatePolicyFIPS(t *testing.T) {
 		if policy["name"] != "fips" || policy["ok"] != false || len(findings) != 1 {
 			t.Errorf("policy = %#v", policy)
 		}
-		// Conformance is about what every client rejects, and this chain
-		// breaks nothing of it.
 		if decode(t, out)["conformance"].(map[string]any)["ok"] != true {
 			t.Errorf("a policy finding leaked into conformance:\n%s", out)
 		}

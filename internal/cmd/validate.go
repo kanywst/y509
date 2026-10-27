@@ -37,12 +37,9 @@ says nothing at all about how the chain was served. One target produces the
 object it always did; several produce {"targets": [...]}, so a consumer written
 against the single-target shape keeps working.
 
---policy fips also judges every certificate sent against the FIPS 140-3
-approved algorithms, as a client in FIPS-only mode (Go with
-GODEBUG=fips140=only, OpenSSL's FIPS provider) enforces them: SHA-2 or
-stronger for RSA and ECDSA signatures, Ed25519, ML-DSA or SLH-DSA, and RSA keys
-of at least 2048 bits with a public exponent above 65536. A chain that breaks
-the policy exits non-zero even when it is trusted.`,
+--policy fips also judges the certificates against the FIPS 140-3 approved
+algorithms, as a client in FIPS-only mode enforces them. A trusted chain that
+breaks it exits non-zero.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targets := args
 		if len(targets) == 0 {
@@ -103,8 +100,7 @@ type targetResult struct {
 	Report *certificate.ChainReport
 	Result *certificate.VerifyResult
 
-	// Policy is the policy --policy asked for, empty for none, and
-	// PolicyFindings what the chain broke of it.
+	// Policy is empty without --policy.
 	Policy         certificate.Policy
 	PolicyFindings []certificate.ConformanceFinding
 }
@@ -121,8 +117,7 @@ func (r targetResult) name() string {
 }
 
 // ok reports whether this target passed. A target that could not be read at
-// all counts as a failure, not as an absence. So does a trusted chain that
-// breaks the policy asked for: asking is what makes it a requirement.
+// all counts as a failure, not as an absence. So does breaking --policy.
 func (r targetResult) ok() bool {
 	return r.Err == nil && r.Result != nil && r.Result.Level == certificate.TrustAnchored &&
 		len(r.PolicyFindings) == 0

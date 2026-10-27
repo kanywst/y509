@@ -51,9 +51,7 @@ type JSONReport struct {
 	// fine as far as it could be read". Absent when everything parsed, which
 	// keeps the common case byte-identical for existing consumers.
 	Unparsed []JSONUnparsed `json:"unparsed,omitempty"`
-	// Policy is the verdict against the policy --policy asked for, such as
-	// FIPS. Absent when none was asked for, so a run without the flag is
-	// byte-identical to what it was before policies existed.
+	// Policy is the verdict against --policy, absent without it.
 	Policy *JSONPolicy `json:"policy,omitempty"`
 }
 

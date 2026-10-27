@@ -11,25 +11,15 @@ import (
 	"strings"
 )
 
-// Policy is a set of algorithm rules a certificate is judged against on
-// request, beyond the ones every client enforces.
-//
-// A policy is opt-in because its clients are: a FIPS-mode client rejects a
-// certificate that every other client accepts, so reporting it unasked would
-// be noise for everyone else.
+// Policy is an opt-in set of algorithm rules. Only some clients enforce one,
+// so it is never judged unasked.
 type Policy string
 
-// PolicyFIPS is the FIPS 140-3 approved-algorithm rules, as a client running
-// in FIPS-only mode enforces them when it verifies a chain: Go with
-// GODEBUG=fips140=only, OpenSSL with the FIPS provider, a RHEL host in FIPS
-// mode. The rules are the verifying side of NIST SP 800-131A Rev. 2 and FIPS
-// 186-5, which is what Go's crypto/rsa checks in checkFIPS140OnlyPublicKey.
-//
-// FIPS 140 "levels" are not here: Level 1 to 4 grade a cryptographic module's
-// physical security, which no certificate can show.
+// PolicyFIPS is the FIPS 140-3 approved algorithms, as Go's fips140=only mode
+// enforces them when verifying (checkFIPS140OnlyPublicKey in crypto/rsa).
 const PolicyFIPS Policy = "fips"
 
-// Policies lists the policies ParsePolicy accepts, for flag help and errors.
+// Policies lists the policies ParsePolicy accepts.
 var Policies = []Policy{PolicyFIPS}
 
 // ParsePolicy reads a policy name.
@@ -61,12 +51,11 @@ const (
 	ProblemUnapprovedKey       = "unapproved key"
 )
 
-// fipsMinRSABits is the smallest modulus SP 800-131A allows for verifying,
-// the 112-bit security floor.
+// fipsMinRSABits is the SP 800-131A floor.
 const fipsMinRSABits = 2048
 
-// approvedSLHDSA is the SLH-DSA parameter sets, all approved by FIPS 205. Go
-// does not decode them, so they are matched by name from pqcAlgorithmNames.
+// approvedSLHDSA is the SLH-DSA parameter sets (FIPS 205), matched by name
+// since Go does not decode them.
 var approvedSLHDSA = func() map[string]bool {
 	out := make(map[string]bool, len(pqcAlgorithmNames))
 	for _, name := range pqcAlgorithmNames {
@@ -77,10 +66,8 @@ var approvedSLHDSA = func() map[string]bool {
 	return out
 }()
 
-// PolicyFindings checks each certificate as presented against the policy.
-// The findings share ConformanceFinding's shape, but are kept out of
-// conformance: a gate on conformance.ok must not start failing a chain because
-// someone asked about FIPS.
+// PolicyFindings checks each certificate as presented against the policy. The
+// findings are kept out of conformance, so conformance.ok keeps its meaning.
 func PolicyFindings(policy Policy, certs []*x509.Certificate) []ConformanceFinding {
 	if policy != PolicyFIPS {
 		return nil
@@ -93,9 +80,7 @@ func PolicyFindings(policy Policy, certs []*x509.Certificate) []ConformanceFindi
 		}
 		name := displayName(cert)
 
-		// A root's self-signature is never checked, in FIPS mode or out of
-		// it, so a SHA-1 one fails nothing. As in conformance, the exemption
-		// needs the signature to verify, not just matching names.
+		// As in conformance: a root's own signature is never checked.
 		if !fipsApprovedSignature(cert) && !isGenuinelySelfSigned(cert) {
 			out = append(out, ConformanceFinding{
 				Problem: ProblemUnapprovedSignature,
@@ -105,8 +90,7 @@ func PolicyFindings(policy Policy, certs []*x509.Certificate) []ConformanceFindi
 			})
 		}
 
-		// The key is checked on every certificate, a root included: it is
-		// what verifies the certificate below it.
+		// A root's key still verifies the certificate below it.
 		if why := fipsKeyProblem(cert); why != "" {
 			out = append(out, ConformanceFinding{
 				Problem: ProblemUnapprovedKey,
@@ -118,9 +102,6 @@ func PolicyFindings(policy Policy, certs []*x509.Certificate) []ConformanceFindi
 	return out
 }
 
-// fipsApprovedSignature reports a signature algorithm a FIPS-mode verifier
-// accepts: SHA-2 for RSA and ECDSA, plus the FIPS 186-5, 204 and 205
-// schemes.
 func fipsApprovedSignature(cert *x509.Certificate) bool {
 	switch cert.SignatureAlgorithm {
 	case x509.SHA256WithRSA, x509.SHA384WithRSA, x509.SHA512WithRSA,
@@ -152,8 +133,7 @@ func fipsKeyProblem(cert *x509.Certificate) string {
 		}
 		return ""
 	case *ecdsa.PublicKey:
-		// crypto/x509 only parses the NIST curves, all of them approved, so a
-		// curve here never needs judging.
+		// crypto/x509 only parses the NIST curves, all approved.
 		return ""
 	case ed25519.PublicKey, *mldsa.PublicKey:
 		return ""
@@ -166,9 +146,8 @@ func fipsKeyProblem(cert *x509.Certificate) string {
 	return fmt.Sprintf("a %s key, which FIPS 140-3 does not approve", PublicKeyAlgorithmName(cert))
 }
 
-// FormatPolicyFindings renders the verdict for the terminal. Unlike the other
-// sections it says so when there is nothing to report: the policy was asked
-// for, and silence would read the same as a check that never ran.
+// FormatPolicyFindings renders the verdict for the terminal. A pass is printed
+// too, since the policy was asked for.
 func FormatPolicyFindings(policy Policy, findings []ConformanceFinding) string {
 	if len(findings) == 0 {
 		return fmt.Sprintf("%s: every certificate sent uses approved algorithms", policy.Title())
