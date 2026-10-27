@@ -137,6 +137,25 @@ jobs:
             echo "an unknown keyword was accepted"; exit 1
           fi
 
+  policy-without-input:
+    name: fail-on policy without a policy is refused
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - id: check
+        continue-on-error: true
+        uses: ./
+        with:
+          target: badssl.com:443
+          fail-on: untrusted,policy
+      - name: the step failed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.check.outcome }}" != "failure" ]; then
+            echo "fail-on policy passed with no policy to judge"; exit 1
+          fi
+
   report-only:
     name: fail-on none never fails the job
     runs-on: ubuntu-latest
