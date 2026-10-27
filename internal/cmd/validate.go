@@ -35,7 +35,11 @@ rest, and the status is non-zero if any of them failed.
 the exit code collapses "self-anchored" and "broken" into the same non-zero, and
 says nothing at all about how the chain was served. One target produces the
 object it always did; several produce {"targets": [...]}, so a consumer written
-against the single-target shape keeps working.`,
+against the single-target shape keeps working.
+
+--policy fips also judges the certificates against the FIPS 140-3 approved
+algorithms, as a client in FIPS-only mode enforces them. A trusted chain that
+breaks it exits non-zero.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targets := args
 		if len(targets) == 0 {
@@ -53,9 +57,19 @@ against the single-target shape keeps working.`,
 			return err
 		}
 
+		policy, err := policyFromFlags(cmd)
+		if err != nil {
+			return err
+		}
+
 		results := make([]targetResult, 0, len(targets))
 		for _, target := range targets {
-			results = append(results, validateTarget(cmd, target, opts))
+			r := validateTarget(cmd, target, opts)
+			if policy != "" && r.Err == nil {
+				r.Policy = policy
+				r.PolicyFindings = policyFindings(policy, r)
+			}
+			results = append(results, r)
 		}
 
 		if asJSON {
@@ -85,6 +99,10 @@ type targetResult struct {
 	Source *input
 	Report *certificate.ChainReport
 	Result *certificate.VerifyResult
+
+	// Policy is empty without --policy.
+	Policy         certificate.Policy
+	PolicyFindings []certificate.ConformanceFinding
 }
 
 // name is what to print for this target.
@@ -99,9 +117,10 @@ func (r targetResult) name() string {
 }
 
 // ok reports whether this target passed. A target that could not be read at
-// all counts as a failure, not as an absence.
+// all counts as a failure, not as an absence. So does breaking --policy.
 func (r targetResult) ok() bool {
-	return r.Err == nil && r.Result != nil && r.Result.Level == certificate.TrustAnchored
+	return r.Err == nil && r.Result != nil && r.Result.Level == certificate.TrustAnchored &&
+		len(r.PolicyFindings) == 0
 }
 
 // validateTarget runs the whole check for one target, returning rather than
@@ -204,6 +223,11 @@ func printResults(results []targetResult) {
 			fmt.Printf("CT policy: %s\n", ctPolicy)
 		}
 
+		if r.Policy != "" {
+			fmt.Println()
+			fmt.Println(certificate.FormatPolicyFindings(r.Policy, r.PolicyFindings))
+		}
+
 		// A staple is judged on its own, for the same reason.
 		if staple := certificate.FormatStapleFindings(
 			certificate.StapleFindings(r.Source.Conn, time.Now())); staple != "" {
@@ -234,6 +258,8 @@ func summarise(results []targetResult) error {
 			return r.Err
 		case r.ok():
 			return nil
+		case r.Result.Level == certificate.TrustAnchored:
+			return fmt.Errorf("certificate chain does not meet the %s policy", r.Policy)
 		default:
 			return fmt.Errorf("certificate chain is %s", r.Result.Level)
 		}
@@ -323,6 +349,9 @@ func encodeReport(enc *json.Encoder, r targetResult) error {
 	out.Revocation = certificate.NewJSONRevocation(r.Source.Conn, time.Now())
 	// Nil when everything parsed, which leaves the key out entirely.
 	out.Unparsed = certificate.NewJSONUnparsed(r.Source.Unparsed)
+	if r.Policy != "" {
+		out.Policy = certificate.NewJSONPolicy(r.Policy, r.PolicyFindings)
+	}
 
 	if err := enc.Encode(out); err != nil {
 		return fmt.Errorf("failed to write JSON report: %w", err)
@@ -358,6 +387,36 @@ func conformanceFindings(r targetResult) ([]certificate.ConformanceFinding, stri
 		findings = append(findings, *ct.Finding)
 	}
 	return findings, ct.Verdict()
+}
+
+// policyFindings judges the paths that verified, anchor included, since that is
+// what a client checks: a stray certificate it never uses does not fail it, and
+// a root it was not sent does. One clean path is enough. A chain that did not
+// verify is judged as sent.
+func policyFindings(policy certificate.Policy, r targetResult) []certificate.ConformanceFinding {
+	if r.Result == nil || len(r.Result.Chains) == 0 {
+		return certificate.PolicyFindings(policy, r.Report.Sent)
+	}
+	var first []certificate.ConformanceFinding
+	for i, chain := range r.Result.Chains {
+		findings := certificate.PolicyFindings(policy, chain)
+		if len(findings) == 0 {
+			return nil
+		}
+		if i == 0 {
+			first = findings
+		}
+	}
+	return first
+}
+
+// policyFromFlags reads --policy, empty when it was not given.
+func policyFromFlags(cmd *cobra.Command) (certificate.Policy, error) {
+	name, err := cmd.Flags().GetString("policy")
+	if err != nil || name == "" {
+		return "", err
+	}
+	return certificate.ParsePolicy(name)
 }
 
 // verifyOptionsFromFlags builds the verification options from the trust flags.
@@ -411,5 +470,6 @@ func init() {
 	validateCmd.Flags().Bool("no-system-roots", false, "Do not trust the system store; use only --roots")
 	validateCmd.Flags().String("host", "", "Also check that the leaf is valid for this hostname")
 	validateCmd.Flags().Bool("json", false, "Emit the result as JSON instead of text")
+	validateCmd.Flags().String("policy", "", "Also judge the algorithms against a policy: fips")
 	RootCmd.AddCommand(validateCmd)
 }

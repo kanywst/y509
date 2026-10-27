@@ -151,6 +151,14 @@ Do not trust the system store; use only the anchors given by \fB\-\-roots\fR.
 Emit the result as JSON on standard output instead of the text report. The text
 report is replaced rather than added to, and the failure message goes to
 standard error, so the stream parses even when the check fails.
+.TP
+.BI \-\-policy " NAME"
+Also judge the verified chain, root included, against a policy. The only one is
+.BR fips :
+the FIPS 140\-3 approved algorithms a client in FIPS\-only mode enforces, such
+as Go with GODEBUG=fips140=only. Findings go under
+.B policy
+in JSON.
 .SH EXIT STATUS
 .B y509 validate
 exits
@@ -158,8 +166,11 @@ exits
 when the chain verifies against the trust anchors, and
 .B 1
 when it does not: either self-anchored, meaning it links up but terminates at a
-root that is not trusted, or broken, meaning it does not link up at all. The
-exit status is unchanged by
+root that is not trusted, or broken, meaning it does not link up at all. With
+.BR \-\-policy ,
+a trusted chain that breaks the policy also exits
+.BR 1 .
+The exit status is unchanged by
 .BR \-\-json .
 .SH KEY BINDINGS
 .TP
@@ -236,6 +247,9 @@ Fail on a SHA\-1 signature, a short RSA key, or a CN\-only certificate:
 .TP
 Fail on a revoked or stale stapled OCSP response:
 .B y509 validate example.com:443 \-\-json | jq \-e '.revocation.ok'
+.TP
+Fail on anything a FIPS\-mode client would reject:
+.B y509 validate example.com:443 \-\-policy fips
 .TP
 Verify against an internal CA:
 .B y509 validate chain.pem \-\-roots internal\-ca.pem
