@@ -471,6 +471,13 @@ func init() {
 	validateCmd.Flags().Bool("no-system-roots", false, "Do not trust the system store; use only --roots")
 	validateCmd.Flags().String("host", "", "Also check that the leaf is valid for this hostname")
 	validateCmd.Flags().Bool("json", false, "Emit the result as JSON instead of text")
-	validateCmd.Flags().String("policy", "", "Also judge the algorithms against a policy: fips, pqc")
+	validateCmd.Flags().String("policy", "",
+		"Also judge the algorithms against a policy: "+strings.Join(certificate.PolicyNames(), ", "))
+	if err := validateCmd.RegisterFlagCompletionFunc("policy",
+		func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+			return certificate.PolicyNames(), cobra.ShellCompDirectiveNoFileComp
+		}); err != nil {
+		panic(err)
+	}
 	RootCmd.AddCommand(validateCmd)
 }

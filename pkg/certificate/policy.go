@@ -33,11 +33,16 @@ func ParsePolicy(name string) (Policy, error) {
 			return p, nil
 		}
 	}
+	return "", fmt.Errorf("unknown policy %q (expected %s)", name, strings.Join(PolicyNames(), ", "))
+}
+
+// PolicyNames lists the names ParsePolicy accepts.
+func PolicyNames() []string {
 	names := make([]string, len(policies))
 	for i, p := range policies {
 		names[i] = string(p)
 	}
-	return "", fmt.Errorf("unknown policy %q (expected %s)", name, strings.Join(names, ", "))
+	return names
 }
 
 // Title names the policy for the text report.

@@ -266,3 +266,15 @@ func TestValidatePolicyPQC(t *testing.T) {
 		}
 	})
 }
+
+func TestPolicyFlagCompletes(t *testing.T) {
+	out, err := runRoot(t, "__complete", "validate", "--policy", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"fips\n", "pqc\n", ":4\n"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}
