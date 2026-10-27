@@ -170,6 +170,46 @@ jobs:
           fi
           test -z "${{ steps.check.outputs.trust-level }}"
 
+  policy-gate:
+    name: fail-on policy fails only a chain FIPS rejects
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # RSA exponent 3 verifies everywhere except in FIPS mode.
+      - name: generate certificates
+        run: |
+          openssl req -x509 -newkey rsa:2048 -pkeyopt rsa_keygen_pubexp:3 -nodes \
+            -keyout /dev/null -days 7 -subj "/CN=exponent3.test" \
+            -addext "subjectAltName=DNS:exponent3.test" -out exponent3.pem
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+            -keyout /dev/null -days 7 -subj "/CN=p256.test" \
+            -addext "subjectAltName=DNS:p256.test" -out p256.pem
+      - id: clean
+        uses: ./
+        with:
+          target: p256.pem
+          roots: p256.pem
+          policy: fips
+          fail-on: untrusted,policy
+      - id: check
+        continue-on-error: true
+        uses: ./
+        with:
+          target: exponent3.pem
+          roots: exponent3.pem
+          policy: fips
+          fail-on: untrusted,policy
+      - name: only the exponent-3 chain failed, and on the policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ steps.clean.outputs.policy-ok }}" = "true"
+          if [ "${{ steps.check.outcome }}" != "failure" ]; then
+            echo "expected the exponent-3 chain to fail the policy gate"; exit 1
+          fi
+          test "${{ steps.check.outputs.trust-level }}" = "trusted"
+          test "${{ steps.check.outputs.policy-ok }}" = "false"
+
   report-only:
     name: fail-on none never fails the job
     runs-on: ubuntu-latest
