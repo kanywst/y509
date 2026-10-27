@@ -128,6 +128,13 @@ func TestPolicyFindingsFIPSMLDSA(t *testing.T) {
 	}
 }
 
+func TestPolicyFindingsUnknownPolicyFails(t *testing.T) {
+	got := PolicyFindings(Policy("fips3"), []*x509.Certificate{conformanceCert(nil)})
+	if conformanceProblems(got) != ProblemUnknownPolicy {
+		t.Errorf("problems = %q, want %q", conformanceProblems(got), ProblemUnknownPolicy)
+	}
+}
+
 func TestParsePolicy(t *testing.T) {
 	for _, name := range []string{"fips", "FIPS"} {
 		if p, err := ParsePolicy(name); err != nil || p != PolicyFIPS {

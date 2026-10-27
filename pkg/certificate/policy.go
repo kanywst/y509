@@ -49,6 +49,7 @@ func (p Policy) Title() string {
 const (
 	ProblemUnapprovedSignature = "unapproved signature"
 	ProblemUnapprovedKey       = "unapproved key"
+	ProblemUnknownPolicy       = "unknown policy"
 )
 
 // fipsMinRSABits is the SP 800-131A floor.
@@ -66,12 +67,16 @@ var approvedSLHDSA = func() map[string]bool {
 	return out
 }()
 
-// PolicyFindings checks each certificate against the policy, and returns nil
-// for a policy ParsePolicy does not accept. The findings are kept out of
-// conformance, so conformance.ok keeps its meaning.
+// PolicyFindings checks each certificate against the policy. A policy
+// ParsePolicy does not accept fails rather than passing unchecked. The findings
+// are kept out of conformance, so conformance.ok keeps its meaning.
 func PolicyFindings(policy Policy, certs []*x509.Certificate) []ConformanceFinding {
 	if policy != PolicyFIPS {
-		return nil
+		return []ConformanceFinding{{
+			Problem: ProblemUnknownPolicy,
+			Subject: string(policy),
+			Detail:  "nothing was checked against it",
+		}}
 	}
 
 	var out []ConformanceFinding

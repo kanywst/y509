@@ -162,6 +162,14 @@ func TestValidatePolicyFIPS(t *testing.T) {
 		}
 	})
 
+	t.Run("self-anchored chain still fails as self-anchored", func(t *testing.T) {
+		chain := newTestChain(t)
+		_, err := runRoot(t, "validate", write(t, "chain.pem", chain.ChainPEM), "--policy", "fips")
+		if err == nil || !strings.Contains(err.Error(), "self-anchored") {
+			t.Errorf("err = %v, want self-anchored", err)
+		}
+	})
+
 	t.Run("unknown policy is an error", func(t *testing.T) {
 		chain := newTestChain(t)
 		_, err := runRoot(t, "validate", write(t, "chain.pem", chain.ChainPEM), "--policy", "fips-level-3")
