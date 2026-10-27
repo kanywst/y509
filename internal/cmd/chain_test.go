@@ -26,8 +26,8 @@ type testChain struct {
 	CAPEM []byte
 	// Leaf and CA are the parsed forms, for building a tls.Certificate.
 	Leaf, CA *x509.Certificate
-	// LeafKey signs for the leaf.
-	LeafKey *ecdsa.PrivateKey
+	// LeafKey signs for the leaf, CAKey for the CA.
+	LeafKey, CAKey *ecdsa.PrivateKey
 }
 
 func newTestChain(t *testing.T, dnsNames ...string) *testChain {
@@ -92,6 +92,7 @@ func newTestChain(t *testing.T, dnsNames ...string) *testChain {
 		Leaf:     leaf,
 		CA:       ca,
 		LeafKey:  leafKey,
+		CAKey:    caKey,
 	}
 }
 

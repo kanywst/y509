@@ -105,6 +105,12 @@ Multiple targets are all checked before exiting; the exit is non-zero if any fai
 y509 validate www.example.com:443 api.example.com:443 smtp.example.com:587
 ```
 
+`--policy fips` also judges every certificate sent against the FIPS 140-3 approved algorithms, as a client in FIPS-only mode enforces them (Go with `GODEBUG=fips140=only`, OpenSSL's FIPS provider, a RHEL host in FIPS mode). Signatures must be RSA or ECDSA over SHA-2, Ed25519, ML-DSA or SLH-DSA, and RSA keys at least 2048 bits, an even size, with an odd public exponent above 65536. A genuine self-signature on a root is exempt, since no client checks it. A chain that breaks the policy exits non-zero even when it is trusted. FIPS 140 levels 1 to 4 grade a cryptographic module, not a certificate, so there is no per-level policy.
+
+```bash
+y509 validate example.com:443 --policy fips
+```
+
 ### How the chain was served
 
 Browsers fetch a missing intermediate from the AIA URL; `curl`, Go and Java do not. So a chain can verify and still be broken for clients. y509 reports that from what the server actually sent:
@@ -192,6 +198,7 @@ y509 validate example.com:443 --json | jq .
   - `problem` is one of `weak signature` (SHA-1 or MD5, except a genuine SHA-1 self-signature, which no client checks), `weak key` (RSA under 2048 bits), `no SAN` (a server certificate with a common name but no DNS, IP or URI SAN), `precertificate` (a CT precertificate was served), `unhandled critical extension` (a critical extension Go does not process), `insufficient SCTs` (below Chrome's CT policy).
   - `insufficient SCTs` counts only SCTs whose signature verifies against the log's bundled key, as Chrome does. It is judged by `validate` only, for a chain trusted through the system store that carries at least one SCT, embedded or sent in the TLS handshake. A certificate with none is not judged, because an enterprise root in the system store looks the same as a public one. Nor is one that falls short only by SCTs from logs the bundled list does not know, which could close the gap, or any chain once that list is more than 70 days old, which is when Chrome stops enforcing CT too. A scheduled workflow refreshes the list twice a month.
   - `conformance.ctPolicy` says how that went: `met`, `not met`, or `not judged: <reason>`, including why for a chain CT does not apply to, such as one trusted through `--roots`. `conformance.ok` is not affected by a check that was not judged, so a gate that must not pass an unjudged chain reads `ctPolicy` (the Action exposes it as `ct-policy`).
+- `policy` is present only with `--policy`, as `{name, ok, findings}`. `problem` is `unapproved signature` or `unapproved key`. It has its own `ok`, so `conformance.ok` keeps meaning what every client rejects.
 - `chain[].noExpiry` is true for the RFC 5280 `9999-12-31` sentinel, a certificate with no well-defined expiration. `daysUntilExpiry` and `validityDays` still carry the real arithmetic, so read `noExpiry` before printing them.
 - `chain[].scts` lists the embedded SCTs as `{logId, log, operator, logState, timestamp}`, with logs named from a bundled copy of Google's CT log list (`make ct-logs` refreshes it). Nothing is verified or fetched. `log`, `operator` and `logState` are absent for a log the list does not know. If the list is damaged, `sctError` says why and `scts` keeps what was read before the damage.
 - `chain[].extensions` lists every extension as `{oid, name, critical}`. `name` is absent for one y509 does not know.
@@ -208,6 +215,9 @@ y509 validate example.com:443 --json | jq '.chain[0].daysUntilExpiry < 30'
 
 # Fail on a SHA-1 signature, a short RSA key, or a CN-only certificate.
 y509 validate example.com:443 --json | jq -e '.conformance.ok'
+
+# Fail on anything a FIPS-mode client would reject.
+y509 validate example.com:443 --policy fips --json | jq -e '.policy.ok'
 
 # Fail on a revoked or stale stapled OCSP response.
 y509 validate example.com:443 --json | jq -e '.revocation.ok'

@@ -51,6 +51,27 @@ type JSONReport struct {
 	// fine as far as it could be read". Absent when everything parsed, which
 	// keeps the common case byte-identical for existing consumers.
 	Unparsed []JSONUnparsed `json:"unparsed,omitempty"`
+	// Policy is the verdict against the policy --policy asked for, such as
+	// FIPS. Absent when none was asked for, so a run without the flag is
+	// byte-identical to what it was before policies existed.
+	Policy *JSONPolicy `json:"policy,omitempty"`
+}
+
+// JSONPolicy is the verdict against an opt-in algorithm policy.
+type JSONPolicy struct {
+	// Name is the policy as given to --policy, such as "fips".
+	Name string `json:"name"`
+	// OK is false when any finding is present.
+	OK bool `json:"ok"`
+	// Findings use the same shape as the conformance ones. Problem is one of
+	// "unapproved signature" or "unapproved key". Always an array, never null.
+	Findings []JSONFinding `json:"findings"`
+}
+
+// NewJSONPolicy renders a policy verdict.
+func NewJSONPolicy(policy Policy, findings []ConformanceFinding) *JSONPolicy {
+	c := NewJSONConformance(findings)
+	return &JSONPolicy{Name: string(policy), OK: c.OK, Findings: c.Findings}
 }
 
 // JSONUnparsed is one CERTIFICATE block that failed to parse.
