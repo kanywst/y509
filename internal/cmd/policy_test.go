@@ -12,13 +12,22 @@ import (
 	"time"
 )
 
+func pemCert(der []byte) []byte {
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+}
+
 // fipsBreakingChain verifies, but its leaf has an RSA key with exponent 3,
 // which only a FIPS-mode client refuses.
 func fipsBreakingChain(t *testing.T) (chainPath, rootsPath string) {
 	t.Helper()
-
 	chain := newTestChain(t)
+	pemChain := append(pemCert(exponent3Leaf(t, chain)), chain.CAPEM...)
+	return write(t, "chain.pem", pemChain), write(t, "roots.pem", chain.CAPEM)
+}
 
+// exponent3Leaf is a leaf signed by chain's CA with an RSA key of exponent 3.
+func exponent3Leaf(t *testing.T, chain *testChain) []byte {
+	t.Helper()
 	leafKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatal(err)
@@ -37,8 +46,7 @@ func fipsBreakingChain(t *testing.T) (chainPath, rootsPath string) {
 		t.Fatal(err)
 	}
 
-	pemChain := append(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), chain.CAPEM...)
-	return write(t, "chain.pem", pemChain), write(t, "roots.pem", chain.CAPEM)
+	return der
 }
 
 func TestValidatePolicyFIPS(t *testing.T) {
@@ -50,7 +58,7 @@ func TestValidatePolicyFIPS(t *testing.T) {
 		if err != nil {
 			t.Fatalf("a FIPS-clean trusted chain failed: %v\n%s", err, out)
 		}
-		if !strings.Contains(out, "FIPS 140-3: every certificate sent uses approved algorithms") {
+		if !strings.Contains(out, "FIPS 140-3: met") {
 			t.Errorf("a pass is not reported:\n%s", out)
 		}
 	})
@@ -76,6 +84,53 @@ func TestValidatePolicyFIPS(t *testing.T) {
 		}
 		if strings.Contains(out, "FIPS") {
 			t.Errorf("FIPS reported unasked:\n%s", out)
+		}
+	})
+
+	// A FIPS client verifies with the root's key whether or not it was sent.
+	t.Run("weak root that was not sent fails", func(t *testing.T) {
+		t.Setenv("GODEBUG", "rsa1024min=0")
+		rootKey, err := rsa.GenerateKey(rand.Reader, 1024)
+		if err != nil {
+			t.Fatal(err)
+		}
+		root := &x509.Certificate{
+			SerialNumber:          big.NewInt(1),
+			Subject:               pkix.Name{CommonName: "weak root"},
+			NotBefore:             time.Now().Add(-time.Hour),
+			NotAfter:              time.Now().Add(24 * time.Hour),
+			KeyUsage:              x509.KeyUsageCertSign,
+			BasicConstraintsValid: true,
+			IsCA:                  true,
+		}
+		rootDER, err := x509.CreateCertificate(rand.Reader, root, root, &rootKey.PublicKey, rootKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		chain := newTestChain(t)
+		leaf := *chain.Leaf
+		leaf.SignatureAlgorithm = x509.UnknownSignatureAlgorithm
+		leafDER, err := x509.CreateCertificate(rand.Reader, &leaf, root, &chain.LeafKey.PublicKey, rootKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out, err := runRoot(t, "validate", write(t, "leaf.pem", pemCert(leafDER)),
+			"--roots", write(t, "roots.pem", pemCert(rootDER)), "--no-system-roots", "--policy", "fips")
+		if err == nil || !strings.Contains(out, "unapproved key: weak root") {
+			t.Fatalf("err = %v, want the unsent root reported\n%s", err, out)
+		}
+	})
+
+	// A served certificate no path uses is not one a client checks.
+	t.Run("stray certificate does not fail it", func(t *testing.T) {
+		chain := newTestChain(t)
+		served := append(append([]byte{}, chain.ChainPEM...), pemCert(exponent3Leaf(t, chain))...)
+
+		out, err := runRoot(t, "validate", write(t, "chain.pem", served),
+			"--roots", write(t, "roots.pem", chain.CAPEM), "--no-system-roots", "--policy", "fips")
+		if err != nil || !strings.Contains(out, "FIPS 140-3: met") {
+			t.Fatalf("err = %v, want a pass\n%s", err, out)
 		}
 	})
 

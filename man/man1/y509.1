@@ -153,7 +153,7 @@ report is replaced rather than added to, and the failure message goes to
 standard error, so the stream parses even when the check fails.
 .TP
 .BI \-\-policy " NAME"
-Also judge every certificate sent against a policy. The only one is
+Also judge the verified chain, root included, against a policy. The only one is
 .BR fips :
 the FIPS 140\-3 approved algorithms a client in FIPS\-only mode enforces, such
 as Go with GODEBUG=fips140=only. Findings go under

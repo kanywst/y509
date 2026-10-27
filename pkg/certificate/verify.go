@@ -78,6 +78,8 @@ type VerifyResult struct {
 	// is not proof the root is public: an enterprise can add its own root to
 	// the system store.
 	SystemAnchored bool
+	// Chains is every path that verified, anchor last.
+	Chains [][]*x509.Certificate
 }
 
 // VerifyChain verifies a chain against real trust anchors.
@@ -125,6 +127,7 @@ func VerifyChain(certs []*x509.Certificate, opts VerifyOptions) (*VerifyResult, 
 			Level:          TrustAnchored,
 			Anchor:         anchorName(chains),
 			SystemAnchored: !opts.SkipSystemRoots && anyChainEndsOutside(chains, opts.ExtraRoots),
+			Chains:         chains,
 		}, nil
 	}
 

@@ -138,7 +138,7 @@ func TestParsePolicy(t *testing.T) {
 }
 
 func TestFormatPolicyFindings(t *testing.T) {
-	if got := FormatPolicyFindings(PolicyFIPS, nil); !strings.Contains(got, "approved") {
+	if got := FormatPolicyFindings(PolicyFIPS, nil); got != "FIPS 140-3: met" {
 		t.Errorf("a pass is silent: %q", got)
 	}
 

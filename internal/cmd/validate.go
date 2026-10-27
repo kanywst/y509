@@ -67,7 +67,7 @@ breaks it exits non-zero.`,
 			r := validateTarget(cmd, target, opts)
 			if policy != "" && r.Err == nil {
 				r.Policy = policy
-				r.PolicyFindings = certificate.PolicyFindings(policy, r.Report.Sent)
+				r.PolicyFindings = policyFindings(policy, r)
 			}
 			results = append(results, r)
 		}
@@ -387,6 +387,27 @@ func conformanceFindings(r targetResult) ([]certificate.ConformanceFinding, stri
 		findings = append(findings, *ct.Finding)
 	}
 	return findings, ct.Verdict()
+}
+
+// policyFindings judges the paths that verified, anchor included, since that is
+// what a client checks: a stray certificate it never uses does not fail it, and
+// a root it was not sent does. One clean path is enough. A chain that did not
+// verify is judged as sent.
+func policyFindings(policy certificate.Policy, r targetResult) []certificate.ConformanceFinding {
+	if r.Result == nil || len(r.Result.Chains) == 0 {
+		return certificate.PolicyFindings(policy, r.Report.Sent)
+	}
+	var first []certificate.ConformanceFinding
+	for i, chain := range r.Result.Chains {
+		findings := certificate.PolicyFindings(policy, chain)
+		if len(findings) == 0 {
+			return nil
+		}
+		if i == 0 {
+			first = findings
+		}
+	}
+	return first
 }
 
 // policyFromFlags reads --policy, empty when it was not given.

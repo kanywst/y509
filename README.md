@@ -105,7 +105,7 @@ Multiple targets are all checked before exiting; the exit is non-zero if any fai
 y509 validate www.example.com:443 api.example.com:443 smtp.example.com:587
 ```
 
-`--policy fips` also checks the certificates against the FIPS 140-3 approved algorithms, as a client in FIPS-only mode (`GODEBUG=fips140=only`, OpenSSL's FIPS provider) enforces them: RSA or ECDSA over SHA-2, Ed25519, ML-DSA or SLH-DSA, and RSA keys of at least 2048 bits with a public exponent above 65536. A trusted chain that breaks it exits 1.
+`--policy fips` also checks the verified chain, root included, against the FIPS 140-3 approved algorithms, as a client in FIPS-only mode (`GODEBUG=fips140=only`, OpenSSL's FIPS provider) enforces them: RSA or ECDSA over SHA-2, Ed25519, ML-DSA or SLH-DSA, and RSA keys of at least 2048 bits with a public exponent above 65536. A trusted chain that breaks it exits 1.
 
 ```bash
 y509 validate example.com:443 --policy fips

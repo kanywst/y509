@@ -19,18 +19,17 @@ type Policy string
 // enforces them when verifying (checkFIPS140OnlyPublicKey in crypto/rsa).
 const PolicyFIPS Policy = "fips"
 
-// Policies lists the policies ParsePolicy accepts.
-var Policies = []Policy{PolicyFIPS}
+var policies = []Policy{PolicyFIPS}
 
 // ParsePolicy reads a policy name.
 func ParsePolicy(name string) (Policy, error) {
-	for _, p := range Policies {
+	for _, p := range policies {
 		if strings.EqualFold(name, string(p)) {
 			return p, nil
 		}
 	}
-	names := make([]string, len(Policies))
-	for i, p := range Policies {
+	names := make([]string, len(policies))
+	for i, p := range policies {
 		names[i] = string(p)
 	}
 	return "", fmt.Errorf("unknown policy %q (expected %s)", name, strings.Join(names, ", "))
@@ -66,8 +65,9 @@ var approvedSLHDSA = func() map[string]bool {
 	return out
 }()
 
-// PolicyFindings checks each certificate as presented against the policy. The
-// findings are kept out of conformance, so conformance.ok keeps its meaning.
+// PolicyFindings checks each certificate against the policy, and returns nil
+// for a policy ParsePolicy does not accept. The findings are kept out of
+// conformance, so conformance.ok keeps its meaning.
 func PolicyFindings(policy Policy, certs []*x509.Certificate) []ConformanceFinding {
 	if policy != PolicyFIPS {
 		return nil
@@ -90,7 +90,6 @@ func PolicyFindings(policy Policy, certs []*x509.Certificate) []ConformanceFindi
 			})
 		}
 
-		// A root's key still verifies the certificate below it.
 		if why := fipsKeyProblem(cert); why != "" {
 			out = append(out, ConformanceFinding{
 				Problem: ProblemUnapprovedKey,
@@ -150,7 +149,7 @@ func fipsKeyProblem(cert *x509.Certificate) string {
 // too, since the policy was asked for.
 func FormatPolicyFindings(policy Policy, findings []ConformanceFinding) string {
 	if len(findings) == 0 {
-		return fmt.Sprintf("%s: every certificate sent uses approved algorithms", policy.Title())
+		return fmt.Sprintf("%s: met", policy.Title())
 	}
 
 	var sb strings.Builder
