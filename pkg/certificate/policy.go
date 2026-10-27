@@ -127,7 +127,7 @@ func fipsKeyProblem(cert *x509.Certificate) string {
 		case bits%2 == 1:
 			return fmt.Sprintf("an RSA key of %d bits, an odd size FIPS 186-5 does not allow", bits)
 		case pub.E <= 1<<16:
-			return fmt.Sprintf("an RSA public exponent of %d, at or below the 65537 floor of FIPS 186-5", pub.E)
+			return fmt.Sprintf("an RSA public exponent of %d, below the 65537 FIPS 186-5 requires", pub.E)
 		case pub.E%2 == 0:
 			return fmt.Sprintf("an even RSA public exponent of %d, which FIPS 186-5 does not allow", pub.E)
 		}
