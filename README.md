@@ -261,17 +261,18 @@ Downloads a release binary, verifies its checksum, and fails the job on the find
 | :--- | :--- | :--- |
 | `target` |  | host, `host:port`, or a PEM/DER path in the workspace |
 | `version` | `latest` | a release tag; pin it for a reproducible check |
-| `fail-on` | `untrusted,mis-served` | any of `untrusted`, `mis-served`, `expiring`, `revocation`, `conformance`, or `none` |
+| `fail-on` | `untrusted,mis-served` | any of `untrusted`, `mis-served`, `expiring`, `revocation`, `conformance`, `policy`, or `none` |
 | `expiry-days` | `30` | threshold for `expiring` |
 | `starttls` |  | `smtp`, `imap`, `ftp`, `ldap`, `mysql`, `postgres` |
 | `servername` |  | SNI name, when it differs from the host dialled |
 | `roots` |  | PEM file of extra trust anchors, for an internal PKI |
 | `no-system-roots` | `false` | trust only `roots` |
+| `policy` |  | `fips`, passed to `--policy` |
 | `summary` | `true` | write a report to the job summary |
 
 `revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable. No staple passes. `conformance` fails on a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name only in the common name, a served precertificate, a critical extension Go does not process, or too few SCTs for Chrome's CT policy.
 
-Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, `revocation-ok`, `conformance-ok`, `ct-policy`, and `report` (path to the full JSON).
+Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, `revocation-ok`, `conformance-ok`, `ct-policy`, `policy-ok`, and `report` (path to the full JSON).
 
 Findings not in `fail-on` still show up as warnings, so `fail-on: none` makes a monitor:
 

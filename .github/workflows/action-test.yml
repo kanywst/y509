@@ -137,6 +137,39 @@ jobs:
             echo "an unknown keyword was accepted"; exit 1
           fi
 
+  policy-without-input:
+    name: fail-on policy without a policy is refused
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # A local certificate, so nothing but the guard can fail the step.
+      - name: generate a certificate
+        run: |
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+            -keyout /dev/null -days 7 -subj "/CN=policy.test" \
+            -addext "subjectAltName=DNS:policy.test" -out policy-test.pem
+      # The same certificate passes without the keyword, so install and run work.
+      - uses: ./
+        with:
+          target: policy-test.pem
+          roots: policy-test.pem
+          fail-on: none
+      - id: check
+        continue-on-error: true
+        uses: ./
+        with:
+          target: policy-test.pem
+          roots: policy-test.pem
+          fail-on: untrusted,policy
+      - name: the step failed before y509 ran
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.check.outcome }}" != "failure" ]; then
+            echo "fail-on policy passed with no policy to judge"; exit 1
+          fi
+          test -z "${{ steps.check.outputs.trust-level }}"
+
   report-only:
     name: fail-on none never fails the job
     runs-on: ubuntu-latest
