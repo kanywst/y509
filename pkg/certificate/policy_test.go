@@ -4,6 +4,7 @@ import (
 	"crypto/dsa" //nolint:staticcheck // only to hand the rules a DSA key
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
@@ -26,10 +27,11 @@ func TestPolicyFindingsFIPS(t *testing.T) {
 	}{
 		{"rsa 2048 sha-256", nil, ""},
 		{"rsa-pss sha-384", func(c *x509.Certificate) { c.SignatureAlgorithm = x509.SHA384WithRSAPSS }, ""},
-		{"ecdsa sha-256", func(c *x509.Certificate) {
+		{"ecdsa p-256", func(c *x509.Certificate) {
 			c.SignatureAlgorithm = x509.ECDSAWithSHA256
-			c.PublicKey = &ecdsa.PublicKey{}
+			c.PublicKey = &ecdsa.PublicKey{Curve: elliptic.P256()}
 		}, ""},
+		{"ecdsa p-224", func(c *x509.Certificate) { c.PublicKey = &ecdsa.PublicKey{Curve: elliptic.P224()} }, ProblemUnapprovedKey},
 		{"ed25519", func(c *x509.Certificate) {
 			c.SignatureAlgorithm = x509.PureEd25519
 			c.PublicKey = ed25519.PublicKey(make([]byte, ed25519.PublicKeySize))

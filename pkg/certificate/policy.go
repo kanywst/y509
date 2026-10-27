@@ -4,6 +4,7 @@ import (
 	"crypto/dsa" //nolint:staticcheck // only to recognise a DSA key, never to use one
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/x509"
@@ -132,8 +133,12 @@ func fipsKeyProblem(cert *x509.Certificate) string {
 		}
 		return ""
 	case *ecdsa.PublicKey:
-		// crypto/x509 only parses the NIST curves, all approved.
-		return ""
+		// As crypto/tls allows in FIPS mode: not P-224.
+		switch pub.Curve {
+		case elliptic.P256(), elliptic.P384(), elliptic.P521():
+			return ""
+		}
+		return fmt.Sprintf("an ECDSA key on %s, a curve FIPS-mode TLS does not allow", curveName(pub))
 	case ed25519.PublicKey, *mldsa.PublicKey:
 		return ""
 	case *dsa.PublicKey:
@@ -143,6 +148,13 @@ func fipsKeyProblem(cert *x509.Certificate) string {
 		return ""
 	}
 	return fmt.Sprintf("a %s key, which FIPS 140-3 does not approve", PublicKeyAlgorithmName(cert))
+}
+
+func curveName(pub *ecdsa.PublicKey) string {
+	if pub.Curve == nil {
+		return "an unknown curve"
+	}
+	return pub.Curve.Params().Name
 }
 
 // FormatPolicyFindings renders the verdict for the terminal. A pass is printed
