@@ -7,12 +7,13 @@ import (
 	"fmt"
 )
 
-// pqcAlgorithmNames names the post-quantum signature OIDs crypto/x509 does not
-// decode. ML-DSA is not here: Go 1.27 names it, as x509.MLDSA44 and friends.
+// pqcAlgorithmNames names the post-quantum OIDs crypto/x509 does not decode.
+// ML-DSA is not here: Go 1.27 names it, as x509.MLDSA44 and friends.
 //
 // The SLH-DSA OIDs are NIST's (CSOR, id-slh-dsa-*), as RFC 9909 uses them for
-// X.509. Composite ML-DSA is left out until its OIDs leave draft: naming a
-// draft OID would label a certificate with what the draft said that month.
+// X.509, and so are ML-KEM's (id-alg-ml-kem-*). Composite ML-DSA is left out
+// until its OIDs leave draft: naming a draft OID would label a certificate with
+// what the draft said that month.
 var pqcAlgorithmNames = map[string]string{
 	"2.16.840.1.101.3.4.3.20": "SLH-DSA-SHA2-128s",
 	"2.16.840.1.101.3.4.3.21": "SLH-DSA-SHA2-128f",
@@ -26,6 +27,9 @@ var pqcAlgorithmNames = map[string]string{
 	"2.16.840.1.101.3.4.3.29": "SLH-DSA-SHAKE-192f",
 	"2.16.840.1.101.3.4.3.30": "SLH-DSA-SHAKE-256s",
 	"2.16.840.1.101.3.4.3.31": "SLH-DSA-SHAKE-256f",
+	"2.16.840.1.101.3.4.4.1":  "ML-KEM-512",
+	"2.16.840.1.101.3.4.4.2":  "ML-KEM-768",
+	"2.16.840.1.101.3.4.4.3":  "ML-KEM-1024",
 }
 
 // SignatureAlgorithmName names the algorithm the certificate was signed with.

@@ -64,8 +64,8 @@ inputs:
     default: "false"
   policy:
     description: >-
-      Also judge the certificates against a policy: "fips". A release without
-      validate --policy fails the step, even with fail-on none.
+      Also judge the certificates against a policy: "fips" or "pqc". A
+      release without validate --policy fails the step, even with fail-on none.
     required: false
     default: ""
   summary:

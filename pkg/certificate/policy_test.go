@@ -128,6 +128,110 @@ func TestPolicyFindingsFIPSMLDSA(t *testing.T) {
 	}
 }
 
+// spkiCert has a subject key crypto/x509 does not decode.
+func spkiCert(t *testing.T, oid string, keyBytes int) *x509.Certificate {
+	t.Helper()
+	var ai pkix.AlgorithmIdentifier
+	if _, err := asn1.Unmarshal(algorithmIdentifier(t, oid), &ai); err != nil {
+		t.Fatal(err)
+	}
+	spki, err := asn1.Marshal(struct {
+		Algorithm pkix.AlgorithmIdentifier
+		PublicKey asn1.BitString
+	}{ai, asn1.BitString{Bytes: make([]byte, keyBytes), BitLength: keyBytes * 8}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return conformanceCert(func(c *x509.Certificate) {
+		c.SignatureAlgorithm = x509.MLDSA65
+		c.PublicKeyAlgorithm = x509.UnknownPublicKeyAlgorithm
+		c.PublicKey = nil
+		c.RawSubjectPublicKeyInfo = spki
+	})
+}
+
+func TestPolicyFindingsPQC(t *testing.T) {
+	mldsaKey, err := mldsa.GenerateKey(mldsa.MLDSA65())
+	if err != nil {
+		t.Fatal(err)
+	}
+	pqc := func(c *x509.Certificate) {
+		c.SignatureAlgorithm = x509.MLDSA65
+		c.PublicKey = mldsaKey.PublicKey()
+	}
+
+	tests := []struct {
+		name string
+		cert *x509.Certificate
+		want string
+	}{
+		{"ml-dsa signature and key", conformanceCert(pqc), ""},
+		{"slh-dsa signature", conformanceCert(func(c *x509.Certificate) {
+			pqc(c)
+			c.SignatureAlgorithm = x509.UnknownSignatureAlgorithm
+			c.RawSignatureAlgorithm = algorithmIdentifier(t, "2.16.840.1.101.3.4.3.31")
+		}), ""},
+		{"slh-dsa key", spkiCert(t, "2.16.840.1.101.3.4.3.20", 32), ""},
+		{"ml-kem key", spkiCert(t, "2.16.840.1.101.3.4.4.2", 1184), ""},
+		{"ml-kem key of the wrong size", spkiCert(t, "2.16.840.1.101.3.4.4.2", 800), ProblemUnapprovedKey},
+		{"rsa signature and key", conformanceCert(nil), ProblemUnapprovedSignature + "," + ProblemUnapprovedKey},
+		{"ed25519 signature", conformanceCert(func(c *x509.Certificate) {
+			pqc(c)
+			c.SignatureAlgorithm = x509.PureEd25519
+		}), ProblemUnapprovedSignature},
+		{"ecdsa key under ml-dsa", conformanceCert(func(c *x509.Certificate) {
+			c.SignatureAlgorithm = x509.MLDSA44
+			c.PublicKey = &ecdsa.PublicKey{Curve: elliptic.P256()}
+		}), ProblemUnapprovedKey},
+		{"ml-kem as a signature", conformanceCert(func(c *x509.Certificate) {
+			pqc(c)
+			c.SignatureAlgorithm = x509.UnknownSignatureAlgorithm
+			c.RawSignatureAlgorithm = algorithmIdentifier(t, "2.16.840.1.101.3.4.4.2")
+		}), ProblemUnapprovedSignature},
+		{"unknown key", spkiCert(t, "1.2.3.4", 32), ProblemUnapprovedKey},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := conformanceProblems(PolicyFindings(PolicyPQC, []*x509.Certificate{tt.cert}))
+			if got != tt.want {
+				t.Errorf("problems = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPolicyFindingsPQCRoot(t *testing.T) {
+	key, err := mldsa.GenerateKey(mldsa.MLDSA87())
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := selfSign(t, selfSignTemplate("ML-DSA Root", 0), key.PublicKey(), key)
+	if got := conformanceProblems(PolicyFindings(PolicyPQC, []*x509.Certificate{root})); got != "" {
+		t.Errorf("an ML-DSA-87 root was reported: %q", got)
+	}
+
+	rsaPriv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rsaRoot := selfSign(t, selfSignTemplate("RSA Root", x509.SHA256WithRSA), &rsaPriv.PublicKey, rsaPriv)
+	findings := PolicyFindings(PolicyPQC, []*x509.Certificate{rsaRoot})
+	if got := conformanceProblems(findings); got != ProblemUnapprovedKey {
+		t.Fatalf("an RSA root gave %q, want %q", got, ProblemUnapprovedKey)
+	}
+	if !strings.Contains(findings[0].Detail, "a quantum computer could break") {
+		t.Errorf("detail does not say why: %q", findings[0].Detail)
+	}
+}
+
+func TestPolicyFindingsFIPSMLKEM(t *testing.T) {
+	cert := spkiCert(t, "2.16.840.1.101.3.4.4.3", 1568)
+	if got := conformanceProblems(PolicyFindings(PolicyFIPS, []*x509.Certificate{cert})); got != "" {
+		t.Errorf("an ML-KEM-1024 key was reported: %q", got)
+	}
+}
+
 func TestPolicyFindingsUnknownPolicyFails(t *testing.T) {
 	got := PolicyFindings(Policy("fips3"), []*x509.Certificate{conformanceCert(nil)})
 	if conformanceProblems(got) != ProblemUnknownPolicy {
@@ -141,7 +245,12 @@ func TestParsePolicy(t *testing.T) {
 			t.Errorf("ParsePolicy(%q) = %q, %v", name, p, err)
 		}
 	}
-	if _, err := ParsePolicy("fips-level-3"); err == nil || !strings.Contains(err.Error(), "fips") {
+	for _, name := range []string{"pqc", "PQC"} {
+		if p, err := ParsePolicy(name); err != nil || p != PolicyPQC {
+			t.Errorf("ParsePolicy(%q) = %q, %v", name, p, err)
+		}
+	}
+	if _, err := ParsePolicy("fips-level-3"); err == nil || !strings.Contains(err.Error(), "fips, pqc") {
 		t.Errorf("an unknown policy gave %v, want an error listing the known ones", err)
 	}
 }

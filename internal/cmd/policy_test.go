@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -177,4 +178,103 @@ func TestValidatePolicyFIPS(t *testing.T) {
 			t.Errorf("err = %v, want unknown policy", err)
 		}
 	})
+}
+
+func mldsaChain(t *testing.T) (chainPath, rootsPath string) {
+	t.Helper()
+	rootKey, err := mldsa.GenerateKey(mldsa.MLDSA87())
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "pqc root"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	rootDER, err := x509.CreateCertificate(rand.Reader, root, root, rootKey.PublicKey(), rootKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err = x509.ParseCertificate(rootDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	leafKey, err := mldsa.GenerateKey(mldsa.MLDSA65())
+	if err != nil {
+		t.Fatal(err)
+	}
+	leaf := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject:      pkix.Name{CommonName: "pqc leaf"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:     []string{"pqc.test"},
+	}
+	leafDER, err := x509.CreateCertificate(rand.Reader, leaf, root, leafKey.PublicKey(), rootKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return write(t, "chain.pem", append(pemCert(leafDER), pemCert(rootDER)...)), write(t, "roots.pem", pemCert(rootDER))
+}
+
+func TestValidatePolicyPQC(t *testing.T) {
+	t.Run("ml-dsa chain passes", func(t *testing.T) {
+		chainPath, rootsPath := mldsaChain(t)
+
+		out, err := runRoot(t, "validate", chainPath, "--roots", rootsPath, "--no-system-roots", "--policy", "pqc")
+		if err != nil {
+			t.Fatalf("an ML-DSA chain failed: %v\n%s", err, out)
+		}
+		if !strings.Contains(out, "Post-quantum: met") {
+			t.Errorf("a pass is not reported:\n%s", out)
+		}
+	})
+
+	t.Run("ecdsa chain fails", func(t *testing.T) {
+		chain := newTestChain(t)
+		chainPath, rootsPath := write(t, "chain.pem", chain.ChainPEM), write(t, "roots.pem", chain.CAPEM)
+
+		out, err := runRoot(t, "validate", chainPath, "--roots", rootsPath, "--no-system-roots", "--policy", "pqc")
+		if err == nil || !strings.Contains(err.Error(), "pqc policy") {
+			t.Fatalf("err = %v, want the pqc policy named\n%s", err, out)
+		}
+		for _, want := range []string{"unapproved signature: ", "unapproved key: y509 test CA"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("missing %q in:\n%s", want, out)
+			}
+		}
+	})
+
+	t.Run("json", func(t *testing.T) {
+		chainPath, rootsPath := mldsaChain(t)
+
+		out, _, err := runValidateJSON(t, chainPath, "--roots", rootsPath, "--no-system-roots", "--policy", "pqc")
+		if err != nil {
+			t.Fatalf("validate --json failed: %v\n%s", err, out)
+		}
+		policy, _ := decode(t, out)["policy"].(map[string]any)
+		if policy["name"] != "pqc" || policy["ok"] != true {
+			t.Errorf("policy = %#v", policy)
+		}
+	})
+}
+
+func TestPolicyFlagCompletes(t *testing.T) {
+	out, err := runRoot(t, "__complete", "validate", "--policy", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"fips\n", "pqc\n", ":4\n"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
 }

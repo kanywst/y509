@@ -8,6 +8,8 @@ import (
 	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"fmt"
 	"strings"
 )
@@ -20,7 +22,11 @@ type Policy string
 // enforces them when verifying (checkFIPS140OnlyPublicKey in crypto/rsa).
 const PolicyFIPS Policy = "fips"
 
-var policies = []Policy{PolicyFIPS}
+// PolicyPQC is ML-DSA (FIPS 204) and SLH-DSA (FIPS 205) signatures, and keys
+// of those or ML-KEM (FIPS 203).
+const PolicyPQC Policy = "pqc"
+
+var policies = []Policy{PolicyFIPS, PolicyPQC}
 
 // ParsePolicy reads a policy name.
 func ParsePolicy(name string) (Policy, error) {
@@ -29,11 +35,16 @@ func ParsePolicy(name string) (Policy, error) {
 			return p, nil
 		}
 	}
+	return "", fmt.Errorf("unknown policy %q (expected %s)", name, strings.Join(PolicyNames(), ", "))
+}
+
+// PolicyNames lists the names ParsePolicy accepts.
+func PolicyNames() []string {
 	names := make([]string, len(policies))
 	for i, p := range policies {
 		names[i] = string(p)
 	}
-	return "", fmt.Errorf("unknown policy %q (expected %s)", name, strings.Join(names, ", "))
+	return names
 }
 
 // Title names the policy for the text report.
@@ -41,6 +52,8 @@ func (p Policy) Title() string {
 	switch p {
 	case PolicyFIPS:
 		return "FIPS 140-3"
+	case PolicyPQC:
+		return "Post-quantum"
 	}
 	return string(p)
 }
@@ -57,21 +70,70 @@ const fipsMinRSABits = 2048
 
 // approvedSLHDSA is the SLH-DSA parameter sets (FIPS 205), matched by name
 // since Go does not decode them.
-var approvedSLHDSA = func() map[string]bool {
+var approvedSLHDSA = namesWithPrefix("SLH-DSA-")
+
+// mlkemKeySizes is the encapsulation key length of each ML-KEM parameter set
+// (FIPS 203), a subject key only.
+var mlkemKeySizes = map[string]int{"ML-KEM-512": 800, "ML-KEM-768": 1184, "ML-KEM-1024": 1568}
+
+// mlkemKey says whether the subject key is ML-KEM. Go does not decode it, so
+// the length is checked here.
+func mlkemKey(cert *x509.Certificate) bool {
+	size, ok := mlkemKeySizes[PublicKeyAlgorithmName(cert)]
+	if !ok {
+		return false
+	}
+	var spki struct {
+		Algorithm pkix.AlgorithmIdentifier
+		PublicKey asn1.BitString
+	}
+	if _, err := asn1.Unmarshal(cert.RawSubjectPublicKeyInfo, &spki); err != nil {
+		return false
+	}
+	return spki.PublicKey.BitLength == size*8
+}
+
+func namesWithPrefix(prefix string) map[string]bool {
 	out := make(map[string]bool, len(pqcAlgorithmNames))
 	for _, name := range pqcAlgorithmNames {
-		if strings.HasPrefix(name, "SLH-DSA-") {
+		if strings.HasPrefix(name, prefix) {
 			out[name] = true
 		}
 	}
 	return out
-}()
+}
+
+// policyRules is what a policy checks, and the advice after each finding.
+type policyRules struct {
+	signatureOK func(*x509.Certificate) bool
+	// signatureWhy follows "signed with <algorithm>, ".
+	signatureWhy string
+	keyProblem   func(*x509.Certificate) string
+	// keyWhy follows what keyProblem said.
+	keyWhy string
+}
+
+var rulesFor = map[Policy]policyRules{
+	PolicyFIPS: {
+		signatureOK:  fipsApprovedSignature,
+		signatureWhy: "which FIPS 140-3 does not approve, so a client in FIPS mode rejects the chain; reissue it signed with RSA or ECDSA over SHA-256 or stronger, Ed25519 or ML-DSA",
+		keyProblem:   fipsKeyProblem,
+		keyWhy:       ", which a client in FIPS mode refuses to verify with; reissue it with a new key",
+	},
+	PolicyPQC: {
+		signatureOK:  pqcSignature,
+		signatureWhy: "which a quantum computer could forge; reissue it signed with ML-DSA or SLH-DSA",
+		keyProblem:   pqcKeyProblem,
+		keyWhy:       "; reissue it with an ML-DSA, SLH-DSA or ML-KEM key",
+	},
+}
 
 // PolicyFindings checks each certificate against the policy. A policy
 // ParsePolicy does not accept fails rather than passing unchecked. The findings
 // are kept out of conformance, so conformance.ok keeps its meaning.
 func PolicyFindings(policy Policy, certs []*x509.Certificate) []ConformanceFinding {
-	if policy != PolicyFIPS {
+	rules, ok := rulesFor[policy]
+	if !ok {
 		return []ConformanceFinding{{
 			Problem: ProblemUnknownPolicy,
 			Subject: string(policy),
@@ -87,20 +149,19 @@ func PolicyFindings(policy Policy, certs []*x509.Certificate) []ConformanceFindi
 		name := displayName(cert)
 
 		// As in conformance: a root's own signature is never checked.
-		if !fipsApprovedSignature(cert) && !isGenuinelySelfSigned(cert) {
+		if !rules.signatureOK(cert) && !isGenuinelySelfSigned(cert) {
 			out = append(out, ConformanceFinding{
 				Problem: ProblemUnapprovedSignature,
 				Subject: name,
-				Detail: fmt.Sprintf("signed with %s, which FIPS 140-3 does not approve, so a client in FIPS mode rejects the chain; reissue it signed with RSA or ECDSA over SHA-256 or stronger, Ed25519 or ML-DSA",
-					SignatureAlgorithmName(cert)),
+				Detail:  fmt.Sprintf("signed with %s, %s", SignatureAlgorithmName(cert), rules.signatureWhy),
 			})
 		}
 
-		if why := fipsKeyProblem(cert); why != "" {
+		if why := rules.keyProblem(cert); why != "" {
 			out = append(out, ConformanceFinding{
 				Problem: ProblemUnapprovedKey,
 				Subject: name,
-				Detail:  why + ", which a client in FIPS mode refuses to verify with; reissue it with a new key",
+				Detail:  why + rules.keyWhy,
 			})
 		}
 	}
@@ -149,10 +210,30 @@ func fipsKeyProblem(cert *x509.Certificate) string {
 	case *dsa.PublicKey:
 		return "a DSA key, which FIPS 186-5 no longer approves for signatures"
 	}
-	if approvedSLHDSA[PublicKeyAlgorithmName(cert)] {
+	if approvedSLHDSA[PublicKeyAlgorithmName(cert)] || mlkemKey(cert) {
 		return ""
 	}
 	return fmt.Sprintf("a %s key, which FIPS 140-3 does not approve", PublicKeyAlgorithmName(cert))
+}
+
+func pqcSignature(cert *x509.Certificate) bool {
+	switch cert.SignatureAlgorithm {
+	case x509.MLDSA44, x509.MLDSA65, x509.MLDSA87:
+		return true
+	case x509.UnknownSignatureAlgorithm:
+		return approvedSLHDSA[SignatureAlgorithmName(cert)]
+	}
+	return false
+}
+
+func pqcKeyProblem(cert *x509.Certificate) string {
+	if _, ok := cert.PublicKey.(*mldsa.PublicKey); ok {
+		return ""
+	}
+	if approvedSLHDSA[PublicKeyAlgorithmName(cert)] || mlkemKey(cert) {
+		return ""
+	}
+	return fmt.Sprintf("the %s key, which a quantum computer could break", PublicKeyAlgorithmName(cert))
 }
 
 func curveName(pub *ecdsa.PublicKey) string {
