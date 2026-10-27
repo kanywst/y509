@@ -8,6 +8,8 @@ import (
 	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"fmt"
 	"strings"
 )
@@ -70,8 +72,26 @@ const fipsMinRSABits = 2048
 // since Go does not decode them.
 var approvedSLHDSA = namesWithPrefix("SLH-DSA-")
 
-// approvedMLKEM is the ML-KEM parameter sets (FIPS 203), a subject key only.
-var approvedMLKEM = namesWithPrefix("ML-KEM-")
+// mlkemKeySizes is the encapsulation key length of each ML-KEM parameter set
+// (FIPS 203), a subject key only.
+var mlkemKeySizes = map[string]int{"ML-KEM-512": 800, "ML-KEM-768": 1184, "ML-KEM-1024": 1568}
+
+// mlkemKey says whether the subject key is ML-KEM. Go does not decode it, so
+// the length is checked here.
+func mlkemKey(cert *x509.Certificate) bool {
+	size, ok := mlkemKeySizes[PublicKeyAlgorithmName(cert)]
+	if !ok {
+		return false
+	}
+	var spki struct {
+		Algorithm pkix.AlgorithmIdentifier
+		PublicKey asn1.BitString
+	}
+	if _, err := asn1.Unmarshal(cert.RawSubjectPublicKeyInfo, &spki); err != nil {
+		return false
+	}
+	return spki.PublicKey.BitLength == size*8
+}
 
 func namesWithPrefix(prefix string) map[string]bool {
 	out := make(map[string]bool, len(pqcAlgorithmNames))
@@ -190,7 +210,7 @@ func fipsKeyProblem(cert *x509.Certificate) string {
 	case *dsa.PublicKey:
 		return "a DSA key, which FIPS 186-5 no longer approves for signatures"
 	}
-	if name := PublicKeyAlgorithmName(cert); approvedSLHDSA[name] || approvedMLKEM[name] {
+	if approvedSLHDSA[PublicKeyAlgorithmName(cert)] || mlkemKey(cert) {
 		return ""
 	}
 	return fmt.Sprintf("a %s key, which FIPS 140-3 does not approve", PublicKeyAlgorithmName(cert))
@@ -210,11 +230,10 @@ func pqcKeyProblem(cert *x509.Certificate) string {
 	if _, ok := cert.PublicKey.(*mldsa.PublicKey); ok {
 		return ""
 	}
-	name := PublicKeyAlgorithmName(cert)
-	if approvedSLHDSA[name] || approvedMLKEM[name] {
+	if approvedSLHDSA[PublicKeyAlgorithmName(cert)] || mlkemKey(cert) {
 		return ""
 	}
-	return fmt.Sprintf("the %s key, which a quantum computer could break", name)
+	return fmt.Sprintf("the %s key, which a quantum computer could break", PublicKeyAlgorithmName(cert))
 }
 
 func curveName(pub *ecdsa.PublicKey) string {

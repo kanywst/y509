@@ -129,7 +129,7 @@ func TestPolicyFindingsFIPSMLDSA(t *testing.T) {
 }
 
 // spkiCert has a subject key crypto/x509 does not decode.
-func spkiCert(t *testing.T, oid string) *x509.Certificate {
+func spkiCert(t *testing.T, oid string, keyBytes int) *x509.Certificate {
 	t.Helper()
 	var ai pkix.AlgorithmIdentifier
 	if _, err := asn1.Unmarshal(algorithmIdentifier(t, oid), &ai); err != nil {
@@ -138,7 +138,7 @@ func spkiCert(t *testing.T, oid string) *x509.Certificate {
 	spki, err := asn1.Marshal(struct {
 		Algorithm pkix.AlgorithmIdentifier
 		PublicKey asn1.BitString
-	}{ai, asn1.BitString{Bytes: []byte{0}, BitLength: 8}})
+	}{ai, asn1.BitString{Bytes: make([]byte, keyBytes), BitLength: keyBytes * 8}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,8 +171,9 @@ func TestPolicyFindingsPQC(t *testing.T) {
 			c.SignatureAlgorithm = x509.UnknownSignatureAlgorithm
 			c.RawSignatureAlgorithm = algorithmIdentifier(t, "2.16.840.1.101.3.4.3.31")
 		}), ""},
-		{"slh-dsa key", spkiCert(t, "2.16.840.1.101.3.4.3.20"), ""},
-		{"ml-kem key", spkiCert(t, "2.16.840.1.101.3.4.4.2"), ""},
+		{"slh-dsa key", spkiCert(t, "2.16.840.1.101.3.4.3.20", 32), ""},
+		{"ml-kem key", spkiCert(t, "2.16.840.1.101.3.4.4.2", 1184), ""},
+		{"ml-kem key of the wrong size", spkiCert(t, "2.16.840.1.101.3.4.4.2", 800), ProblemUnapprovedKey},
 		{"rsa signature and key", conformanceCert(nil), ProblemUnapprovedSignature + "," + ProblemUnapprovedKey},
 		{"ed25519 signature", conformanceCert(func(c *x509.Certificate) {
 			pqc(c)
@@ -187,7 +188,7 @@ func TestPolicyFindingsPQC(t *testing.T) {
 			c.SignatureAlgorithm = x509.UnknownSignatureAlgorithm
 			c.RawSignatureAlgorithm = algorithmIdentifier(t, "2.16.840.1.101.3.4.4.2")
 		}), ProblemUnapprovedSignature},
-		{"unknown key", spkiCert(t, "1.2.3.4"), ProblemUnapprovedKey},
+		{"unknown key", spkiCert(t, "1.2.3.4", 32), ProblemUnapprovedKey},
 	}
 
 	for _, tt := range tests {
@@ -225,7 +226,7 @@ func TestPolicyFindingsPQCRoot(t *testing.T) {
 }
 
 func TestPolicyFindingsFIPSMLKEM(t *testing.T) {
-	cert := spkiCert(t, "2.16.840.1.101.3.4.4.3")
+	cert := spkiCert(t, "2.16.840.1.101.3.4.4.3", 1568)
 	if got := conformanceProblems(PolicyFindings(PolicyFIPS, []*x509.Certificate{cert})); got != "" {
 		t.Errorf("an ML-KEM-1024 key was reported: %q", got)
 	}
