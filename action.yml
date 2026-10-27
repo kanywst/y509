@@ -236,6 +236,32 @@ runs:
         [ "$INPUT_NO_SYSTEM_ROOTS" = "true" ] && args+=(--no-system-roots)
         [ -n "$INPUT_POLICY" ] && args+=(--policy "$INPUT_POLICY")
 
+        # "none" disables every gate; otherwise a keyword must appear in the
+        # list to fail the job rather than only warn.
+        #
+        # The list is normalised first. "untrusted, mis-served" is the natural
+        # way to write this in YAML, and matching the raw string would quietly
+        # miss the second keyword: the finding would still be reported, but as
+        # a warning, and the job would pass. A gate that silently stops gating
+        # is worse than no gate.
+        # An unknown keyword is refused rather than ignored, for the same
+        # reason: a typo must not read as "gate nothing".
+        gates=""
+        for keyword in $(printf '%s' "$INPUT_FAIL_ON" | tr ',[:upper:]' ' [:lower:]'); do
+          case "$keyword" in
+            untrusted|mis-served|expiring|revocation|conformance|policy|none) gates="${gates}${keyword}," ;;
+            *) echo "::error::unknown fail-on keyword '$keyword' (expected untrusted, mis-served, expiring, revocation, conformance, policy or none)"; exit 1 ;;
+          esac
+        done
+        gates=",${gates}"
+
+        wants() { [ "${gates#*,"$1",}" != "$gates" ] && [ "${gates#*,none,}" = "$gates" ]; }
+
+        if wants policy && [ -z "$INPUT_POLICY" ]; then
+          echo "::error::fail-on includes policy, but no policy input was given"
+          exit 1
+        fi
+
         report="${RUNNER_TEMP}/y509-report.json"
         errors="${RUNNER_TEMP}/y509-error.txt"
         # --json replaces the text report rather than adding to it, and sends
@@ -263,6 +289,10 @@ runs:
         conformance_ok=$(jq -r 'if .conformance == null then "true" else (.conformance.ok | tostring) end' "$report")
         conformance_problems=$(jq -r '[.conformance.findings[]?.problem] | join(", ")' "$report")
         ct_policy=$(jq -r '.conformance.ctPolicy // ""' "$report")
+        if [ -n "$INPUT_POLICY" ] && ! jq -e '.policy != null' "$report" > /dev/null; then
+          echo "::error::policy '$INPUT_POLICY' was requested but the report has no policy verdict"
+          exit 1
+        fi
         policy_ok=$(jq -r 'if .policy == null then "true" else (.policy.ok | tostring) end' "$report")
         policy_problems=$(jq -r '[.policy.findings[]?.problem] | join(", ")' "$report")
 
@@ -278,32 +308,6 @@ runs:
           echo "policy-ok=$policy_ok"
           echo "report=$report"
         } >> "$GITHUB_OUTPUT"
-
-        # "none" disables every gate; otherwise a keyword must appear in the
-        # list to fail the job rather than only warn.
-        #
-        # The list is normalised first. "untrusted, mis-served" is the natural
-        # way to write this in YAML, and matching the raw string would quietly
-        # miss the second keyword: the finding would still be reported, but as
-        # a warning, and the job would pass. A gate that silently stops gating
-        # is worse than no gate.
-        # An unknown keyword is refused rather than ignored, for the same
-        # reason: a typo must not read as "gate nothing".
-        gates=""
-        for keyword in $(printf '%s' "$INPUT_FAIL_ON" | tr ',[:upper:]' ' [:lower:]'); do
-          case "$keyword" in
-            untrusted|mis-served|expiring|revocation|conformance|policy|none) gates="${gates}${keyword}," ;;
-            *) echo "::error::unknown fail-on keyword '$keyword' (expected untrusted, mis-served, expiring, revocation, conformance, policy or none)"; exit 1 ;;
-          esac
-        done
-        gates=",${gates}"
-
-        wants() { [ "${gates#*,"$1",}" != "$gates" ] && [ "${gates#*,none,}" = "$gates" ]; }
-
-        if wants policy && [ -z "$INPUT_POLICY" ]; then
-          echo "::error::fail-on includes policy, but no policy input was given"
-          exit 1
-        fi
 
         failed=0
 
