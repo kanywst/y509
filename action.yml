@@ -365,7 +365,7 @@ runs:
         fi
 
         if [ "$policy_ok" != "true" ]; then
-          jq -r '.policy.findings[] | "\(.problem): \(.subject)\n  \(.detail)"' "$report" |
+          jq -r '.policy.findings[]? | "\(.problem): \(.subject)\n  \(.detail)"' "$report" |
             while IFS= read -r line; do echo "  $line"; done
           if wants policy; then
             echo "::error::certificate breaks the $INPUT_POLICY policy: $policy_problems"
