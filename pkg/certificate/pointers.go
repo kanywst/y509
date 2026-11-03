@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// Advisory is a certificate that verifies but is fragile. Advisories have no ok
-// and no fail-on gate.
+// Advisory is a non-gating note about a certificate, judged without verifying
+// anything. Advisories have no ok and no fail-on keyword.
 type Advisory struct {
 	// Problem is the short name, from a fixed vocabulary.
 	Problem string
@@ -52,16 +52,17 @@ func isShortLived(cert *x509.Certificate) bool {
 // RevocationPointerAdvisories reports each certificate with no AIA CA Issuers
 // URL, and each with no CRL distribution point that is neither short-lived nor
 // has an OCSP URL. A missing OCSP URL alone is never reported: SC-063 made OCSP
-// optional. A self-issued certificate has no issuer to point at and is skipped.
+// optional. A self-signed certificate has no issuer to point at and is skipped;
+// a self-issued one from a key rollover does have one.
 func RevocationPointerAdvisories(certs []*x509.Certificate) []Advisory {
 	var out []Advisory
 	for _, cert := range certs {
-		if cert == nil || cert.Issuer.String() == cert.Subject.String() {
+		if cert == nil || isGenuinelySelfSigned(cert) {
 			continue
 		}
 		name := displayName(cert)
 
-		if len(cert.IssuingCertificateURL) == 0 {
+		if !hasURL(cert.IssuingCertificateURL) {
 			out = append(out, Advisory{
 				Problem: ProblemNoAIA,
 				Subject: name,
@@ -69,7 +70,7 @@ func RevocationPointerAdvisories(certs []*x509.Certificate) []Advisory {
 			})
 		}
 
-		if len(cert.CRLDistributionPoints) == 0 && len(cert.OCSPServer) == 0 && !isShortLived(cert) {
+		if !hasURL(cert.CRLDistributionPoints) && !hasURL(cert.OCSPServer) && !isShortLived(cert) {
 			out = append(out, Advisory{
 				Problem: ProblemNoCRL,
 				Subject: name,
@@ -78,6 +79,16 @@ func RevocationPointerAdvisories(certs []*x509.Certificate) []Advisory {
 		}
 	}
 	return out
+}
+
+// hasURL reports whether any of the locations is non-empty.
+func hasURL(urls []string) bool {
+	for _, u := range urls {
+		if strings.TrimSpace(u) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // FormatAdvisories renders the advisories for the terminal, or an empty string

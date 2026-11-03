@@ -89,11 +89,15 @@ func TestRevocationPointerAdvisories(t *testing.T) {
 			c.CRLDistributionPoints = nil
 			c.NotAfter = time.Date(9999, time.December, 31, 23, 59, 59, 0, time.UTC)
 		}, ProblemNoCRL},
-		{"self-issued is skipped", func(c *x509.Certificate) {
+		{"a name match alone is not self-signed", func(c *x509.Certificate) {
 			c.Issuer = c.Subject
 			c.IssuingCertificateURL = nil
-			c.CRLDistributionPoints = nil
-		}, ""},
+		}, ProblemNoAIA},
+		{"empty URLs count as none", func(c *x509.Certificate) {
+			c.IssuingCertificateURL = []string{""}
+			c.CRLDistributionPoints = []string{""}
+			c.OCSPServer = []string{" "}
+		}, ProblemNoAIA + "," + ProblemNoCRL},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -189,5 +193,25 @@ func TestJSONAdvisoriesKeepSentOrder(t *testing.T) {
 	want := "no CRL pointer: Intermediate,no AIA: leaf.test"
 	if strings.Join(got, ",") != want {
 		t.Errorf("advisories = %q, want %q", strings.Join(got, ","), want)
+	}
+}
+
+func TestRevocationPointerAdvisoriesSkipsSelfSigned(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "Root"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign,
+	}
+	root := generateCertificate(tmpl, tmpl, &key.PublicKey, key)
+	if got := RevocationPointerAdvisories([]*x509.Certificate{root}); len(got) != 0 {
+		t.Errorf("got %v, want none", got)
 	}
 }
