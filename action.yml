@@ -401,6 +401,9 @@ runs:
             if jq -e '.revocation != null' "$report" > /dev/null; then
               echo "| Stapled OCSP ok | \`$revocation_ok\`${revocation_problems:+ ($revocation_problems)} |"
             fi
+            if [ -n "$advisory_problems" ]; then
+              echo "| Advisories | $advisory_problems |"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
         fi
 

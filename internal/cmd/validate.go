@@ -229,18 +229,18 @@ func printResults(results []targetResult) {
 			fmt.Println(certificate.FormatPolicyFindings(r.Policy, r.PolicyFindings))
 		}
 
-		// Advisories never fail, so they come after every verdict.
-		if advisories := certificate.FormatAdvisories(
-			certificate.RevocationPointerAdvisories(r.Report.Sent)); advisories != "" {
-			fmt.Println()
-			fmt.Println(advisories)
-		}
-
 		// A staple is judged on its own, for the same reason.
 		if staple := certificate.FormatStapleFindings(
 			certificate.StapleFindings(r.Source.Conn, time.Now())); staple != "" {
 			fmt.Println()
 			fmt.Println(staple)
+		}
+
+		// Advisories never fail, so they come after every verdict.
+		if advisories := certificate.FormatAdvisories(
+			certificate.RevocationPointerAdvisories(r.Report.Sent)); advisories != "" {
+			fmt.Println()
+			fmt.Println(advisories)
 		}
 
 		// The verdict above is about the certificates that could be read. Say

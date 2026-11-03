@@ -279,8 +279,7 @@ Downloads a release binary, verifies its checksum, and fails the job on the find
 | `policy` |  | `fips` or `pqc`, passed to `--policy` |
 | `summary` | `true` | write a report to the job summary |
 
-`revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable. No staple passes. `conformance` fails on a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name only in the common name, a served precertificate, a critical extension Go does not process, or too few SCTs for Chrome's CT policy.
- `advisories` never fail the step.
+`revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable. No staple passes. `conformance` fails on a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name only in the common name, a served precertificate, a critical extension Go does not process, or too few SCTs for Chrome's CT policy. `advisories` never fail the step.
 
 Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, `revocation-ok`, `conformance-ok`, `ct-policy`, `policy-ok`, and `report` (path to the full JSON).
 

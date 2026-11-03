@@ -65,7 +65,7 @@ func RevocationPointerAdvisories(certs []*x509.Certificate) []Advisory {
 			out = append(out, Advisory{
 				Problem: ProblemNoAIA,
 				Subject: name,
-				Detail:  "no CA Issuers URL, so if its issuer is ever left out of the chain, not even a browser can fetch it; reissue it with one",
+				Detail:  "no CA Issuers URL, so a client missing its issuer has nowhere to fetch it from; reissue it with one",
 			})
 		}
 

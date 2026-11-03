@@ -65,6 +65,18 @@ func TestRevocationPointerAdvisories(t *testing.T) {
 		{"9 days issued in 2025", func(c *x509.Certificate) {
 			sevenDaysFrom(c, time.Date(2025, time.June, 1, 0, 0, 0, 0, time.UTC), 2*24*time.Hour)
 		}, ""},
+		{"8 days issued at the 7-day cutover", func(c *x509.Certificate) {
+			sevenDaysFrom(c, time.Date(2026, time.March, 15, 0, 0, 0, 0, time.UTC), 24*time.Hour)
+		}, ProblemNoCRL},
+		{"8 days issued a second before the cutover", func(c *x509.Certificate) {
+			sevenDaysFrom(c, time.Date(2026, time.March, 14, 23, 59, 59, 0, time.UTC), 24*time.Hour)
+		}, ""},
+		{"10 days issued in 2025", func(c *x509.Certificate) {
+			sevenDaysFrom(c, time.Date(2025, time.June, 1, 0, 0, 0, 0, time.UTC), 3*24*time.Hour)
+		}, ""},
+		{"one second over 10 days in 2025", func(c *x509.Certificate) {
+			sevenDaysFrom(c, time.Date(2025, time.June, 1, 0, 0, 0, 0, time.UTC), 3*24*time.Hour+time.Second)
+		}, ProblemNoCRL},
 		{"short-lived exemption is for subscribers only", func(c *x509.Certificate) {
 			sevenDaysFrom(c, time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC), 0)
 			c.IsCA = true
