@@ -53,9 +53,8 @@ type JSONReport struct {
 	Unparsed []JSONUnparsed `json:"unparsed,omitempty"`
 	// Policy is the verdict against --policy, absent without it.
 	Policy *JSONPolicy `json:"policy,omitempty"`
-	// Advisories are what verifies today but leaves a client less to work
-	// with: problem is "no AIA" or "no CRL pointer". There is no ok, because
-	// nothing here fails a gate. Always an array, never null.
+	// Advisories verify but are fragile: "no AIA" or "no CRL pointer". No ok,
+	// since nothing here fails a gate. Always an array, never null.
 	Advisories []JSONFinding `json:"advisories"`
 }
 
@@ -133,7 +132,7 @@ type JSONInspection struct {
 	// Conformance is what each certificate breaks of the rules clients enforce.
 	// It needs no trust store either.
 	Conformance JSONConformance `json:"conformance"`
-	// Advisories are what verifies but leaves a client less to work with.
+	// Advisories verify but are fragile.
 	Advisories []JSONFinding `json:"advisories"`
 	// Chain is the certificates in the order they were presented.
 	Chain []JSONCertificate `json:"chain"`

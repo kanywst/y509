@@ -17,7 +17,7 @@ Current release: v1.14.0. Landscape last reviewed 2026-09-17.
 
 ## Next
 
-- **Opt-in CRL check.** Fetch the CRL a certificate points at and report one that lists it. CRL-only, opt-in and cached. OCSP is never fetched.
+- **Opt-in CRL check.** Fetch the CRL a certificate points at and report it if listed. CRL-only, opt-in and cached.
 
 ## Keeping up with X.509
 
@@ -34,7 +34,7 @@ A valid certificate must render completely. A malformed one is a finding.
 - **Extensions view.** The Misc tab and `chain[].extensions` list every extension by name or OID, with the critical bit, and name Must-Staple. `conformance` reports a served precertificate and any critical extension Go does not process, which covers a leaf's `acmeIdentifier`. `nameConstraints` or `policyConstraints` on a leaf is not reported: RFC 5280 forbids it, but no client is known to reject it.
 - **Certificate Transparency, offline.** The Misc tab and `chain[].scts` list the embedded SCTs, naming each log, its operator and state from a bundled copy of Google's `all_logs_list.json`. `make ct-logs` refreshes it. `validate` reports `insufficient SCTs` under `conformance` against Chrome's CT policy, counting embedded and TLS-delivered SCTs whose signatures verify against the bundled log keys, for a chain trusted through the system store that carries at least one SCT. SCTs in a stapled OCSP response are not read. The check stops 70 days after the bundled list's date, as Chrome's does. A scheduled workflow keeps main's list fresh, but a binary only carries the list it was released with, so release at least every 60 days and run `make ct-logs` before tagging.
 - **International names.** A DNS SAN or common name with an `xn--` label is shown with its Unicode form, and a Unicode common name with its `xn--` form, in the TUI, the SAN text and `chain[].idns`. Search matches either form. A name that fails the IDNA lookup rules, such as an `xn--` label that does not decode, is labelled `invalid IDN`, with the reason in `idns[].error`. Columns are sized by display width (`uniseg`), so CJK names line up.
-- **Revocation pointers.** `advisories` reports `no AIA` and, for a certificate that is neither short-lived nor has an OCSP URL, `no CRL pointer`. A missing OCSP URL is never a finding. Advisories have no `ok` and no `fail-on` keyword: the "verifies but fragile" severity.
+- **Revocation pointers.** `advisories` reports `no AIA`, and `no CRL pointer` for a certificate that is neither short-lived nor has an OCSP URL. A missing OCSP URL is never a finding. Advisories fail no gate.
 - **Lifetime limit.** `chain[].exceedsCabMaxLifetime` judges a leaf against the CA/Browser Forum maximum for its own `NotBefore`.
 - **No-expiry sentinel.** A `9999-12-31T23:59:59Z` `NotAfter` reads as "no expiry" in the TUI, "never" in `inventory` and `FormatValidity`, and as `noExpiry` in JSON, instead of a countdown that `time.Duration` saturated at 106,751 days.
 - **Watch.** Merkle Tree Certificates (experimental). TLS trust anchor identifiers (near approval) make serving different chains to different clients correct, so design for it now.

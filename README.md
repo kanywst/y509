@@ -202,9 +202,8 @@ y509 validate example.com:443 --json | jq .
   - `problem` is one of `weak signature` (SHA-1 or MD5, except a genuine SHA-1 self-signature, which no client checks), `weak key` (RSA under 2048 bits), `no SAN` (a server certificate with a common name but no DNS, IP or URI SAN), `precertificate` (a CT precertificate was served), `unhandled critical extension` (a critical extension Go does not process), `insufficient SCTs` (below Chrome's CT policy).
   - `insufficient SCTs` counts only SCTs whose signature verifies against the log's bundled key, as Chrome does. It is judged by `validate` only, for a chain trusted through the system store that carries at least one SCT, embedded or sent in the TLS handshake. A certificate with none is not judged, because an enterprise root in the system store looks the same as a public one. Nor is one that falls short only by SCTs from logs the bundled list does not know, which could close the gap, or any chain once that list is more than 70 days old, which is when Chrome stops enforcing CT too. A scheduled workflow refreshes the list twice a month.
   - `conformance.ctPolicy` says how that went: `met`, `not met`, or `not judged: <reason>`, including why for a chain CT does not apply to, such as one trusted through `--roots`. `conformance.ok` is not affected by a check that was not judged, so a gate that must not pass an unjudged chain reads `ctPolicy` (the Action exposes it as `ct-policy`).
-- `advisories` is what verifies today but leaves a client less to work with, in the same `{problem, subject, detail}` shape. It has no `ok` and no `fail-on` keyword, so it never fails a gate. Present for files too, and for every certificate except a self-issued one.
-  - `no AIA`: no CA Issuers URL, so if the issuer is ever left out, not even a browser can fetch it.
-  - `no CRL pointer`: neither a CRL distribution point nor an OCSP URL, on a certificate that is not short-lived (7 days from 2026-03-15, 10 before, per the CA/Browser Forum). A missing OCSP URL on its own is never reported. Nothing is fetched.
+- `advisories` is what verifies but is fragile. It has no `ok` and fails no gate. Present for files too.
+  - `problem` is `no AIA` (no CA Issuers URL) or `no CRL pointer` (neither a CRL distribution point nor an OCSP URL, on a certificate that is not short-lived). A missing OCSP URL alone is never reported. Self-issued certificates are skipped.
 - `policy` is present only with `--policy`, as `{name, ok, findings}`. `problem` is `unapproved signature` or `unapproved key`.
 - `chain[].noExpiry` is true for the RFC 5280 `9999-12-31` sentinel, a certificate with no well-defined expiration. `daysUntilExpiry` and `validityDays` still carry the real arithmetic, so read `noExpiry` before printing them.
 - `chain[].scts` lists the embedded SCTs as `{logId, log, operator, logState, timestamp}`, with logs named from a bundled copy of Google's CT log list (`make ct-logs` refreshes it). Nothing is verified or fetched. `log`, `operator` and `logState` are absent for a log the list does not know. If the list is damaged, `sctError` says why and `scts` keeps what was read before the damage.
@@ -281,7 +280,7 @@ Downloads a release binary, verifies its checksum, and fails the job on the find
 | `summary` | `true` | write a report to the job summary |
 
 `revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable. No staple passes. `conformance` fails on a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name only in the common name, a served precertificate, a critical extension Go does not process, or too few SCTs for Chrome's CT policy.
- Advisories never fail the step; they appear as a notice.
+ `advisories` never fail the step.
 
 Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, `revocation-ok`, `conformance-ok`, `ct-policy`, `policy-ok`, and `report` (path to the full JSON).
 

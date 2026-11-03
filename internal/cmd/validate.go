@@ -229,8 +229,7 @@ func printResults(results []targetResult) {
 			fmt.Println(certificate.FormatPolicyFindings(r.Policy, r.PolicyFindings))
 		}
 
-		// Advisories are kept apart from the verdicts: the chain works, so they
-		// must not read like the failures around them.
+		// Advisories never fail, so they come after every verdict.
 		if advisories := certificate.FormatAdvisories(
 			certificate.RevocationPointerAdvisories(r.Report.Sent)); advisories != "" {
 			fmt.Println()
