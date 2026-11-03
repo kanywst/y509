@@ -321,10 +321,16 @@ runs:
           fi
         fi
 
+        # A certificate's names are attacker-chosen: a newline in one would
+        # start a workflow command of its own.
+        print_findings() {
+          jq -r "$1"' | "\(.problem): \(.subject | gsub("[[:cntrl:]]"; " "))\n  \(.detail | gsub("[[:cntrl:]]"; " "))"' "$report" |
+            while IFS= read -r line; do echo "  $line"; done
+        }
+
         if [ "$presentation_ok" != "true" ]; then
           # These are the findings a browser hides and curl, Go and Java do not.
-          jq -r '.presentation.findings[] | "\(.problem): \(.subject)\n  \(.detail)"' "$report" |
-            while IFS= read -r line; do echo "  $line"; done
+          print_findings '.presentation.findings[]'
           if wants mis-served; then
             echo "::error::chain was served incorrectly: $problems"
             failed=1
@@ -343,8 +349,7 @@ runs:
         fi
 
         if [ "$revocation_ok" != "true" ]; then
-          jq -r '.revocation.findings[] | "\(.problem): \(.subject)\n  \(.detail)"' "$report" |
-            while IFS= read -r line; do echo "  $line"; done
+          print_findings '.revocation.findings[]'
           if wants revocation; then
             echo "::error::stapled OCSP response: $revocation_problems"
             failed=1
@@ -354,8 +359,7 @@ runs:
         fi
 
         if [ "$conformance_ok" != "true" ]; then
-          jq -r '.conformance.findings[] | "\(.problem): \(.subject)\n  \(.detail)"' "$report" |
-            while IFS= read -r line; do echo "  $line"; done
+          print_findings '.conformance.findings[]'
           if wants conformance; then
             echo "::error::certificate breaks client rules: $conformance_problems"
             failed=1
@@ -365,8 +369,7 @@ runs:
         fi
 
         if [ "$policy_ok" != "true" ]; then
-          jq -r '.policy.findings[]? | "\(.problem): \(.subject)\n  \(.detail)"' "$report" |
-            while IFS= read -r line; do echo "  $line"; done
+          print_findings '.policy.findings[]?'
           if wants policy; then
             echo "::error::certificate breaks the $INPUT_POLICY policy: $policy_problems"
             failed=1
@@ -378,8 +381,7 @@ runs:
         # Advisories never fail the step.
         advisory_problems=$(jq -r '[.advisories[]?.problem] | unique | join(", ")' "$report")
         if [ -n "$advisory_problems" ]; then
-          jq -r '.advisories[] | "\(.problem): \(.subject)\n  \(.detail)"' "$report" |
-            while IFS= read -r line; do echo "  $line"; done
+          print_findings '.advisories[]'
           echo "::notice::advisories: $advisory_problems"
         fi
 
