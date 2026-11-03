@@ -53,6 +53,10 @@ type JSONReport struct {
 	Unparsed []JSONUnparsed `json:"unparsed,omitempty"`
 	// Policy is the verdict against --policy, absent without it.
 	Policy *JSONPolicy `json:"policy,omitempty"`
+	// Advisories are non-gating notes on missing pointers: "no AIA" or "no
+	// CRL pointer". No ok, since nothing here fails a gate. Always an array,
+	// never null.
+	Advisories []JSONFinding `json:"advisories"`
 }
 
 // JSONPolicy is the verdict against an opt-in algorithm policy.
@@ -129,6 +133,8 @@ type JSONInspection struct {
 	// Conformance is what each certificate breaks of the rules clients enforce.
 	// It needs no trust store either.
 	Conformance JSONConformance `json:"conformance"`
+	// Advisories are non-gating notes on missing pointers.
+	Advisories []JSONFinding `json:"advisories"`
 	// Chain is the certificates in the order they were presented.
 	Chain []JSONCertificate `json:"chain"`
 	// Connection describes the handshake, absent for a file or stdin.
@@ -145,6 +151,7 @@ func NewJSONInspection(host string, report *ChainReport) *JSONInspection {
 		Host:         full.Host,
 		Presentation: full.Presentation,
 		Conformance:  full.Conformance,
+		Advisories:   full.Advisories,
 		Chain:        full.Chain,
 	}
 }
@@ -484,6 +491,7 @@ func NewJSONReport(host string, report *ChainReport, result *VerifyResult) *JSON
 		// the common case.
 		Presentation: JSONPresentation{OK: true, Findings: []JSONFinding{}},
 		Conformance:  JSONConformance{OK: true, Findings: []JSONFinding{}},
+		Advisories:   []JSONFinding{},
 		Chain:        []JSONCertificate{},
 	}
 
@@ -513,6 +521,9 @@ func NewJSONReport(host string, report *ChainReport, result *VerifyResult) *JSON
 	}
 
 	out.Conformance = NewJSONConformance(ConformanceFindings(report.Sent))
+	for _, a := range RevocationPointerAdvisories(report.Sent) {
+		out.Advisories = append(out.Advisories, JSONFinding{Problem: a.Problem, Subject: a.Subject, Detail: a.Detail})
+	}
 
 	now := time.Now()
 	for i, cert := range report.Sent {

@@ -236,6 +236,13 @@ func printResults(results []targetResult) {
 			fmt.Println(staple)
 		}
 
+		// Advisories never fail, so they come after every verdict.
+		if advisories := certificate.FormatAdvisories(
+			certificate.RevocationPointerAdvisories(r.Report.Sent)); advisories != "" {
+			fmt.Println()
+			fmt.Println(advisories)
+		}
+
 		// The verdict above is about the certificates that could be read. Say
 		// so when that was not all of them, or a trusted chain would look like
 		// the whole story.
