@@ -1,7 +1,7 @@
 {
   "source": "https://www.gstatic.com/ct/log_list/v3/all_logs_list.json",
-  "version": "95.18",
-  "timestamp": "2026-10-31T13:37:41Z",
+  "version": "96.0",
+  "timestamp": "2026-11-03T13:38:43Z",
   "logs": [
     {
       "id": "+ZgQ1evkfhzxtCH/beNb+MHsluJeBNv8dW9r5FxlXMo=",
@@ -45,8 +45,8 @@
       "id": "0J1XydPITy4G3x5te1QjepibtE1vlbKeTR/dmG3ySq4=",
       "description": "TrustAsia Taiji2028h2",
       "operator": "TrustAsia",
-      "state": "pending",
-      "stateSince": "2026-10-02T19:00:00Z",
+      "state": "qualified",
+      "stateSince": "2026-11-03T13:40:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/fyzIWC9TdHeK/NixOIGN+ZyNMk6dHqKqjlbaGnUztxlzYH0bbH5AtnbwTO77NSMpVBCt6rY8geRiCr1tp6yyQ=="
     },
     {
@@ -737,8 +737,8 @@
       "id": "cd1QREFkibQDp3c0FPKGnt4CnXEI84DXfoJshKW/fls=",
       "description": "TrustAsia Luoshu2028h1",
       "operator": "TrustAsia",
-      "state": "pending",
-      "stateSince": "2026-10-02T19:00:00Z",
+      "state": "qualified",
+      "stateSince": "2026-11-03T13:40:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJkPBruid0R0HTLOABc0k17KKS1ZLZQVtlE7qsuauDs+khqu9M4BygSjziUlvQLdAonmbOr3wIDJK1JkBBRhGxA=="
     },
     {
@@ -819,8 +819,8 @@
       "id": "jap0vUvSSHaUVxo2MsA8HZSVk3N5615qDROINcMzR8k=",
       "description": "TrustAsia Luoshu2028h2",
       "operator": "TrustAsia",
-      "state": "pending",
-      "stateSince": "2026-10-02T19:00:00Z",
+      "state": "qualified",
+      "stateSince": "2026-11-03T13:40:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEWRv8wFzS8rpjgT7uAby2nouThLq8QIPdtvY9E3BiJq0V8lmnB9QkoFrNYMssyvznPnfOkz76UNeYjKKszivytQ=="
     },
     {
@@ -1087,8 +1087,8 @@
       "id": "zVMsH8M+555WnWLXjKJmKkfeR5AsQ2zq+JS5GDG0BXw=",
       "description": "TrustAsia Taiji2028h1",
       "operator": "TrustAsia",
-      "state": "pending",
-      "stateSince": "2026-10-02T19:00:00Z",
+      "state": "qualified",
+      "stateSince": "2026-11-03T13:40:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGEE4GWDYuEedkPT1yrYUcEP3dxuABreEhr/OfwHDBO/V3l3fmzp139HwtwukZRWJUdxNBeUYJTEqHAsDGEvfFQ=="
     }
   ]
