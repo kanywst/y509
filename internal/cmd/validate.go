@@ -229,6 +229,14 @@ func printResults(results []targetResult) {
 			fmt.Println(certificate.FormatPolicyFindings(r.Policy, r.PolicyFindings))
 		}
 
+		// Advisories are kept apart from the verdicts: the chain works, so they
+		// must not read like the failures around them.
+		if advisories := certificate.FormatAdvisories(
+			certificate.RevocationPointerAdvisories(r.Report.Sent)); advisories != "" {
+			fmt.Println()
+			fmt.Println(advisories)
+		}
+
 		// A staple is judged on its own, for the same reason.
 		if staple := certificate.FormatStapleFindings(
 			certificate.StapleFindings(r.Source.Conn, time.Now())); staple != "" {

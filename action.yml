@@ -375,6 +375,15 @@ runs:
           fi
         fi
 
+        # Advisories never fail the step: the chain works. "[]?" keeps a
+        # release older than the advisories key quiet.
+        advisory_problems=$(jq -r '[.advisories[]?.problem] | unique | join(", ")' "$report")
+        if [ -n "$advisory_problems" ]; then
+          jq -r '.advisories[] | "\(.problem): \(.subject)\n  \(.detail)"' "$report" |
+            while IFS= read -r line; do echo "  $line"; done
+          echo "::notice::advisories (the chain still works): $advisory_problems"
+        fi
+
         if [ "$INPUT_SUMMARY" = "true" ]; then
           {
             echo "### y509: \`$INPUT_TARGET\`"
