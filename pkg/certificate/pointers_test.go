@@ -1,9 +1,13 @@
 package certificate
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/json"
+	"math/big"
 	"strings"
 	"testing"
 	"time"
@@ -145,5 +149,45 @@ func TestJSONAdvisories(t *testing.T) {
 	inspection := NewJSONInspection("", AnalyzeChain([]*x509.Certificate{cert}))
 	if len(inspection.Advisories) != 1 {
 		t.Errorf("inspection advisories = %+v", inspection.Advisories)
+	}
+}
+
+// Advisories follow the chain as sent, not as sorted.
+func TestJSONAdvisoriesKeepSentOrder(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nb := time.Now().Add(-time.Hour)
+	tmpl := func(serial int64, cn string, ca bool) *x509.Certificate {
+		return &x509.Certificate{
+			SerialNumber:          big.NewInt(serial),
+			Subject:               pkix.Name{CommonName: cn},
+			NotBefore:             nb,
+			NotAfter:              nb.AddDate(0, 0, 90),
+			IsCA:                  ca,
+			BasicConstraintsValid: true,
+			KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+			IssuingCertificateURL: []string{"http://ca.test/issuer.der"},
+			CRLDistributionPoints: []string{"http://ca.test/issuer.crl"},
+		}
+	}
+	rootTmpl := tmpl(1, "Root", true)
+	root := generateCertificate(rootTmpl, rootTmpl, &key.PublicKey, key)
+	intTmpl := tmpl(2, "Intermediate", true)
+	intTmpl.CRLDistributionPoints = nil
+	intermediate := generateCertificate(intTmpl, root, &key.PublicKey, key)
+	leafTmpl := tmpl(3, "leaf.test", false)
+	leafTmpl.IssuingCertificateURL = nil
+	leaf := generateCertificate(leafTmpl, intermediate, &key.PublicKey, key)
+
+	report := NewJSONReport("", AnalyzeChain([]*x509.Certificate{intermediate, leaf}), nil)
+	var got []string
+	for _, a := range report.Advisories {
+		got = append(got, a.Problem+": "+a.Subject)
+	}
+	want := "no CRL pointer: Intermediate,no AIA: leaf.test"
+	if strings.Join(got, ",") != want {
+		t.Errorf("advisories = %q, want %q", strings.Join(got, ","), want)
 	}
 }
