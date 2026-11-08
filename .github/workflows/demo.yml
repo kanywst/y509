@@ -77,4 +77,17 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add demo.gif
           git commit -m "chore(demo): refresh demo.gif"
-          git push
+          # main can move while vhs renders (a release commit, a merge), and a
+          # plain push is then rejected as non-fast-forward. Only demo.gif is
+          # in this commit and this workflow is the only writer of it, so
+          # replaying it on top of the new main is safe.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "push rejected (attempt ${attempt}), rebasing onto origin/main"
+            git fetch origin main
+            git rebase origin/main
+          done
+          echo "::error::could not push demo.gif after 3 attempts"
+          exit 1
