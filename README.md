@@ -308,8 +308,10 @@ jobs:
 |     Key     | Action                                         |
 | :---------: | :--------------------------------------------- |
 | `↑/k` `↓/j` | Navigate list                                  |
-| `←/h` `→/l` | Switch panes                                   |
-|    `tab`    | Cycle detail tabs                              |
+| `←/h` `→/l` | Focus list / details                           |
+|    `tab`    | Switch pane                                    |
+|   `[` `]`   | Cycle through the details tabs                 |
+|   `K` `J`   | Scroll the details                             |
 |     `/`     | Search                                         |
 |     `f`     | Filter (expired, expiring, valid, self-signed) |
 |     `v`     | Validate certificate                           |
