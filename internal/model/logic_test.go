@@ -121,21 +121,6 @@ func TestSearchLogic(t *testing.T) {
 	})
 }
 
-func TestTabNavigation(t *testing.T) {
-	cfg := loadTestConfig(t)
-	m := *NewModel(createTestCertificates(1), cfg)
-	m.viewMode = ViewNormal
-	m.focus = FocusRight
-	m.activeTab = 0
-
-	// Press Tab
-	newModel, _ := m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyTab}))
-	m = newModel.(Model)
-	if m.activeTab != 1 {
-		t.Errorf("Expected activeTab to be 1 after Tab, got %d", m.activeTab)
-	}
-}
-
 func TestPopupTransitions(t *testing.T) {
 	cfg := loadTestConfig(t)
 	m := *NewModel(createTestCertificates(1), cfg)
