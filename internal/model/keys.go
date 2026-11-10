@@ -108,14 +108,15 @@ func defaultKeyMap() keyMap {
 
 // ShortHelp implements help.KeyMap for the inline status hints.
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Search, k.Help, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Tab, k.Search, k.Help, k.Quit}
 }
 
 // FullHelp implements help.KeyMap for the dedicated help overlay.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right, k.Tab},
-		{k.Search, k.Filter, k.Validate, k.Redial, k.Export, k.Yank, k.Back},
-		{k.Help, k.Quit},
+		{k.CycleLeft, k.CycleRight, k.ScrollUp, k.ScrollDown},
+		{k.Search, k.Filter, k.Yank, k.Validate, k.Redial},
+		{k.Back, k.Export, k.Help, k.Quit},
 	}
 }
