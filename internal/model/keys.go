@@ -5,20 +5,24 @@ import "charm.land/bubbles/v2/key"
 // keyMap defines all bindings for the TUI. It implements help.KeyMap so the
 // help view can render the same source-of-truth bindings.
 type keyMap struct {
-	Up       key.Binding
-	Down     key.Binding
-	Left     key.Binding
-	Right    key.Binding
-	Tab      key.Binding
-	Search   key.Binding
-	Filter   key.Binding
-	Validate key.Binding
-	Redial   key.Binding
-	Export   key.Binding
-	Help     key.Binding
-	Back     key.Binding
-	Yank     key.Binding
-	Quit     key.Binding
+	Up         key.Binding
+	Down       key.Binding
+	ScrollUp   key.Binding
+	ScrollDown key.Binding
+	Left       key.Binding
+	Right      key.Binding
+	CycleLeft  key.Binding
+	CycleRight key.Binding
+	Tab        key.Binding
+	Search     key.Binding
+	Filter     key.Binding
+	Validate   key.Binding
+	Redial     key.Binding
+	Export     key.Binding
+	Help       key.Binding
+	Back       key.Binding
+	Yank       key.Binding
+	Quit       key.Binding
 }
 
 func defaultKeyMap() keyMap {
@@ -31,6 +35,14 @@ func defaultKeyMap() keyMap {
 			key.WithKeys("down", "j"),
 			key.WithHelp("↓/j", "down"),
 		),
+		ScrollUp: key.NewBinding(
+			key.WithKeys("K"),
+			key.WithHelp("shift-k", "scroll up"),
+		),
+		ScrollDown: key.NewBinding(
+			key.WithKeys("J"),
+			key.WithHelp("shift-j", "scroll down"),
+		),
 		Left: key.NewBinding(
 			key.WithKeys("left", "h"),
 			key.WithHelp("←/h", "focus list"),
@@ -39,9 +51,17 @@ func defaultKeyMap() keyMap {
 			key.WithKeys("right", "l"),
 			key.WithHelp("→/l", "focus details"),
 		),
+		CycleLeft: key.NewBinding(
+			key.WithKeys("["),
+			key.WithHelp("[", "cycle left"),
+		),
+		CycleRight: key.NewBinding(
+			key.WithKeys("]"),
+			key.WithHelp("]", "cycle right"),
+		),
 		Tab: key.NewBinding(
 			key.WithKeys("tab"),
-			key.WithHelp("tab", "cycle tabs"),
+			key.WithHelp("tab", "switch focus"),
 		),
 		Search: key.NewBinding(
 			key.WithKeys("/"),

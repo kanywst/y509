@@ -172,18 +172,36 @@ func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Right):
 		m.focus = FocusRight
 		return m, nil
+	case key.Matches(msg, m.keys.CycleLeft):
+		if m.activeTab == 0 {
+			m.activeTab = len(m.tabs) - 1
+		} else {
+			m.activeTab = (m.activeTab - 1) % len(m.tabs)
+		}
+		m.viewport.SetYOffset(0)
+		m = m.refreshViewportContent()
+		return m, nil
+	case key.Matches(msg, m.keys.CycleRight):
+		m.activeTab = (m.activeTab + 1) % len(m.tabs)
+		m.viewport.SetYOffset(0)
+		m = m.refreshViewportContent()
+		return m, nil
 	case key.Matches(msg, m.keys.Tab):
-		if m.focus == FocusRight {
-			m.activeTab = (m.activeTab + 1) % len(m.tabs)
-			m.viewport.SetYOffset(0)
-			m = m.refreshViewportContent()
+		if m.focus == FocusLeft {
+			m.focus = FocusRight
+		} else {
+			m.focus = FocusLeft
 		}
 		return m, nil
 	case key.Matches(msg, m.keys.Up):
-		m = m.moveCursorUp()
-		return m, nil
+		return m.moveCursorUp(), nil
 	case key.Matches(msg, m.keys.Down):
-		m = m.moveCursorDown()
+		return m.moveCursorDown(), nil
+	case key.Matches(msg, m.keys.ScrollUp):
+		m.viewport.ScrollUp(1)
+		return m, nil
+	case key.Matches(msg, m.keys.ScrollDown):
+		m.viewport.ScrollDown(1)
 		return m, nil
 	case key.Matches(msg, m.keys.Back):
 		if m.filterActive {
@@ -206,8 +224,7 @@ func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.textInput.Focus()
 		return m, textinput.Blink
 	case key.Matches(msg, m.keys.Validate):
-		m = m.handleValidateCommand()
-		return m, nil
+		return m.handleValidateCommand(), nil
 	case key.Matches(msg, m.keys.Redial):
 		return m.startRedial()
 	case key.Matches(msg, m.keys.Export):
@@ -216,9 +233,7 @@ func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.exportForm = newExportForm()
 		return m, m.exportForm.Init()
 	case key.Matches(msg, m.keys.Yank):
-		var cmd tea.Cmd
-		m, cmd = m.handleYankCommand()
-		return m, cmd
+		return m.handleYankCommand()
 	}
 
 	return m, nil
