@@ -109,7 +109,7 @@ func TestCycleTabs(t *testing.T) {
 		newModel, _ := m.Update(keyPress('['))
 		m = newModel.(Model)
 		if m.tabs[m.activeTab] != "Findings" {
-			t.Fatalf("landed on the %q tab, want Misc", m.tabs[m.activeTab])
+			t.Fatalf("landed on the %q tab, want Findings", m.tabs[m.activeTab])
 		}
 	})
 

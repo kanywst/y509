@@ -965,7 +965,7 @@ footer { padding-block: 44px 60px; color: var(--text-mute); font-size: 13.5px; }
       <span>Live, not a recording:</span>
       <kbd>j</kbd><kbd>k</kbd> <span>select a certificate,</span>
       <kbd>tab</kbd> <span>switch pane,</span>
-      <kbd>[</kbd><kbd>]</kbd> <span>cycle through detail tabs,</span>
+      <kbd>[</kbd><kbd>]</kbd> <span>cycle through the details tabs,</span>
       <kbd>esc</kbd> <span>release focus</span>
     </p>
   </section>
@@ -1072,9 +1072,9 @@ Chain as presented:
       <div class="spec">
         <div class="spec__cell">
           <span class="spec__key">tui</span>
-          <h3>Two panes, five tabs</h3>
+          <h3>Two panes, six tabs</h3>
           <p>The chain on the left with live expiry bars, the selected certificate on the right.</p>
-          <ul><li>Subject · Issuer · Validity · SANs · Misc</li><li>search and filter</li><li>chain position table</li></ul>
+          <ul><li>Subject · Issuer · Validity · SANs · Misc · Findings</li><li>search and filter</li><li>chain position table</li></ul>
         </div>
         <div class="spec__cell">
           <span class="spec__key">net</span>
@@ -1603,6 +1603,10 @@ Chain as presented:
     $paneL.classList.toggle("on", f === "L");
     $paneR.classList.toggle("on", f === "R");
   }
+
+  /* Return which pane currently has focus. The focused pane is derived
+     from the "on" class rather than a variable (see setFocus above):
+     the left pane is focused unless the right one is marked active. */
   function getFocus() {
     return $paneL.classList.contains("on") ? "L" : "R";
   }
@@ -1625,7 +1629,10 @@ Chain as presented:
     const k = e.key;
     if (k === "Escape") { $term.blur(); return; }
 
-    /* [ and ] advances through the details tabs */
+    /* Cycle the active detail tab: `]` moves forward, `[` backward.
+       Each key wraps around at the ends of the TABS list, and the
+       modified key is skipped so the default browser binding (e.g.
+       Firefox's history navigation) still applies. */
     if (k === "]") {
       if (e.shiftKey) return;
       e.preventDefault();

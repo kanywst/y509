@@ -894,7 +894,6 @@ func (m Model) renderHelpView() string {
 	content.WriteString(help.View(m.keys))
 
 	pane := m.Styles.PopupBorder.
-		Width(len(m.keys.FullHelp())).
 		Render(content.String())
 
 	return lipgloss.NewStyle().
