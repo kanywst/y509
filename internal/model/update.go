@@ -173,11 +173,7 @@ func (m Model) updateNormalMode(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.focus = FocusRight
 		return m, nil
 	case key.Matches(msg, m.keys.CycleLeft):
-		if m.activeTab == 0 {
-			m.activeTab = len(m.tabs) - 1
-		} else {
-			m.activeTab = (m.activeTab - 1) % len(m.tabs)
-		}
+		m.activeTab = (m.activeTab + len(m.tabs) - 1) % len(m.tabs)
 		m.viewport.SetYOffset(0)
 		m = m.refreshViewportContent()
 		return m, nil
