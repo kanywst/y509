@@ -838,7 +838,8 @@ func (m Model) renderStatusBar() string {
 	// narrow to fit them all, so the hints never overflow the line.
 	hints := []struct{ key, desc string }{
 		{"↑↓", "nav"},
-		{"tab", "←→"},
+		{"tab", "pane"},
+		{"[]", "tabs"},
 		{"/", "search"},
 		{"f", "filter"},
 		{"v", "validate"},
