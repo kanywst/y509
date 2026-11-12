@@ -1610,7 +1610,6 @@ Chain as presented:
   function getFocus() {
     return $paneL.classList.contains("on") ? "L" : "R";
   }
-  window.getFocus = getFocus;
 
   paint();
 
@@ -1634,8 +1633,6 @@ Chain as presented:
        modified key is skipped so the default browser binding (e.g.
        Firefox's history navigation) still applies. */
     if (k === "]") {
-      if (e.shiftKey) return;
-      e.preventDefault();
       if (tab === TABS.length - 1) {
         tab = 0
       } else {
@@ -1644,8 +1641,6 @@ Chain as presented:
       paint();
       return;
     } else if (k === "[") {
-      if (e.shiftKey) return;
-      e.preventDefault();
       if (tab === 0) {
         tab = TABS.length - 1
       } else {
@@ -1660,9 +1655,11 @@ Chain as presented:
     else if (k === "k" || k === "ArrowUp") sel = Math.max(sel - 1, 0);
     else if (k === "l" || k === "ArrowRight") setFocus("R");
     else if (k === "h" || k === "ArrowLeft") setFocus("L");
-    else if (k === "Tab" && getFocus() === "L") setFocus("R");
-    else if (k === "Tab" && getFocus() === "R") setFocus("L");
-    else hit = false;
+    else if (k === "Tab") {
+      if (e.shiftKey || getFocus() === "R") return;
+      e.preventDefault();
+      setFocus("R");
+    } else hit = false;
     if (hit) { e.preventDefault(); paint(); }
   });
 
