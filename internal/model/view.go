@@ -891,14 +891,22 @@ func (m Model) renderHelpView() string {
 	content.WriteString(title + "\n\n")
 
 	avail := m.width - m.Styles.PopupBorder.GetHorizontalFrameSize()
-
 	help := m.help
 	help.ShowAll = true
-	help.SetWidth(avail)
-	content.WriteString(help.View(m.keys))
 
+	var body string
+	for width := avail; width > 0; width-- {
+		help.SetWidth(width)
+		body = help.View(m.keys)
+
+		// Compare against the actual available space.
+		if lipgloss.Width(body) <= avail {
+			break
+		}
+	}
+
+	content.WriteString(body)
 	pane := m.Styles.PopupBorder.
-		MaxWidth(avail).
 		Render(content.String())
 
 	return lipgloss.NewStyle().
