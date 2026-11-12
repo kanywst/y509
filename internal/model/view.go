@@ -890,11 +890,15 @@ func (m Model) renderHelpView() string {
 	title := m.Styles.HeaderTitle.Render("🔐 y509 Help")
 	content.WriteString(title + "\n\n")
 
+	avail := m.width - m.Styles.PopupBorder.GetHorizontalFrameSize()
+
 	help := m.help
 	help.ShowAll = true
+	help.SetWidth(avail)
 	content.WriteString(help.View(m.keys))
 
 	pane := m.Styles.PopupBorder.
+		MaxWidth(avail).
 		Render(content.String())
 
 	return lipgloss.NewStyle().
