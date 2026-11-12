@@ -101,11 +101,11 @@ func TestCycleTabs(t *testing.T) {
 	m := *NewModel(createTestCertificates(1), cfg)
 	m.viewMode = ViewNormal
 	m.focus = FocusLeft
-	m.activeTab = 0
 
 	// The tabs: Subject, Issuer, Validity, SANs, Misc, Findings.
 	// Test '[' (cycle left) in list
 	t.Run("NormalMode_List_[", func(t *testing.T) {
+		m.activeTab = 0
 		newModel, _ := m.Update(keyPress('['))
 		m = newModel.(Model)
 		if m.tabs[m.activeTab] != "Findings" {
@@ -115,6 +115,7 @@ func TestCycleTabs(t *testing.T) {
 
 	// Test ']' (cycle right) in list
 	t.Run("NormalMode_List_]", func(t *testing.T) {
+		m.activeTab = 5
 		newModel, _ := m.Update(keyPress(']'))
 		m = newModel.(Model)
 		if m.tabs[m.activeTab] != "Subject" {
@@ -127,19 +128,21 @@ func TestCycleTabs(t *testing.T) {
 
 	// Test ']' (cycle right) in detail
 	t.Run("NormalMode_Detail_]", func(t *testing.T) {
+		m.activeTab = 1
 		newModel, _ := m.Update(keyPress(']'))
 		m = newModel.(Model)
-		if m.tabs[m.activeTab] != "Issuer" {
-			t.Fatalf("landed on the %q tab, want Issuer", m.tabs[m.activeTab])
+		if m.tabs[m.activeTab] != "Validity" {
+			t.Fatalf("landed on the %q tab, want Validity", m.tabs[m.activeTab])
 		}
 	})
 
 	// Test '[' (cycle left) in detail
 	t.Run("NormalMode_Detail_[", func(t *testing.T) {
+		m.activeTab = 4
 		newModel, _ := m.Update(keyPress('['))
 		m = newModel.(Model)
-		if m.tabs[m.activeTab] != "Subject" {
-			t.Fatalf("landed on the %q tab, want Subject", m.tabs[m.activeTab])
+		if m.tabs[m.activeTab] != "SANs" {
+			t.Fatalf("landed on the %q tab, want SANs", m.tabs[m.activeTab])
 		}
 	})
 }
@@ -152,10 +155,10 @@ func TestScrollDetail(t *testing.T) {
 	m.viewport.SetWidth(20)
 	m.viewport.SetHeight(2)
 	m.viewport.SetContent("line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8")
-	m.viewport.SetYOffset(0)
 
 	// Test 'shift-j' (scroll down) in detail pane
 	t.Run("NormalMode_Detail_J", func(t *testing.T) {
+		m.viewport.SetYOffset(0)
 		initialScroll := m.viewport.YOffset()
 		newModel, _ := m.Update(keyPress('J'))
 		m = newModel.(Model)
@@ -166,6 +169,7 @@ func TestScrollDetail(t *testing.T) {
 
 	// Test 'k' (scroll up) in detail pane
 	t.Run("NormalMode_Detail_K", func(t *testing.T) {
+		m.viewport.SetYOffset(6)
 		initialScroll := m.viewport.YOffset()
 		newModel, _ := m.Update(keyPress('K'))
 		m = newModel.(Model)
@@ -179,6 +183,7 @@ func TestScrollDetail(t *testing.T) {
 
 	// Test 'shift-j' (scroll down) in list pane
 	t.Run("NormalMode_List_J", func(t *testing.T) {
+		m.viewport.SetYOffset(3)
 		initialScroll := m.viewport.YOffset()
 		newModel, _ := m.Update(keyPress('J'))
 		m = newModel.(Model)
@@ -189,6 +194,7 @@ func TestScrollDetail(t *testing.T) {
 
 	// Test 'k' (scroll up) in list pane
 	t.Run("NormalMode_List_K", func(t *testing.T) {
+		m.viewport.SetYOffset(5)
 		initialScroll := m.viewport.YOffset()
 		newModel, _ := m.Update(keyPress('K'))
 		m = newModel.(Model)
