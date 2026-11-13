@@ -838,8 +838,8 @@ func (m Model) renderStatusBar() string {
 	// narrow to fit them all, so the hints never overflow the line.
 	hints := []struct{ key, desc string }{
 		{"↑↓", "nav"},
-		{"←→", "pane"},
-		{"tab", "tabs"},
+		{"tab", "pane"},
+		{"[]", "tabs"},
 		{"/", "search"},
 		{"f", "filter"},
 		{"v", "validate"},
@@ -890,12 +890,23 @@ func (m Model) renderHelpView() string {
 	title := m.Styles.HeaderTitle.Render("🔐 y509 Help")
 	content.WriteString(title + "\n\n")
 
+	avail := m.width - m.Styles.PopupBorder.GetHorizontalFrameSize()
 	help := m.help
 	help.ShowAll = true
-	content.WriteString(help.View(m.keys))
 
+	var body string
+	for width := avail; width > 0; width-- {
+		help.SetWidth(width)
+		body = help.View(m.keys)
+
+		// Compare against the actual available space.
+		if lipgloss.Width(body) <= avail {
+			break
+		}
+	}
+
+	content.WriteString(body)
 	pane := m.Styles.PopupBorder.
-		Width(56).
 		Render(content.String())
 
 	return lipgloss.NewStyle().

@@ -96,6 +96,128 @@ func TestNavigationKeys(t *testing.T) {
 	})
 }
 
+func TestCycleTabs(t *testing.T) {
+	cfg := loadTestConfig(t)
+	m := *NewModel(createTestCertificates(1), cfg)
+	m.viewMode = ViewNormal
+	m.focus = FocusLeft
+
+	// The tabs: Subject, Issuer, Validity, SANs, Misc, Findings.
+	// Test '[' (cycle left) in list
+	t.Run("NormalMode_List_[", func(t *testing.T) {
+		m.activeTab = 0
+		newModel, _ := m.Update(keyPress('['))
+		m = newModel.(Model)
+		if m.tabs[m.activeTab] != "Findings" {
+			t.Fatalf("landed on the %q tab, want Findings", m.tabs[m.activeTab])
+		}
+	})
+
+	// Test ']' (cycle right) in list
+	t.Run("NormalMode_List_]", func(t *testing.T) {
+		m.activeTab = 5
+		newModel, _ := m.Update(keyPress(']'))
+		m = newModel.(Model)
+		if m.tabs[m.activeTab] != "Subject" {
+			t.Fatalf("landed on the %q tab, want Subject", m.tabs[m.activeTab])
+		}
+	})
+
+	// Switch focus to right pane
+	m.focus = FocusRight
+
+	// Test ']' (cycle right) in detail
+	t.Run("NormalMode_Detail_]", func(t *testing.T) {
+		m.activeTab = 1
+		newModel, _ := m.Update(keyPress(']'))
+		m = newModel.(Model)
+		if m.tabs[m.activeTab] != "Validity" {
+			t.Fatalf("landed on the %q tab, want Validity", m.tabs[m.activeTab])
+		}
+	})
+
+	// Test '[' (cycle left) in detail
+	t.Run("NormalMode_Detail_[", func(t *testing.T) {
+		m.activeTab = 4
+		newModel, _ := m.Update(keyPress('['))
+		m = newModel.(Model)
+		if m.tabs[m.activeTab] != "SANs" {
+			t.Fatalf("landed on the %q tab, want SANs", m.tabs[m.activeTab])
+		}
+	})
+}
+
+func TestScrollDetail(t *testing.T) {
+	cfg := loadTestConfig(t)
+	m := *NewModel(createTestCertificates(1), cfg)
+	m.viewMode = ViewNormal
+	m.focus = FocusRight
+	m.viewport.SetWidth(20)
+	m.viewport.SetHeight(2)
+	m.viewport.SetContent("line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8")
+
+	// Test 'shift-j' (scroll down) in detail pane
+	t.Run("NormalMode_Detail_J", func(t *testing.T) {
+		m.viewport.SetYOffset(0)
+		initialScroll := m.viewport.YOffset()
+		newModel, _ := m.Update(keyPress('J'))
+		m = newModel.(Model)
+		if m.viewport.YOffset() != initialScroll+1 {
+			t.Errorf("Expected viewport YOffset to increment, got %d", m.viewport.YOffset())
+		}
+	})
+
+	// Test 'k' (scroll up) in detail pane
+	t.Run("NormalMode_Detail_K", func(t *testing.T) {
+		m.viewport.SetYOffset(6)
+		initialScroll := m.viewport.YOffset()
+		newModel, _ := m.Update(keyPress('K'))
+		m = newModel.(Model)
+		if m.viewport.YOffset() != initialScroll-1 {
+			t.Errorf("Expected viewport YOffset to decrement, got %d", m.viewport.YOffset())
+		}
+	})
+
+	// Switch focus to left pane
+	m.focus = FocusLeft
+
+	// Test 'shift-j' (scroll down) in list pane
+	t.Run("NormalMode_List_J", func(t *testing.T) {
+		m.viewport.SetYOffset(3)
+		initialScroll := m.viewport.YOffset()
+		newModel, _ := m.Update(keyPress('J'))
+		m = newModel.(Model)
+		if m.viewport.YOffset() != initialScroll+1 {
+			t.Errorf("Expected viewport YOffset to increment, got %d", m.viewport.YOffset())
+		}
+	})
+
+	// Test 'k' (scroll up) in list pane
+	t.Run("NormalMode_List_K", func(t *testing.T) {
+		m.viewport.SetYOffset(5)
+		initialScroll := m.viewport.YOffset()
+		newModel, _ := m.Update(keyPress('K'))
+		m = newModel.(Model)
+		if m.viewport.YOffset() != initialScroll-1 {
+			t.Errorf("Expected viewport YOffset to decrement, got %d", m.viewport.YOffset())
+		}
+	})
+}
+
+func TestPaneSwitch(t *testing.T) {
+	cfg := loadTestConfig(t)
+	m := *NewModel(createTestCertificates(1), cfg)
+	m.viewMode = ViewNormal
+	m.focus = FocusLeft
+
+	// Press Tab
+	newModel, _ := m.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyTab}))
+	m = newModel.(Model)
+	if m.focus != FocusRight {
+		t.Error("Expected to be focused on the right pane, got left")
+	}
+}
+
 // pump delivers a message to the model and then feeds the resulting commands
 // back in, the way the Bubble Tea runtime does: batches are expanded and the
 // messages they produce are delivered in turn. Components like huh advance

@@ -953,7 +953,7 @@ footer { padding-block: 44px 60px; color: var(--text-mute); font-size: 13.5px; }
           <div class="statusbar">
             <span class="n">&nbsp;5 certs&nbsp;</span>
             <span class="hints">
-              <b>↑↓</b> nav<span class="sep">│</span><b>←→</b> pane<span class="sep">│</span><b>tab</b> tabs<span class="sep">│</span><b>/</b> search<span class="sep">│</span><b>f</b> filter<span class="sep">│</span><b>v</b> validate<span class="sep">│</span><b>e</b> export<span class="sep">│</span><b>y</b> copy<span class="sep">│</span><b>q</b> quit<span class="sep">│</span><b>?</b> help
+              <b>↑↓</b> nav<span class="sep">│</span><b>tab</b> pane<span class="sep">│</span><b>[]</b> tabs<span class="sep">│</span><b>/</b> search<span class="sep">│</span><b>f</b> filter<span class="sep">│</span><b>v</b> validate<span class="sep">│</span><b>e</b> export<span class="sep">│</span><b>y</b> copy<span class="sep">│</span><b>q</b> quit<span class="sep">│</span><b>?</b> help
             </span>
           </div>
         </div>
@@ -964,7 +964,8 @@ footer { padding-block: 44px 60px; color: var(--text-mute); font-size: 13.5px; }
     <p class="stage__hint">
       <span>Live, not a recording:</span>
       <kbd>j</kbd><kbd>k</kbd> <span>select a certificate,</span>
-      <kbd>tab</kbd> <span>step through detail tabs,</span>
+      <kbd>tab</kbd> <span>switch pane,</span>
+      <kbd>[</kbd><kbd>]</kbd> <span>cycle through the details tabs,</span>
       <kbd>esc</kbd> <span>release focus</span>
     </p>
   </section>
@@ -1071,9 +1072,9 @@ Chain as presented:
       <div class="spec">
         <div class="spec__cell">
           <span class="spec__key">tui</span>
-          <h3>Two panes, five tabs</h3>
+          <h3>Two panes, six tabs</h3>
           <p>The chain on the left with live expiry bars, the selected certificate on the right.</p>
-          <ul><li>Subject · Issuer · Validity · SANs · Misc</li><li>search and filter</li><li>chain position table</li></ul>
+          <ul><li>Subject · Issuer · Validity · SANs · Misc · Findings</li><li>search and filter</li><li>chain position table</li></ul>
         </div>
         <div class="spec__cell">
           <span class="spec__key">net</span>
@@ -1208,7 +1209,9 @@ Chain as presented:
         <div class="key"><span class="key__k"><kbd>↑</kbd><kbd>k</kbd><kbd>↓</kbd><kbd>j</kbd></span><span class="key__d">Move through the chain</span></div>
         <div class="key"><span class="key__k"><kbd>←</kbd><kbd>h</kbd></span><span class="key__d">Focus the list</span></div>
         <div class="key"><span class="key__k"><kbd>→</kbd><kbd>l</kbd></span><span class="key__d">Focus the details</span></div>
-        <div class="key"><span class="key__k"><kbd>tab</kbd></span><span class="key__d">Cycle detail tabs</span></div>
+        <div class="key"><span class="key__k"><kbd>tab</kbd></span><span class="key__d">Switch pane</span></div>
+        <div class="key"><span class="key__k"><kbd>[</kbd><kbd>]</kbd></span><span class="key__d">Cycle through the details tabs</span></div>
+        <div class="key"><span class="key__k"><kbd>shift-j</kbd><kbd>shift-k</kbd></span><span class="key__d">Scroll the details</span></div>
         <div class="key"><span class="key__k"><kbd>/</kbd></span><span class="key__d">Search by common name</span></div>
         <div class="key"><span class="key__k"><kbd>f</kbd></span><span class="key__d">Filter: expired, expiring, valid, self-signed</span></div>
         <div class="key"><span class="key__k"><kbd>v</kbd></span><span class="key__d">Validate this certificate</span></div>
@@ -1601,6 +1604,13 @@ Chain as presented:
     $paneR.classList.toggle("on", f === "R");
   }
 
+  /* Return which pane currently has focus. The focused pane is derived
+     from the "on" class rather than a variable (see setFocus above):
+     the left pane is focused unless the right one is marked active. */
+  function getFocus() {
+    return $paneL.classList.contains("on") ? "L" : "R";
+  }
+
   paint();
 
   $rows.addEventListener("click", e => {
@@ -1618,15 +1628,24 @@ Chain as presented:
     const k = e.key;
     if (k === "Escape") { $term.blur(); return; }
 
-    /* Tab advances through the detail tabs, but stops swallowing the key on
-       the last one so keyboard focus can always leave the widget going
-       forward. Shift+Tab is never intercepted, so it can always leave going
-       back. Without this the replica is a focus trap. */
-    if (k === "Tab") {
-      if (e.shiftKey || tab === TABS.length - 1) return;
-      e.preventDefault();
-      tab += 1;
-      setFocus("R");
+    /* Cycle the active detail tab: `]` moves forward, `[` backward.
+       Each key wraps around at the ends of the TABS list, and the
+       modified key is skipped so the default browser binding (e.g.
+       Firefox's history navigation) still applies. */
+    if (k === "]") {
+      if (tab === TABS.length - 1) {
+        tab = 0
+      } else {
+        tab += 1;
+      }
+      paint();
+      return;
+    } else if (k === "[") {
+      if (tab === 0) {
+        tab = TABS.length - 1
+      } else {
+        tab -= 1;
+      }
       paint();
       return;
     }
@@ -1636,7 +1655,11 @@ Chain as presented:
     else if (k === "k" || k === "ArrowUp") sel = Math.max(sel - 1, 0);
     else if (k === "l" || k === "ArrowRight") setFocus("R");
     else if (k === "h" || k === "ArrowLeft") setFocus("L");
-    else hit = false;
+    else if (k === "Tab") {
+      if (e.shiftKey || getFocus() === "R") return;
+      e.preventDefault();
+      setFocus("R");
+    } else hit = false;
     if (hit) { e.preventDefault(); paint(); }
   });
 

@@ -47,20 +47,16 @@ Sleep 400ms
 Type "k"
 Sleep 400ms
 
-# 2. Switch to details pane and browse tabs (last tab is Misc with the
+# 2. Switch to details pane and browse tabs (fifth tab is Misc with the
 # new lipgloss table-based chain view)
-Right
-Sleep 500ms
-Tab
+Type "]"
 Sleep 1s
-Tab
+Type "]"
 Sleep 1s
-Tab
+Type "]"
 Sleep 1s
-Tab
+Type "]"
 Sleep 1500ms
-Left
-Sleep 500ms
 
 # 3. Search
 Type "/"

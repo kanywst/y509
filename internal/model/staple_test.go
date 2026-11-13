@@ -30,7 +30,7 @@ func stapleModel(t *testing.T, conn *certificate.ConnectResult) Model {
 
 	// Misc is the fifth tab: Subject, Issuer, Validity, SANs, Misc.
 	for i := 0; i < 4; i++ {
-		out = pump(t, out, tea.KeyPressMsg{Code: tea.KeyTab})
+		out = pump(t, out, tea.KeyPressMsg{Code: ']'})
 	}
 	if out.tabs[out.activeTab] != "Misc" {
 		t.Fatalf("landed on the %q tab, want Misc", out.tabs[out.activeTab])
@@ -220,7 +220,7 @@ func TestRedialReplacesTheHandshakeFacts(t *testing.T) {
 
 	out = pump(t, out, keyPress('l'))
 	for i := 0; i < 4; i++ {
-		out = pump(t, out, tea.KeyPressMsg{Code: tea.KeyTab})
+		out = pump(t, out, tea.KeyPressMsg{Code: ']'})
 	}
 
 	got := out.View().Content
@@ -312,7 +312,7 @@ func TestHandshakeSectionIsAbsentForAFile(t *testing.T) {
 	m = pump(t, m, keyPress('x'))
 	m = pump(t, m, keyPress('l'))
 	for i := 0; i < 4; i++ {
-		m = pump(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
+		m = pump(t, m, tea.KeyPressMsg{Code: ']'})
 	}
 
 	if strings.Contains(m.View().Content, "Handshake") {
