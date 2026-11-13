@@ -1,7 +1,7 @@
 {
   "source": "https://www.gstatic.com/ct/log_list/v3/all_logs_list.json",
-  "version": "96.0",
-  "timestamp": "2026-11-03T13:38:43Z",
+  "version": "96.8",
+  "timestamp": "2026-11-12T13:37:31Z",
   "logs": [
     {
       "id": "+ZgQ1evkfhzxtCH/beNb+MHsluJeBNv8dW9r5FxlXMo=",
@@ -16,6 +16,14 @@
       "description": "Sectigo Tigger2027",
       "operator": "Sectigo",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtgd6K1O2eC+m8NHQwud/88kVUvRlY6R74OadAamS8203Y/EhLtX7clvh/VLbDD7Je+lbNe29R8WgTlT2E4Q0Ow=="
+    },
+    {
+      "id": "/6sV+04gOrNi7YekbpOjxEN0g7eWMLB4ZcY2qA4os04=",
+      "description": "SHECA Hongkou2027h1",
+      "operator": "SHECA",
+      "state": "pending",
+      "stateSince": "2026-11-12T20:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzwbUgiGYvzBnQqaTLql29WmlZ6LZJ2Svv5Z+j0n2ITB3ZO4qILxdtSfyR+K/foDjjDOFeomWZ3DmTKexNWKgBw=="
     },
     {
       "id": "/Cvx3M57P/mNzO4pdqi0IuiOCa6pt5mhesjSWzqR+MA=",
@@ -124,6 +132,14 @@
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhBvjicdGxE1X4PDDFXT08IUoMvHZ8716jPiw0F5xG+4Q7SO3La7uDlEeEzkek0ZlqAfKcrBg/Zp2noofn5/jAw=="
     },
     {
+      "id": "4dKdGNWYRqtrkGI4apITCdTpLfH53HY9uCEBs7uuIdc=",
+      "description": "SHECA Hongkou2027h2",
+      "operator": "SHECA",
+      "state": "pending",
+      "stateSince": "2026-11-12T20:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkVFqxc87Jbp+gh24G7/+9D4CfY3jiOgKM6958e732nkSdPXVkf+hecmjU+MzrnFGbgPrg16aucNxVok6ntBaaw=="
+    },
+    {
       "id": "4yON8o2iiOCq4Kzw+pDJhfC2v/XSpSewAfwcRFjEtug=",
       "description": "Let's Encrypt Willow2026h1",
       "operator": "Let's Encrypt",
@@ -140,6 +156,14 @@
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEK+2zy2UWRMIyC2jU46+rj8UsyMjLsQIr1Y/6ClbdpWGthUb8y3Maf4zfAZTWW+AH9wAWPLRL5vmtz7Zkh2f2nA=="
     },
     {
+      "id": "5vFt0YKT55bFJiISUDGmaMo1duvw5LkikOFnPtKmD+Y=",
+      "description": "SwissSign Eiger2028h2",
+      "operator": "SwissSign",
+      "state": "pending",
+      "stateSince": "2026-11-03T13:38:43Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEa2tAPv1h3B7Cs52rn9lYSq6Qb+Vkts2gmrq9AJdRNL/YnTXZR2bq7QDrUOFlrXg8Vgw6DYjFgkbg4ukquEyODg=="
+    },
+    {
       "id": "6+a9C+qJOkTtPzg+2/4QzZnxhphufXsmsBqEMk57934=",
       "description": "IPng Networks Halloumi2028h1",
       "operator": "IPng Networks",
@@ -154,6 +178,14 @@
       "state": "qualified",
       "stateSince": "2026-09-30T13:40:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMTyKhqKtqQBhdnxqQIiyXSX4/Zm4ejW8LrvCxxXLJ8UrchT0A7ZeXnc8vZEVV5oeelR0wOKLtDPLDh6nshBHcw=="
+    },
+    {
+      "id": "6yfKv1JFhTd94npcCJdaCgAuI9K98ksx0URHxEzTYDM=",
+      "description": "SHECA Pudong2028h2",
+      "operator": "SHECA",
+      "state": "pending",
+      "stateSince": "2026-11-12T20:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEo5psphUD2SnYs40GW7/32j3LbqxWIquEYecGqI7NaJaUndirrHmhBwd+3iQEw75PLsU8WLkzxH2UH6GM4z+3/A=="
     },
     {
       "id": "7PBUNaSTKW0Kvz7J0JbyGycBLEcaHoPngTZnpglSvqY=",
@@ -240,6 +272,14 @@
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEB/we6GOO/xwxivy4HhkrYFAAPo6e2nc346Wo2o2U+GvoPWSPJz91s/xrEvA3Bk9kWHUUXVZS5morFEzsgdHqPg=="
     },
     {
+      "id": "E9oVjpw1DnEXxwhWHDcj6cCOGuM31yX9CpBTiKCqlMM=",
+      "description": "SwissSign Eiger2027h2",
+      "operator": "SwissSign",
+      "state": "pending",
+      "stateSince": "2026-11-03T13:38:43Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEseoty7VDT5a3mrSwJIFOYc2OmaTHatrV/z4d8Zx/BAkkWY8FtRoqaiX4XchnBQbpXle/EqMbY34FqSqqhUqRXw=="
+    },
+    {
       "id": "EgXQJVrBiTyuVBBwPE8Sc/yXAOErWEp/gGrcVVWAwLE=",
       "description": "IPng Networks Gouda2028h1",
       "operator": "IPng Networks",
@@ -262,6 +302,12 @@
       "state": "rejected",
       "stateSince": "2026-07-09T13:40:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE73eDJyszDbzsWcgI0nbtU0+y11gQWjNjS/RSO5P4hOSFE+pPrDCtfNPHe6dq7/XQYwOFt9Feb8TwQW+mqXN5xg=="
+    },
+    {
+      "id": "G2FggXHWO2z9AByFQJAKs8oXZSeNgVRtr43W9ofXq5c=",
+      "description": "SwissSign Rotstock2027h2",
+      "operator": "SwissSign",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEBn1ZHGP/WfEm8Y2xvyzqaHXAYmJDL+DSTcD6m3Q2BdpstdqGLfTE6PruxbvvhDQhIcnU45eci17DDCjO9ZT2oQ=="
     },
     {
       "id": "G3i5n/pJwlzEUFl1q/10eRTf3fp7/dOdKjW5WQStPog=",
@@ -538,6 +584,14 @@
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvirIq1XPwgwG7BnbMh2zoUbEt+T8z8XAtg9lo8jma+aaTQl8iVCypUFXtLpt4/SHaoUzbvcjDX/6B1IbL3OoIQ=="
     },
     {
+      "id": "RudQRiNTeZ0Kf8pyIyQIIRfLA/pVUIaFAMnyDfxLxhQ=",
+      "description": "SwissSign Eiger2028h1",
+      "operator": "SwissSign",
+      "state": "pending",
+      "stateSince": "2026-11-03T13:38:43Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEf7UIwXnU0/meh9RBt+IQai2XZwsbnk4XdL8DUvNQrL5Hpoj0VfrW3KN2H3/UgksaoAPevnH6Wu22nONelMm/gw=="
+    },
+    {
       "id": "SGuYP1B0Yz0uwvx1b+RG84ybuU+PCLpdtIb+PWTYUXk=",
       "description": "Let's Encrypt Twig2028h1",
       "operator": "Let's Encrypt",
@@ -808,6 +862,14 @@
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2Ney/nDA+O9+7RW9Is+dyI0Ij6NYSQhZ6F/KOlVQ/pIgcujprZMAuENLaDQvCLM/vK/JpDkV/PduZ2cOKqGgcw=="
     },
     {
+      "id": "iYkoUO1DUrb7LXPct1kWBfF6kEY7AqR4tbszkSMz/Yk=",
+      "description": "SwissSign Eiger2027h1",
+      "operator": "SwissSign",
+      "state": "pending",
+      "stateSince": "2026-11-03T13:38:43Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE981YfiP6WiTQq/cDJoqwgLTp2eYxEIw6yI0eDOYc0iK+Z0jWIU+QIEj5sfelLAjuieArUKULxdqO8mL/ANjFMw=="
+    },
+    {
       "id": "j5ct6c9T2eqhZDHY6vWLWGZ8/QysT5c0VLGZaVHvlYc=",
       "description": "Geomys Trastevere2028h1",
       "operator": "Geomys",
@@ -958,6 +1020,14 @@
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEanCds5bj7IU2lcNPnIvZfMnVkSmu69aH3AS8O/Y0D/bbCPdSqYjvuz9Z1tT29PxcqYxf+w1g5CwPFuwqsm3rFQ=="
     },
     {
+      "id": "sDXT6fTaACkCGHHEW6UpidrdUb2Mnota0zrt0LP1xC0=",
+      "description": "SHECA Pudong2028h1",
+      "operator": "SHECA",
+      "state": "pending",
+      "stateSince": "2026-11-12T20:30:00Z",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEa4TAYlRRZLhZTlvKkgG6vy8Ze1WPmenM3RnFF/UojCsWLG50UkGC/mhIVUURy6Kfx1PE/134+oH6sMHbh6AC3Q=="
+    },
+    {
       "id": "sMyD5aX5fWuvfAnMKEkEhyrH6IsTLGNQt8b9JuFsbHc=",
       "description": "Google Testtube",
       "operator": "Google",
@@ -984,6 +1054,12 @@
       "state": "qualified",
       "stateSince": "2026-10-14T13:50:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzAWvoYfHsDXwXaxHUTOAOYx+vESfGpSKTYPUwwDYIwKe1g4lsEmoMwlFJNP2wC8M3g721r663BQaU7I5tKa5jw=="
+    },
+    {
+      "id": "uDSCh5eGQjf1gjcBJfSaO58LtsNqdSymUcTmEWgQs2g=",
+      "description": "SwissSign Rotstock2026h2",
+      "operator": "SwissSign",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEA3FUsfuobm8jPt+GarN/22buEdYKOFFxkkzee0zYvtE/cAGKMhUDtluxLmbvMpdO13i8QPam0aZhR19PTKi5gQ=="
     },
     {
       "id": "utuIpG+cr6QJDoLlk1bbbni0pT9YLbCBl5UkLym2jJg=",
@@ -1090,6 +1166,12 @@
       "state": "qualified",
       "stateSince": "2026-11-03T13:40:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGEE4GWDYuEedkPT1yrYUcEP3dxuABreEhr/OfwHDBO/V3l3fmzp139HwtwukZRWJUdxNBeUYJTEqHAsDGEvfFQ=="
+    },
+    {
+      "id": "zu9aBkcpYW748y4L745CnIb3JvI3FAA7CBVRbBxzLDY=",
+      "description": "SwissSign Rotstock2027h1",
+      "operator": "SwissSign",
+      "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEa0q1R1BQx2ttlmirBF5BcjCcVv6t95va87r2+oUL1DUfvLO/oitjKu+yAhsVlPS+SM9hUJo0IU9oqqRNJ+0h4Q=="
     }
   ]
 }
