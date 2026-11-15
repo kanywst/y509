@@ -1,7 +1,7 @@
 {
   "source": "https://www.gstatic.com/ct/log_list/v3/all_logs_list.json",
-  "version": "96.8",
-  "timestamp": "2026-11-12T13:37:31Z",
+  "version": "97.1",
+  "timestamp": "2026-11-14T13:36:22Z",
   "logs": [
     {
       "id": "+ZgQ1evkfhzxtCH/beNb+MHsluJeBNv8dW9r5FxlXMo=",
@@ -83,8 +83,8 @@
       "id": "1219ENGn9XfCx+lf1wC/+YLJM1pl4dCzAXMXwMjFaXc=",
       "description": "Google Argon2026h2",
       "operator": "Google",
-      "state": "usable",
-      "stateSince": "2024-09-30T22:19:27Z",
+      "state": "readonly",
+      "stateSince": "2026-11-13T17:30:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKjpni/66DIYrSlGK6Rf+e6F2c/28ZUvDJ79N81+gyimAESAyeNZ++TRgjHWg9TVQnKHTSU0T1TtqDupFnSQTIg=="
     },
     {
@@ -99,16 +99,16 @@
       "id": "1tWNqdAXU/NqSqDHV0kCr+vH3CzTjNn3ZMgMiRkenwI=",
       "description": "Google Argon2027h1",
       "operator": "Google",
-      "state": "usable",
-      "stateSince": "2025-12-28T00:30:00Z",
+      "state": "readonly",
+      "stateSince": "2026-11-13T17:30:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKHRm0H/zUaFA6Idz5cGvGO3tCPQyfGMgJmVBOPyKAP6mGM1IiNXi4CLomOUyYj0YN74p+eGVApFMsM4h/jzCsA=="
     },
     {
       "id": "2AlVO5RPev/IFhlvlE+Fq7D4/F6HVSYPFdEucrtFSxQ=",
       "description": "Google Xenon2026h2",
       "operator": "Google",
-      "state": "usable",
-      "stateSince": "2024-09-30T22:19:27Z",
+      "state": "readonly",
+      "stateSince": "2026-11-13T17:30:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5Xd4lXEos5XJpcx6TOgyA5Z7/C4duaTbQ6C9aXL5Rbqaw+mW1XDnDX7JlRUninIwZYZDU9wRRBhJmCVopzwFvw=="
     },
     {
@@ -555,8 +555,8 @@
       "id": "RMK9DOkUDmSlyUoBkwpaobs1lw4A7hEWiWgqHETXtWY=",
       "description": "Google Xenon2027h1",
       "operator": "Google",
-      "state": "usable",
-      "stateSince": "2025-12-28T00:30:00Z",
+      "state": "readonly",
+      "stateSince": "2026-11-13T17:30:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/6WcA4VRSljIfTdY48+pFRLLtLrmTb88cGDdl8Gv3E2LduG4jgJ3AK5iNMFGhpbRRLi5B3rPlBaXVywuR5IFDg=="
     },
     {
