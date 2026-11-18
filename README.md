@@ -114,7 +114,7 @@ y509 validate example.com:443 --policy fips
 y509 validate chain.pem --roots root.pem --policy pqc
 ```
 
-`--check-crl` fetches the CRL each certificate in the verified path points at, trust anchor excluded, checks it is signed by that certificate's issuer, and reports a certificate it lists. It is the only check that fetches something the server did not send, so it is opt-in, and it fills no gap: the chain is still judged as sent. CRLs are cached under the user cache directory for up to an hour, never past their `nextUpdate`. Like a revoked staple, a revoked certificate does not change the exit status; gate on `revocation.ok`.
+`--check-crl` fetches the CRL each certificate in the verified path points at, trust anchor excluded, checks it is signed by that certificate's issuer, and reports a certificate it lists. It is the only check that fetches something the server did not send, so it is opt-in, and it fills no gap: the chain is still judged as sent. Only HTTP and HTTPS distribution points are fetched, so `revocation.ok` means no finding rather than every certificate checked; `revocation.crl[].status` says which were. CRLs are cached under the user cache directory for up to an hour, never past their `nextUpdate`. Like a revoked staple, a revoked certificate does not change the exit status; gate on `revocation.ok`.
 
 ```bash
 y509 validate example.com:443 --check-crl

@@ -23,6 +23,7 @@ func crlChain(t *testing.T, revoke bool) (chainPath, rootsPath string) {
 	cache := t.TempDir()
 	t.Setenv("HOME", cache)
 	t.Setenv("XDG_CACHE_HOME", cache)
+	t.Setenv("LocalAppData", cache)
 
 	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {

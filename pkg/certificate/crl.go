@@ -271,7 +271,8 @@ func checkCRL(ctx context.Context, cert, issuer *x509.Certificate, f *CRLFetcher
 	for _, u := range cert.CRLDistributionPoints {
 		u = strings.TrimSpace(u)
 		// ldap:// and the rest are left alone: no client in scope fetches them.
-		if strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") {
+		lower := strings.ToLower(u)
+		if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
 			urls = append(urls, u)
 		}
 	}
@@ -282,16 +283,20 @@ func checkCRL(ctx context.Context, cert, issuer *x509.Certificate, f *CRLFetcher
 		return check
 	}
 
+	now := f.now()
+	// A stale "good" is kept in hand while the next distribution point is
+	// tried: a current CRL there could say otherwise.
+	var stale *CRLCheck
 	for _, url := range urls {
 		check.URL = url
 		r := f.fetch(ctx, url)
-		crl, failure, err := judgeCRL(r, cert, issuer, url)
+		crl, failure, err := judgeCRL(r, cert, issuer, url, now)
 		if err != nil && r.cached {
 			// A cached copy that no longer verifies is not evidence about
 			// the distribution point. Drop it and ask the network once.
 			f.evict(url)
 			r = f.fetch(ctx, url)
-			crl, failure, err = judgeCRL(r, cert, issuer, url)
+			crl, failure, err = judgeCRL(r, cert, issuer, url, now)
 		}
 		if err != nil {
 			check.Err, check.failure = err, failure
@@ -301,25 +306,36 @@ func checkCRL(ctx context.Context, cert, issuer *x509.Certificate, f *CRLFetcher
 			f.writeCache(url, r.der)
 		}
 
-		check.Err = nil
-		check.Cached = r.cached
-		check.ThisUpdate, check.NextUpdate = crl.ThisUpdate, crl.NextUpdate
-		check.Status = CRLGood
+		answer := check
+		answer.Err = nil
+		answer.Cached = r.cached
+		answer.ThisUpdate, answer.NextUpdate = crl.ThisUpdate, crl.NextUpdate
+		answer.Status = CRLGood
 		for _, entry := range crl.RevokedCertificateEntries {
 			if entry.SerialNumber != nil && entry.SerialNumber.Cmp(cert.SerialNumber) == 0 {
-				check.Status = CRLRevoked
-				check.RevokedAt = entry.RevocationTime
-				check.RevocationReason = revocationReasonName(entry.ReasonCode)
+				answer.Status = CRLRevoked
+				answer.RevokedAt = entry.RevocationTime
+				answer.RevocationReason = revocationReasonName(entry.ReasonCode)
 				break
 			}
 		}
-		return check
+		// Revocation is permanent, so a stale CRL that lists it still counts.
+		if answer.Status == CRLGood && !crl.NextUpdate.IsZero() && now.After(crl.NextUpdate) {
+			if stale == nil {
+				stale = &answer
+			}
+			continue
+		}
+		return answer
+	}
+	if stale != nil {
+		return *stale
 	}
 	return check
 }
 
 // judgeCRL parses a fetch and decides whether its CRL may answer for cert.
-func judgeCRL(r fetched, cert, issuer *x509.Certificate, url string) (*x509.RevocationList, crlFailure, error) {
+func judgeCRL(r fetched, cert, issuer *x509.Certificate, url string, now time.Time) (*x509.RevocationList, crlFailure, error) {
 	if r.err != nil {
 		return nil, crlFetchFailed, r.err
 	}
@@ -336,12 +352,20 @@ func judgeCRL(r fetched, cert, issuer *x509.Certificate, url string) (*x509.Revo
 	if err := crlScope(crl, cert, url); err != nil {
 		return nil, crlOutOfScope, err
 	}
+	// The same slop as a staple: past it a client rejects the CRL, and short
+	// of it the difference is clock skew.
+	if crl.ThisUpdate.After(now.Add(futureStapleSlop)) {
+		return nil, crlOutOfScope, fmt.Errorf("the CRL's thisUpdate is %s, more than a day ahead",
+			crl.ThisUpdate.UTC().Format(time.RFC3339))
+	}
 	return crl, 0, nil
 }
 
 var (
 	oidDeltaCRLIndicator        = asn1.ObjectIdentifier{2, 5, 29, 27}
 	oidIssuingDistributionPoint = asn1.ObjectIdentifier{2, 5, 29, 28}
+	oidReasonCode               = asn1.ObjectIdentifier{2, 5, 29, 21}
+	oidInvalidityDate           = asn1.ObjectIdentifier{2, 5, 29, 24}
 )
 
 // crlScope checks the CRL covers cert, as RFC 5280 6.3.3 (b) requires. A CA
@@ -354,8 +378,19 @@ var (
 // CRL, an indirect CRL, a reason-partitioned one -- is out of scope rather than
 // guessed at.
 func crlScope(crl *x509.RevocationList, cert *x509.Certificate, url string) error {
+	// RFC 5280 5.3: a CRL with a critical entry extension this does not
+	// process cannot answer for any certificate, listed or not.
+	for _, entry := range crl.RevokedCertificateEntries {
+		for _, ext := range entry.Extensions {
+			if ext.Critical && !ext.Id.Equal(oidReasonCode) && !ext.Id.Equal(oidInvalidityDate) {
+				return fmt.Errorf("the CRL has an entry with an unhandled critical extension (OID %s)", ext.Id)
+			}
+		}
+	}
 	for _, ext := range crl.Extensions {
 		switch {
+		case ext.Critical && !ext.Id.Equal(oidDeltaCRLIndicator) && !ext.Id.Equal(oidIssuingDistributionPoint):
+			return fmt.Errorf("the CRL has an unhandled critical extension (OID %s)", ext.Id)
 		case ext.Id.Equal(oidDeltaCRLIndicator):
 			return errors.New("the CRL is a delta CRL, only half the answer")
 		case ext.Id.Equal(oidIssuingDistributionPoint):
@@ -376,6 +411,8 @@ func crlScope(crl *x509.RevocationList, cert *x509.Certificate, url string) erro
 				return errors.New("the CRL covers only CA certificates")
 			case idp.relativeName:
 				return errors.New("the CRL names its distribution point relative to the issuer")
+			case idp.named && len(idp.uris) == 0:
+				return errors.New("the CRL names its distribution point without a URI")
 			case len(idp.uris) > 0 && !containsString(idp.uris, url):
 				return fmt.Errorf("the CRL is the one for %s", strings.Join(idp.uris, ", "))
 			}
@@ -386,7 +423,7 @@ func crlScope(crl *x509.RevocationList, cert *x509.Certificate, url string) erro
 
 type issuingDistributionPoint struct {
 	uris                                    []string
-	relativeName                            bool
+	named, relativeName                     bool
 	onlyUser, onlyCA, someReasons, indirect bool
 	onlyAttribute                           bool
 }
@@ -413,6 +450,7 @@ func parseIDP(der []byte) (issuingDistributionPoint, error) {
 			if !dp.ReadASN1(&names, cbasn1.Tag(0).ContextSpecific().Constructed()) {
 				return out, errors.New("bad fullName")
 			}
+			out.named = true
 			for !names.Empty() {
 				var name cryptobyte.String
 				var tag cbasn1.Tag
@@ -434,7 +472,15 @@ func parseIDP(der []byte) (issuingDistributionPoint, error) {
 		if !seq.ReadOptionalASN1(&v, &ok, cbasn1.Tag(n).ContextSpecific()) {
 			return false
 		}
-		*dst = ok && len(v) == 1 && v[0] != 0
+		if !ok {
+			return true
+		}
+		// DER BOOLEAN: one byte, 0x00 or 0xff. Anything else is malformed,
+		// not absent.
+		if len(v) != 1 || (v[0] != 0x00 && v[0] != 0xff) {
+			return false
+		}
+		*dst = v[0] == 0xff
 		return true
 	}
 	if !flag(1, &out.onlyUser) || !flag(2, &out.onlyCA) {

@@ -7,11 +7,13 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -71,9 +73,13 @@ func newCRLFixture(t *testing.T, crlURLs ...string) crlFixture {
 
 func makeCRL(t *testing.T, issuer *x509.Certificate, key *ecdsa.PrivateKey, next time.Time, revoked ...int64) []byte {
 	t.Helper()
+	this := next.Add(-48 * time.Hour)
+	if this.After(time.Now()) {
+		this = time.Now().Add(-time.Hour)
+	}
 	tmpl := &x509.RevocationList{
 		Number:     big.NewInt(1),
-		ThisUpdate: next.Add(-48 * time.Hour),
+		ThisUpdate: this,
 		NextUpdate: next,
 	}
 	for _, s := range revoked {
@@ -204,8 +210,13 @@ func TestCRLFetcherCachesUntilNextUpdate(t *testing.T) {
 	if first[0].Cached || hits.Load() != 1 {
 		t.Fatalf("first run: cached=%v hits=%d, want a fetch", first[0].Cached, hits.Load())
 	}
-	if info, err := os.Stat(dir); err != nil || info.Mode().Perm() != crlDirPerm {
-		t.Errorf("cache dir: %v, %v; want mode %o", info, err, crlDirPerm)
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("cache dir: %v", err)
+	}
+	// Windows reports 0777 for any writable directory.
+	if runtime.GOOS != "windows" && info.Mode().Perm() != crlDirPerm {
+		t.Errorf("cache dir mode %o, want %o", info.Mode().Perm(), crlDirPerm)
 	}
 
 	// A new fetcher, as a second run of the binary would have.
@@ -401,5 +412,120 @@ func TestAddCRLChecksJSON(t *testing.T) {
 	// Not asked for: nothing changes.
 	if AddCRLChecks(nil, nil, now) != nil {
 		t.Error("nil checks created a revocation object")
+	}
+}
+
+// serveCRL serves the CRL tmpl describes, signed by f0's root, and returns a
+// leaf pointing at it.
+func serveCRL(t *testing.T, f0 crlFixture, path string, tmpl *x509.RevocationList) (*x509.Certificate, string) {
+	t.Helper()
+	if tmpl.Number == nil {
+		tmpl.Number = big.NewInt(1)
+	}
+	der, err := x509.CreateRevocationList(rand.Reader, tmpl, f0.root, f0.rootKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(der) }))
+	t.Cleanup(srv.Close)
+	url := srv.URL + path
+	leaf, _ := crlCert(t, "crl.test", 0x2a, false, []string{url}, f0.root, f0.rootKey)
+	return leaf, url
+}
+
+func TestCheckCRLsRefusesWhatItCannotInterpret(t *testing.T) {
+	f0 := newCRLFixture(t)
+	now := time.Now()
+	current := func() *x509.RevocationList {
+		return &x509.RevocationList{ThisUpdate: now.Add(-time.Hour), NextUpdate: now.Add(time.Hour)}
+	}
+	private := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 1}
+
+	tests := []struct {
+		name string
+		tmpl func() *x509.RevocationList
+	}{
+		{"critical CRL extension", func() *x509.RevocationList {
+			l := current()
+			l.ExtraExtensions = []pkix.Extension{{Id: private, Critical: true, Value: []byte{0x05, 0x00}}}
+			return l
+		}},
+		{"critical entry extension on another serial", func() *x509.RevocationList {
+			l := current()
+			l.RevokedCertificateEntries = []x509.RevocationListEntry{{
+				SerialNumber:    big.NewInt(99),
+				RevocationTime:  now.Add(-time.Hour),
+				ExtraExtensions: []pkix.Extension{{Id: private, Critical: true, Value: []byte{0x05, 0x00}}},
+			}}
+			return l
+		}},
+		{"thisUpdate days ahead", func() *x509.RevocationList {
+			return &x509.RevocationList{ThisUpdate: now.Add(48 * time.Hour), NextUpdate: now.Add(96 * time.Hour)}
+		}},
+		{"IDP named by directoryName only", func() *x509.RevocationList {
+			l := current()
+			var b cryptobyte.Builder
+			b.AddASN1(cbasn1.SEQUENCE, func(b *cryptobyte.Builder) {
+				b.AddASN1(cbasn1.Tag(0).ContextSpecific().Constructed(), func(b *cryptobyte.Builder) {
+					b.AddASN1(cbasn1.Tag(0).ContextSpecific().Constructed(), func(b *cryptobyte.Builder) {
+						// [4] directoryName, holding an empty Name.
+						b.AddASN1(cbasn1.Tag(4).ContextSpecific().Constructed(), func(b *cryptobyte.Builder) {
+							b.AddASN1(cbasn1.SEQUENCE, func(*cryptobyte.Builder) {})
+						})
+					})
+				})
+			})
+			l.ExtraExtensions = []pkix.Extension{{Id: oidIssuingDistributionPoint, Critical: true, Value: b.BytesOrPanic()}}
+			return l
+		}},
+		{"IDP with a malformed BOOLEAN", func() *x509.RevocationList {
+			l := current()
+			// SEQUENCE { [4] indirectCRL, empty }
+			l.ExtraExtensions = []pkix.Extension{{Id: oidIssuingDistributionPoint, Critical: true, Value: []byte{0x30, 0x02, 0x84, 0x00}}}
+			return l
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			leaf, _ := serveCRL(t, f0, "/ca.crl", tt.tmpl())
+			checks := CheckCRLs(context.Background(), []*x509.Certificate{leaf, f0.root}, &CRLFetcher{})
+			if checks[0].Status != CRLUnchecked {
+				t.Errorf("status = %s, want unchecked", checks[0].Status)
+			}
+			if got := crlProblems(checks, now); len(got) != 1 || got[0] != ProblemCRLOutOfScope {
+				t.Errorf("problems = %v, want [%s]", got, ProblemCRLOutOfScope)
+			}
+		})
+	}
+}
+
+func TestCheckCRLsPrefersACurrentCRLToAStaleOne(t *testing.T) {
+	f0 := newCRLFixture(t)
+	now := time.Now()
+	stale, _ := crlServer(t, http.StatusOK, makeCRL(t, f0.root, f0.rootKey, now.Add(-time.Hour)))
+	current, _ := crlServer(t, http.StatusOK, makeCRL(t, f0.root, f0.rootKey, now.Add(time.Hour), 0x2a))
+	leaf, _ := crlCert(t, "crl.test", 0x2a, false, []string{stale, current}, f0.root, f0.rootKey)
+
+	checks := CheckCRLs(context.Background(), []*x509.Certificate{leaf, f0.root}, &CRLFetcher{})
+	if checks[0].Status != CRLRevoked || checks[0].URL != current {
+		t.Errorf("check = %s from %s, want revoked from the current CRL", checks[0].Status, checks[0].URL)
+	}
+
+	// With nothing better, the stale answer stands and says so.
+	only, _ := crlCert(t, "crl.test", 0x2a, false, []string{stale}, f0.root, f0.rootKey)
+	checks = CheckCRLs(context.Background(), []*x509.Certificate{only, f0.root}, &CRLFetcher{})
+	if got := crlProblems(checks, now); len(got) != 1 || got[0] != ProblemStaleCRL {
+		t.Errorf("problems = %v, want [%s]", got, ProblemStaleCRL)
+	}
+}
+
+func TestCheckCRLsAcceptsAnUppercaseScheme(t *testing.T) {
+	f0 := newCRLFixture(t)
+	url, _ := crlServer(t, http.StatusOK, makeCRL(t, f0.root, f0.rootKey, time.Now().Add(time.Hour)))
+	upper := "HTTP" + strings.TrimPrefix(url, "http")
+	leaf, _ := crlCert(t, "crl.test", 0x2a, false, []string{upper}, f0.root, f0.rootKey)
+	checks := CheckCRLs(context.Background(), []*x509.Certificate{leaf, f0.root}, &CRLFetcher{})
+	if checks[0].Status != CRLGood {
+		t.Errorf("status = %s (%v), want good", checks[0].Status, checks[0].Err)
 	}
 }
