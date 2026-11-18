@@ -1,7 +1,7 @@
 {
   "source": "https://www.gstatic.com/ct/log_list/v3/all_logs_list.json",
-  "version": "97.1",
-  "timestamp": "2026-11-14T13:36:22Z",
+  "version": "97.4",
+  "timestamp": "2026-11-17T13:38:31Z",
   "logs": [
     {
       "id": "+ZgQ1evkfhzxtCH/beNb+MHsluJeBNv8dW9r5FxlXMo=",
@@ -21,8 +21,8 @@
       "id": "/6sV+04gOrNi7YekbpOjxEN0g7eWMLB4ZcY2qA4os04=",
       "description": "SHECA Hongkou2027h1",
       "operator": "SHECA",
-      "state": "pending",
-      "stateSince": "2026-11-12T20:30:00Z",
+      "state": "rejected",
+      "stateSince": "2026-11-17T19:00:00Z",
       "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzwbUgiGYvzBnQqaTLql29WmlZ6LZJ2Svv5Z+j0n2ITB3ZO4qILxdtSfyR+K/foDjjDOFeomWZ3DmTKexNWKgBw=="
     },
     {
