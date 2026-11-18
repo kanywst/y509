@@ -28,7 +28,8 @@ inputs:
       presented wrongly -- a missing intermediate, a redundant root, the wrong
       order; "expiring" is a leaf inside expiry-days; "revocation" is a stapled
       OCSP response that is revoked, stale, future-dated, unknown, badly signed
-      or unreadable; "conformance" is a certificate clients reject on its own
+      or unreadable, or with check-crl a certificate a CRL lists or a CRL that
+      is stale, badly signed, out of scope or unreachable; "conformance" is a certificate clients reject on its own
       terms: a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name
       only in the common name, a served CT precertificate, a critical extension
       Go does not process, or too few SCTs for Chrome's CT policy; "policy" is a
@@ -68,6 +69,13 @@ inputs:
       release without validate --policy fails the step, even with fail-on none.
     required: false
     default: ""
+  check-crl:
+    description: >-
+      Fetch the CRL each certificate in the verified path points at and report
+      one that lists it, under revocation. A release without validate
+      --check-crl fails the step, even with fail-on none.
+    required: false
+    default: "false"
   summary:
     description: "Write a report to the job summary."
     required: false
@@ -216,6 +224,7 @@ runs:
         INPUT_ROOTS: ${{ inputs.roots }}
         INPUT_NO_SYSTEM_ROOTS: ${{ inputs.no-system-roots }}
         INPUT_POLICY: ${{ inputs.policy }}
+        INPUT_CHECK_CRL: ${{ inputs.check-crl }}
         INPUT_SUMMARY: ${{ inputs.summary }}
       run: |
         # The runner supplies "bash -e", so every command that is allowed to
@@ -235,6 +244,7 @@ runs:
         [ -n "$INPUT_ROOTS" ] && args+=(--roots "$INPUT_ROOTS")
         [ "$INPUT_NO_SYSTEM_ROOTS" = "true" ] && args+=(--no-system-roots)
         [ -n "$INPUT_POLICY" ] && args+=(--policy "$INPUT_POLICY")
+        [ "$INPUT_CHECK_CRL" = "true" ] && args+=(--check-crl)
 
         # "none" disables every gate; otherwise a keyword must appear in the
         # list to fail the job rather than only warn.
@@ -351,10 +361,10 @@ runs:
         if [ "$revocation_ok" != "true" ]; then
           print_findings '.revocation.findings[]'
           if wants revocation; then
-            echo "::error::stapled OCSP response: $revocation_problems"
+            echo "::error::revocation: $revocation_problems"
             failed=1
           else
-            echo "::warning::stapled OCSP response: $revocation_problems"
+            echo "::warning::revocation: $revocation_problems"
           fi
         fi
 
@@ -401,7 +411,7 @@ runs:
               echo "| Meets \`$INPUT_POLICY\` | \`$policy_ok\`${policy_problems:+ ($policy_problems)} |"
             fi
             if jq -e '.revocation != null' "$report" > /dev/null; then
-              echo "| Stapled OCSP ok | \`$revocation_ok\`${revocation_problems:+ ($revocation_problems)} |"
+              echo "| Revocation ok | \`$revocation_ok\`${revocation_problems:+ ($revocation_problems)} |"
             fi
             if [ -n "$advisory_problems" ]; then
               echo "| Advisories | $advisory_problems |"

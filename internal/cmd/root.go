@@ -93,7 +93,7 @@ func init() {
 	RootCmd.PersistentFlags().String("servername", "", "SNI server name to send (default: the host)")
 	RootCmd.PersistentFlags().String("starttls", "", "Upgrade a plaintext protocol first: "+
 		strings.Join(certificate.StartTLSProtocols, ", "))
-	RootCmd.PersistentFlags().Duration("timeout", certificate.DefaultConnectTimeout, "Timeout for a live connection")
+	RootCmd.PersistentFlags().Duration("timeout", certificate.DefaultConnectTimeout, "Timeout for a live connection, and for each CRL download")
 	// Local rather than persistent: validate has its own --json, whose output
 	// carries a trust verdict this one deliberately does not.
 	RootCmd.Flags().Bool("json", false, "Print the chain as JSON instead of opening the TUI")

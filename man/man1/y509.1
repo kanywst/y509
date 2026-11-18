@@ -108,7 +108,7 @@ Upgrade a plaintext protocol before the handshake. One of \fBsmtp\fR,
 \fBmariadb\fR and \fBpostgresql\fR are accepted as aliases.
 .TP
 .BI \-\-timeout " DURATION"
-Timeout for a live connection. Default 10s.
+Timeout for a live connection, and for each CRL download. Default 10s.
 .TP
 .B \-\-json
 Print the chain as JSON on standard output instead of opening the terminal UI.
@@ -162,6 +162,17 @@ requires post\-quantum algorithms throughout: ML\-DSA or SLH\-DSA signatures,
 and ML\-DSA, SLH\-DSA or ML\-KEM keys. Findings go under
 .B policy
 in JSON.
+.TP
+.B \-\-check\-crl
+Fetch the CRL each certificate in the verified path points at, trust anchor
+excluded,
+check it is signed by that certificate's issuer, and report a certificate it
+lists. Only HTTP and HTTPS distribution points are fetched; a certificate with
+none is listed as unchecked and is not a finding. CRLs are cached under the user cache directory for up to an hour, never
+past their nextUpdate.
+Findings go under
+.B revocation
+in JSON and do not change the exit status.
 .SH EXIT STATUS
 .B y509 validate
 exits

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -40,7 +41,14 @@ against the single-target shape keeps working.
 --policy fips also judges the certificates against the FIPS 140-3 approved
 algorithms, as a client in FIPS-only mode enforces them. --policy pqc requires
 post-quantum algorithms throughout: ML-DSA or SLH-DSA signatures, and ML-DSA,
-SLH-DSA or ML-KEM keys. A trusted chain that breaks the policy exits non-zero.`,
+SLH-DSA or ML-KEM keys. A trusted chain that breaks the policy exits non-zero.
+
+--check-crl fetches the CRL each certificate in the trusted path points at,
+anchor excluded, and reports a certificate it lists under revocation. It is the
+one check that goes to the network for something the server did not send, so it
+is opt-in. CRLs are cached under the user cache directory for up to an hour,
+never past their nextUpdate. Like the staple findings, it does not change the exit status; gate
+on revocation.ok, or fail-on: revocation in the GitHub Action.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targets := args
 		if len(targets) == 0 {
@@ -63,12 +71,27 @@ SLH-DSA or ML-KEM keys. A trusted chain that breaks the policy exits non-zero.`,
 			return err
 		}
 
+		crls, err := crlFetcherFromFlags(cmd)
+		if err != nil {
+			return err
+		}
+
 		results := make([]targetResult, 0, len(targets))
 		for _, target := range targets {
 			r := validateTarget(cmd, target, opts)
 			if policy != "" && r.Err == nil {
 				r.Policy = policy
 				r.PolicyFindings = policyFindings(policy, r)
+			}
+			if crls != nil && r.Err == nil {
+				r.CRLRequested = true
+				// Only a trusted path has an issuer worth checking a CRL
+				// signature against. A self-anchored one also verifies, but
+				// against a root from the same input, so "good" would mean
+				// nothing.
+				if r.Result.Level == certificate.TrustAnchored && len(r.Result.Chains) > 0 {
+					r.CRL = certificate.CheckCRLs(cmd.Context(), r.Result.Chains[0], crls)
+				}
 			}
 			results = append(results, r)
 		}
@@ -104,6 +127,10 @@ type targetResult struct {
 	// Policy is empty without --policy.
 	Policy         certificate.Policy
 	PolicyFindings []certificate.ConformanceFinding
+
+	// CRLRequested is --check-crl. CRL is nil when the path is not trusted.
+	CRLRequested bool
+	CRL          []certificate.CRLCheck
 }
 
 // name is what to print for this target.
@@ -236,6 +263,17 @@ func printResults(results []targetResult) {
 			fmt.Println(staple)
 		}
 
+		if r.CRLRequested {
+			fmt.Println()
+			if r.CRL == nil {
+				fmt.Println("CRL check: not run, the chain is not trusted")
+			} else if crl := certificate.FormatCRLChecks(r.CRL, time.Now()); crl != "" {
+				fmt.Println(crl)
+			} else {
+				fmt.Println("CRL check: nothing to check, the path is only its anchor")
+			}
+		}
+
 		// Advisories never fail, so they come after every verdict.
 		if advisories := certificate.FormatAdvisories(
 			certificate.RevocationPointerAdvisories(r.Report.Sent)); advisories != "" {
@@ -355,6 +393,15 @@ func encodeReport(enc *json.Encoder, r targetResult) error {
 	// than reporting a handshake that never happened.
 	out.Connection = certificate.NewJSONConnection(r.Source.Conn)
 	out.Revocation = certificate.NewJSONRevocation(r.Source.Conn, time.Now())
+	if r.CRLRequested {
+		checks := r.CRL
+		if checks == nil {
+			// Present but empty says the check was asked for and had nothing
+			// it could check, rather than leaving the key out.
+			checks = []certificate.CRLCheck{}
+		}
+		out.Revocation = certificate.AddCRLChecks(out.Revocation, checks, time.Now())
+	}
 	// Nil when everything parsed, which leaves the key out entirely.
 	out.Unparsed = certificate.NewJSONUnparsed(r.Source.Unparsed)
 	if r.Policy != "" {
@@ -418,6 +465,27 @@ func policyFindings(policy certificate.Policy, r targetResult) []certificate.Con
 	return first
 }
 
+// crlFetcherFromFlags returns the fetcher for --check-crl, nil without it.
+func crlFetcherFromFlags(cmd *cobra.Command) (*certificate.CRLFetcher, error) {
+	check, err := cmd.Flags().GetBool("check-crl")
+	if err != nil || !check {
+		return nil, err
+	}
+	timeout, err := cmd.Flags().GetDuration("timeout")
+	if err != nil {
+		return nil, err
+	}
+	// Zero or negative would mean no deadline at all, as it does not for a
+	// live connection.
+	if timeout <= 0 {
+		timeout = certificate.DefaultConnectTimeout
+	}
+	return &certificate.CRLFetcher{
+		Client: &http.Client{Timeout: timeout},
+		Dir:    certificate.DefaultCRLCacheDir(),
+	}, nil
+}
+
 // policyFromFlags reads --policy, empty when it was not given.
 func policyFromFlags(cmd *cobra.Command) (certificate.Policy, error) {
 	name, err := cmd.Flags().GetString("policy")
@@ -478,6 +546,8 @@ func init() {
 	validateCmd.Flags().Bool("no-system-roots", false, "Do not trust the system store; use only --roots")
 	validateCmd.Flags().String("host", "", "Also check that the leaf is valid for this hostname")
 	validateCmd.Flags().Bool("json", false, "Emit the result as JSON instead of text")
+	validateCmd.Flags().Bool("check-crl", false,
+		"Fetch the CRL each certificate points at and report one that lists it")
 	validateCmd.Flags().String("policy", "",
 		"Also judge the algorithms against a policy: "+strings.Join(certificate.PolicyNames(), ", "))
 	if err := validateCmd.RegisterFlagCompletionFunc("policy",

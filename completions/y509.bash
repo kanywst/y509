@@ -579,6 +579,8 @@ _y509_validate()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--check-crl")
+    local_nonpersistent_flags+=("--check-crl")
     flags+=("--host=")
     two_word_flags+=("--host")
     local_nonpersistent_flags+=("--host")
