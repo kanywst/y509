@@ -45,6 +45,12 @@ const (
 // megabytes; anything past this is more likely a misdirected URL than a CRL.
 const maxCRLSize = 64 << 20
 
+// crlCacheMaxAge bounds how long a cached CRL is reused, however far off its
+// nextUpdate. A CA republishes as soon as it revokes something, and nextUpdate
+// is often a week away: a gate that trusted the cache that long would read a
+// fresh revocation as good.
+const crlCacheMaxAge = time.Hour
+
 // crlDirPerm keeps the cache private: other accounts on the host must not be
 // able to plant a CRL that says a revoked certificate is good.
 const crlDirPerm = 0o700
@@ -90,7 +96,7 @@ type fetched struct {
 	err    error
 }
 
-// CRLFetcher downloads CRLs, caching each until its nextUpdate.
+// CRLFetcher downloads CRLs, caching each for up to crlCacheMaxAge.
 //
 // The cache lives in memory for the run, so several targets sharing an
 // intermediate fetch its CRL once, and on disk under Dir, so a scheduled check
@@ -191,14 +197,20 @@ func (f *CRLFetcher) cachePath(url string) string {
 	return filepath.Join(f.Dir, hex.EncodeToString(sum[:])+".crl")
 }
 
-// readCache returns the cached DER for url while it is still current, or nil.
+// readCache returns the cached DER for url while it is still current -- fetched
+// within crlCacheMaxAge and not past its nextUpdate -- or nil.
 // Anything unreadable is treated as a miss rather than an error: the cache is
 // an optimisation, and a fetch replaces whatever is there.
 func (f *CRLFetcher) readCache(url string) []byte {
 	if f.Dir == "" {
 		return nil
 	}
-	der, err := os.ReadFile(f.cachePath(url))
+	path := f.cachePath(url)
+	info, err := os.Stat(path)
+	if err != nil || f.now().Sub(info.ModTime()) > crlCacheMaxAge {
+		return nil
+	}
+	der, err := os.ReadFile(path)
 	if err != nil {
 		return nil
 	}

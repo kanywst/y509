@@ -215,10 +215,30 @@ func TestCRLFetcherCachesUntilNextUpdate(t *testing.T) {
 	}
 
 	// Past nextUpdate the cached copy is not used.
-	later := now.Add(2 * time.Hour)
+	later := now.Add(90 * time.Minute)
 	third := CheckCRLs(context.Background(), path, &CRLFetcher{Dir: dir, Now: func() time.Time { return later }})
 	if third[0].Cached || hits.Load() != 2 {
 		t.Errorf("after nextUpdate: cached=%v hits=%d, want a refetch", third[0].Cached, hits.Load())
+	}
+}
+
+func TestCRLFetcherCacheIsBoundedByMaxAge(t *testing.T) {
+	f0 := newCRLFixture(t)
+	now := time.Now()
+	// nextUpdate a week out, as a CA's usually is.
+	url, hits := crlServer(t, http.StatusOK, makeCRL(t, f0.root, f0.rootKey, now.Add(7*24*time.Hour)))
+	leaf, _ := crlCert(t, "crl.test", 0x2a, false, []string{url}, f0.root, f0.rootKey)
+	path := []*x509.Certificate{leaf, f0.root}
+	dir := t.TempDir()
+
+	CheckCRLs(context.Background(), path, &CRLFetcher{Dir: dir})
+	soon := now.Add(crlCacheMaxAge / 2)
+	if c := CheckCRLs(context.Background(), path, &CRLFetcher{Dir: dir, Now: func() time.Time { return soon }}); !c[0].Cached {
+		t.Error("cache not used within its max age")
+	}
+	late := now.Add(crlCacheMaxAge + time.Minute)
+	if c := CheckCRLs(context.Background(), path, &CRLFetcher{Dir: dir, Now: func() time.Time { return late }}); c[0].Cached || hits.Load() != 2 {
+		t.Errorf("past max age: cached=%v hits=%d, want a refetch though nextUpdate is days away", c[0].Cached, hits.Load())
 	}
 }
 

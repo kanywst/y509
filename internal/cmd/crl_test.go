@@ -136,3 +136,15 @@ func TestValidateCheckCRLText(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateCheckCRLSkipsASelfAnchoredChain(t *testing.T) {
+	chain, _ := crlChain(t, false)
+	out, _, err := runValidateJSON(t, chain, "--check-crl")
+	if err == nil {
+		t.Fatal("a self-anchored chain passed")
+	}
+	rev := decode(t, out)["revocation"].(map[string]any)
+	if checks := rev["crl"].([]any); len(checks) != 0 {
+		t.Errorf("checked CRLs against a root nobody trusts: %v", checks)
+	}
+}

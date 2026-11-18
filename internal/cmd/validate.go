@@ -43,11 +43,11 @@ algorithms, as a client in FIPS-only mode enforces them. --policy pqc requires
 post-quantum algorithms throughout: ML-DSA or SLH-DSA signatures, and ML-DSA,
 SLH-DSA or ML-KEM keys. A trusted chain that breaks the policy exits non-zero.
 
---check-crl fetches the CRL each certificate in the verified path points at,
+--check-crl fetches the CRL each certificate in the trusted path points at,
 anchor excluded, and reports a certificate it lists under revocation. It is the
 one check that goes to the network for something the server did not send, so it
-is opt-in. CRLs are cached until their nextUpdate under the user cache
-directory. Like the staple findings, it does not change the exit status; gate
+is opt-in. CRLs are cached under the user cache directory for up to an hour,
+never past their nextUpdate. Like the staple findings, it does not change the exit status; gate
 on revocation.ok, or fail-on: revocation in the GitHub Action.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targets := args
@@ -85,9 +85,11 @@ on revocation.ok, or fail-on: revocation in the GitHub Action.`,
 			}
 			if crls != nil && r.Err == nil {
 				r.CRLRequested = true
-				// Only a path that verified has an issuer worth checking a CRL
-				// signature against.
-				if len(r.Result.Chains) > 0 {
+				// Only a trusted path has an issuer worth checking a CRL
+				// signature against. A self-anchored one also verifies, but
+				// against a root from the same input, so "good" would mean
+				// nothing.
+				if r.Result.Level == certificate.TrustAnchored && len(r.Result.Chains) > 0 {
 					r.CRL = certificate.CheckCRLs(cmd.Context(), r.Result.Chains[0], crls)
 				}
 			}
@@ -126,7 +128,7 @@ type targetResult struct {
 	Policy         certificate.Policy
 	PolicyFindings []certificate.ConformanceFinding
 
-	// CRLRequested is --check-crl. CRL is nil when the path did not verify.
+	// CRLRequested is --check-crl. CRL is nil when the path is not trusted.
 	CRLRequested bool
 	CRL          []certificate.CRLCheck
 }
@@ -263,8 +265,8 @@ func printResults(results []targetResult) {
 
 		if r.CRLRequested {
 			fmt.Println()
-			if len(r.Result.Chains) == 0 {
-				fmt.Println("CRL check: not run, the chain did not verify")
+			if r.CRL == nil {
+				fmt.Println("CRL check: not run, the chain is not trusted")
 			} else if crl := certificate.FormatCRLChecks(r.CRL, time.Now()); crl != "" {
 				fmt.Println(crl)
 			} else {

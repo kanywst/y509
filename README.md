@@ -114,7 +114,7 @@ y509 validate example.com:443 --policy fips
 y509 validate chain.pem --roots root.pem --policy pqc
 ```
 
-`--check-crl` fetches the CRL each certificate in the verified path points at, trust anchor excluded, checks it is signed by that certificate's issuer, and reports a certificate it lists. It is the only check that fetches something the server did not send, so it is opt-in, and it fills no gap: the chain is still judged as sent. CRLs are cached under the user cache directory until their `nextUpdate`. Like a revoked staple, a revoked certificate does not change the exit status; gate on `revocation.ok`.
+`--check-crl` fetches the CRL each certificate in the verified path points at, trust anchor excluded, checks it is signed by that certificate's issuer, and reports a certificate it lists. It is the only check that fetches something the server did not send, so it is opt-in, and it fills no gap: the chain is still judged as sent. CRLs are cached under the user cache directory for up to an hour, never past their `nextUpdate`. Like a revoked staple, a revoked certificate does not change the exit status; gate on `revocation.ok`.
 
 ```bash
 y509 validate example.com:443 --check-crl
@@ -203,7 +203,7 @@ y509 validate example.com:443 --json | jq .
   - If the staple was unreadable, `ocspStapleError` replaces `ocspStaple`. Only one of the two is ever present.
 - `revocation` judges that staple, with its own `ok` so `presentation.ok` keeps its meaning. Present alongside `connection`, and for files too with `--check-crl`.
   - `problem` is one of `revoked`, `stale staple`, `staple not yet valid`, `unknown status`, `staple signature invalid`, `unreadable staple`, and with `--check-crl` `revoked in CRL`, `stale CRL`, `CRL signature invalid`, `CRL out of scope`, `CRL unavailable`.
-  - `crl` is present only with `--check-crl`: one `{subject, url, status, cached, thisUpdate, nextUpdate, revokedAt, revocationReason, error}` per certificate checked, `status` being `good`, `revoked` or `unchecked` (with `error`). Empty when the chain did not verify, since a CRL signature needs a trusted issuer to check against.
+  - `crl` is present only with `--check-crl`: one `{subject, url, status, cached, thisUpdate, nextUpdate, revokedAt, revocationReason, error}` per certificate checked, `status` being `good`, `revoked` or `unchecked` (with `error`). Empty when the chain is not trusted, since a CRL signature needs a trusted issuer to check against.
   - A signature left unchecked because the issuer was not sent is not a finding here. That is `missing issuer` under `presentation`.
 - `conformance` checks each certificate against rules clients enforce on their own, with its own `ok`. Present for files too.
   - `problem` is one of `weak signature` (SHA-1 or MD5, except a genuine SHA-1 self-signature, which no client checks), `weak key` (RSA under 2048 bits), `no SAN` (a server certificate with a common name but no DNS, IP or URI SAN), `precertificate` (a CT precertificate was served), `unhandled critical extension` (a critical extension Go does not process), `insufficient SCTs` (below Chrome's CT policy).
