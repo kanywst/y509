@@ -114,6 +114,12 @@ y509 validate example.com:443 --policy fips
 y509 validate chain.pem --roots root.pem --policy pqc
 ```
 
+`--check-crl` fetches the CRL each certificate in the verified path points at, trust anchor excluded, checks it is signed by that certificate's issuer, and reports a certificate it lists. It is the only check that fetches something the server did not send, so it is opt-in, and it fills no gap: the chain is still judged as sent. CRLs are cached under the user cache directory until their `nextUpdate`. Like a revoked staple, a revoked certificate does not change the exit status; gate on `revocation.ok`.
+
+```bash
+y509 validate example.com:443 --check-crl
+```
+
 ### How the chain was served
 
 Browsers fetch a missing intermediate from the AIA URL; `curl`, Go and Java do not. So a chain can verify and still be broken for clients. y509 reports that from what the server actually sent:
@@ -195,8 +201,9 @@ y509 validate example.com:443 --json | jq .
   - `verified: false` on its own means the issuer was not in the chain. With `verifyError`, the issuer was there and the response did not verify.
   - No `nextUpdate` means the responder gave none: do not cache it.
   - If the staple was unreadable, `ocspStapleError` replaces `ocspStaple`. Only one of the two is ever present.
-- `revocation` judges that staple, with its own `ok` so `presentation.ok` keeps its meaning. Present only alongside `connection`.
-  - `problem` is one of `revoked`, `stale staple`, `staple not yet valid`, `unknown status`, `staple signature invalid`, `unreadable staple`.
+- `revocation` judges that staple, with its own `ok` so `presentation.ok` keeps its meaning. Present alongside `connection`, and for files too with `--check-crl`.
+  - `problem` is one of `revoked`, `stale staple`, `staple not yet valid`, `unknown status`, `staple signature invalid`, `unreadable staple`, and with `--check-crl` `revoked in CRL`, `stale CRL`, `CRL signature invalid`, `CRL out of scope`, `CRL unavailable`.
+  - `crl` is present only with `--check-crl`: one `{subject, url, status, cached, thisUpdate, nextUpdate, revokedAt, revocationReason, error}` per certificate checked, `status` being `good`, `revoked` or `unchecked` (with `error`). Empty when the chain did not verify, since a CRL signature needs a trusted issuer to check against.
   - A signature left unchecked because the issuer was not sent is not a finding here. That is `missing issuer` under `presentation`.
 - `conformance` checks each certificate against rules clients enforce on their own, with its own `ok`. Present for files too.
   - `problem` is one of `weak signature` (SHA-1 or MD5, except a genuine SHA-1 self-signature, which no client checks), `weak key` (RSA under 2048 bits), `no SAN` (a server certificate with a common name but no DNS, IP or URI SAN), `precertificate` (a CT precertificate was served), `unhandled critical extension` (a critical extension Go does not process), `insufficient SCTs` (below Chrome's CT policy).
@@ -277,9 +284,10 @@ Downloads a release binary, verifies its checksum, and fails the job on the find
 | `roots` |  | PEM file of extra trust anchors, for an internal PKI |
 | `no-system-roots` | `false` | trust only `roots` |
 | `policy` |  | `fips` or `pqc`, passed to `--policy` |
+| `check-crl` | `false` | fetch and check CRLs, passed to `--check-crl` |
 | `summary` | `true` | write a report to the job summary |
 
-`revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable. No staple passes. `conformance` fails on a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name only in the common name, a served precertificate, a critical extension Go does not process, or too few SCTs for Chrome's CT policy. `advisories` never fail the step.
+`revocation` fails on a stapled OCSP response that is revoked, stale, dated in the future, unknown, badly signed or unreadable, and with `check-crl` on a certificate a CRL lists or a CRL that is stale, badly signed, out of scope or unreachable. No staple passes. `conformance` fails on a SHA-1 or MD5 signature, an RSA key under 2048 bits, a host name only in the common name, a served precertificate, a critical extension Go does not process, or too few SCTs for Chrome's CT policy. `advisories` never fail the step.
 
 Outputs: `trust-level`, `trusted`, `presentation-ok`, `days-until-expiry`, `problems`, `revocation-ok`, `conformance-ok`, `ct-policy`, `policy-ok`, and `report` (path to the full JSON).
 

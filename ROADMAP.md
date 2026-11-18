@@ -17,7 +17,7 @@ Current release: v1.16.0. Landscape last reviewed 2026-09-17.
 
 ## Next
 
-- **Opt-in CRL check.** Fetch the CRL a certificate points at and report it if listed. CRL-only, opt-in and cached.
+- **JSON parity with the TUI.** JSON lacks key usage, extended key usage, basic constraints, AKI, SKI and the AIA, OCSP and CRL URLs the TUI shows.
 
 ## Keeping up with X.509
 
@@ -26,6 +26,7 @@ A valid certificate must render completely. A malformed one is a finding.
 - **Presentation findings.** `missing issuer`, `redundant root`, `out of order`, `duplicate` and `unrelated`, judged on the chain as sent, under `presentation.findings` and gated by `fail-on: mis-served`. A missing issuer carries the AIA URL to fetch it from.
 - **Unreadable blocks.** A block that does not parse is listed under `unparsed` and in the TUI, never dropped.
 - **Revocation findings.** Stapled responses are judged under `revocation`, gated by `fail-on: revocation`.
+- **Opt-in CRL check.** `validate --check-crl` fetches the CRL each certificate in the verified path points at, anchor excluded, checks its signature against the issuer, and reports `revoked in CRL`, `stale CRL`, `CRL signature invalid`, `CRL out of scope` or `CRL unavailable` under `revocation`, after checking the CRL's issuing distribution point covers the certificate. `revocation.crl` lists every certificate checked, good ones included. HTTP only. A CRL that verified is cached under the user cache directory until `nextUpdate` and re-verified each time; one that no longer verifies is refetched. OCSP is not fetched.
 - **Conformance findings.** Hand-rolled rather than zlint, which mostly checks a CA's obligations and predicts no client failure. `conformance` reports a SHA-1 or MD5 signature, RSA under 2048 bits and a CN-only server certificate, gated by `fail-on: conformance`.
 - **FIPS policy.** `validate --policy fips` reports `unapproved signature` and `unapproved key` under `policy`, against the rules Go's `fips140=only` mode enforces. Opt-in, since only FIPS-mode clients reject these.
 - **PQC policy.** `validate --policy pqc` accepts only ML-DSA or SLH-DSA signatures and ML-DSA, SLH-DSA or ML-KEM keys. `fips` accepts ML-KEM keys too.
@@ -54,7 +55,7 @@ A valid certificate must render completely. A malformed one is a finding.
 
 - **Packaging.** winget (#138), AUR and nix (#139). Scoop already updates itself.
 - **Malformed-certificate fixtures.** One shared helper instead of every package building its own.
-- **Presentation rules not yet met.** `duplicate` and `unrelated` give no why or fix, and `missing issuer` and `out of order` give no fix. `validate` does not name the verifier or the trust source. JSON lacks key usage, extended key usage, basic constraints, AKI, SKI and the AIA, OCSP and CRL URLs the TUI shows. The landing page lists none of the subcommand flags.
+- **Presentation rules not yet met.** `duplicate` and `unrelated` give no why or fix, and `missing issuer` and `out of order` give no fix. `validate` does not name the verifier or the trust source. The landing page lists none of the subcommand flags.
 
 ## Non-goals
 

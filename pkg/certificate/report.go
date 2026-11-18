@@ -41,10 +41,11 @@ type JSONReport struct {
 	// precertificate, a critical extension Go does not process. Its own ok,
 	// for the same reason as Revocation.
 	Conformance JSONConformance `json:"conformance"`
-	// Revocation judges what the server stapled. It has its own ok rather than
-	// adding to Presentation.Findings, so a gate written against
-	// presentation.ok keeps meaning what it meant. Absent, like Connection,
-	// when there was no handshake: a file has nothing stapled to judge.
+	// Revocation judges what the server stapled and, with --check-crl, what
+	// the CRLs say. It has its own ok rather than adding to
+	// Presentation.Findings, so a gate written against presentation.ok keeps
+	// meaning what it meant. Absent, like Connection, when there was no
+	// handshake and no CRL check: a file has nothing stapled to judge.
 	Revocation *JSONRevocation `json:"revocation,omitempty"`
 	// Unparsed lists the CERTIFICATE blocks the input held that could not be
 	// read, so a consumer can tell "this chain is fine" from "this chain is
@@ -368,14 +369,78 @@ func NewJSONConformance(findings []ConformanceFinding) JSONConformance {
 	return out
 }
 
-// JSONRevocation is the verdict on the stapled OCSP response.
+// JSONRevocation is the verdict on the stapled OCSP response and, with
+// --check-crl, on the CRLs the path points at.
 type JSONRevocation struct {
 	// OK is false when any finding is present. No staple at all is ok.
 	OK bool `json:"ok"`
 	// Findings use the same shape as the presentation ones. Problem is one of
 	// "revoked", "stale staple", "staple not yet valid", "unknown status",
-	// "staple signature invalid" or "unreadable staple". Always an array, never null.
+	// "staple signature invalid" or "unreadable staple" for the staple, and
+	// "revoked in CRL", "stale CRL", "CRL signature invalid",
+	// "CRL out of scope" or "CRL unavailable" for a CRL. Always an array, never null.
 	Findings []JSONFinding `json:"findings"`
+	// CRL is one entry per certificate checked, anchor excluded, present only
+	// with --check-crl. It says what was fetched and from where, good answers
+	// included, so a consumer can tell "checked and good" from "not checked".
+	CRL []JSONCRLCheck `json:"crl,omitzero"`
+}
+
+// JSONCRLCheck is what a CRL said about one certificate.
+type JSONCRLCheck struct {
+	Subject string `json:"subject"`
+	// URL is the distribution point that answered, or the last one tried.
+	// Absent when the certificate names no HTTP distribution point.
+	URL string `json:"url,omitempty"`
+	// Status is "good", "revoked" or "unchecked".
+	Status string `json:"status"`
+	// Cached reports an answer read from the on-disk cache.
+	Cached     bool       `json:"cached"`
+	ThisUpdate *time.Time `json:"thisUpdate,omitempty"`
+	NextUpdate *time.Time `json:"nextUpdate,omitempty"`
+	// RevokedAt and RevocationReason are present only for a revoked
+	// certificate.
+	RevokedAt        *time.Time `json:"revokedAt,omitempty"`
+	RevocationReason string     `json:"revocationReason,omitempty"`
+	// Error is why the certificate is unchecked.
+	Error string `json:"error,omitempty"`
+}
+
+// AddCRLChecks folds CRL checks into rev, creating it for a file target that
+// had no handshake to judge. Nil checks leave rev as it was.
+func AddCRLChecks(rev *JSONRevocation, checks []CRLCheck, now time.Time) *JSONRevocation {
+	if checks == nil {
+		return rev
+	}
+	if rev == nil {
+		rev = &JSONRevocation{OK: true, Findings: []JSONFinding{}}
+	}
+	rev.CRL = make([]JSONCRLCheck, 0, len(checks))
+	for _, c := range checks {
+		out := JSONCRLCheck{Subject: c.Subject, URL: c.URL, Status: c.Status, Cached: c.Cached}
+		if !c.ThisUpdate.IsZero() {
+			t := c.ThisUpdate
+			out.ThisUpdate = &t
+		}
+		if !c.NextUpdate.IsZero() {
+			t := c.NextUpdate
+			out.NextUpdate = &t
+		}
+		if !c.RevokedAt.IsZero() {
+			t := c.RevokedAt
+			out.RevokedAt = &t
+			out.RevocationReason = c.RevocationReason
+		}
+		if c.Err != nil {
+			out.Error = c.Err.Error()
+		}
+		rev.CRL = append(rev.CRL, out)
+	}
+	for _, f := range CRLFindings(checks, now) {
+		rev.OK = false
+		rev.Findings = append(rev.Findings, JSONFinding{Problem: f.Problem, Subject: f.Subject, Detail: f.Detail})
+	}
+	return rev
 }
 
 // NewJSONRevocation judges a handshake for the report, or returns nil when
